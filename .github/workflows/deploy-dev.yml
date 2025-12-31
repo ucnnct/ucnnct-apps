@@ -9,9 +9,11 @@ on:
 permissions:
   contents: write
   packages: write
+  pull-requests: read
 
 env:
   REGISTRY: ghcr.io
+  IMAGE_NAMESPACE: ucnnct
   IMAGE_PREFIX: intrachat
 
 jobs:
@@ -27,6 +29,8 @@ jobs:
       web: ${{ steps.filter.outputs.web }}
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
       - uses: dorny/paths-filter@v3
         id: filter
         with:
@@ -99,11 +103,58 @@ jobs:
     needs: [detect-changes, tests]
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
-      - name: Compute immutable tag + owner
+      - name: Compute semver tag + image namespace
+        shell: bash
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          echo "TAG=sha-${GITHUB_SHA::7}" >> $GITHUB_ENV
-          echo "OWNER=$(echo '${{ github.repository_owner }}' | tr '[:upper:]' '[:lower:]')" >> $GITHUB_ENV
+          set -euo pipefail
+          echo "OWNER=$(echo '${{ env.IMAGE_NAMESPACE }}' | tr '[:upper:]' '[:lower:]')" >> $GITHUB_ENV
+
+          BASE_VERSION="$(git tag --list | grep -E '^v?[0-9]+\.[0-9]+\.[0-9]+$' | sed 's/^v//' | sort -V | tail -n 1)"
+          if [[ -z "$BASE_VERSION" ]]; then
+            BASE_VERSION="0.0.0"
+          fi
+
+          PR_BRANCH=""
+          PR_JSON="$(curl -sS -H "Authorization: Bearer $GITHUB_TOKEN" -H "Accept: application/vnd.github+json" \
+            "https://api.github.com/repos/${{ github.repository }}/commits/${{ github.sha }}/pulls")"
+
+          PR_BRANCH="$(python3 - <<'PY'
+          import json, os
+          data = json.loads(os.environ.get("PR_JSON", "[]"))
+          print(data[0]["head"]["ref"] if data else "")
+          PY
+          )"
+
+          BRANCH_LC="$(echo "$PR_BRANCH" | tr '[:upper:]' '[:lower:]')"
+          MSG_LC="$(echo "${{ github.event.head_commit.message }}" | tr '[:upper:]' '[:lower:]')"
+
+          BUMP="patch"
+          if [[ "$BRANCH_LC" =~ (feat|feature|fit) ]]; then
+            BUMP="minor"
+          elif [[ "$BRANCH_LC" =~ (fix|hotfix|bug|corr|correction) ]]; then
+            BUMP="patch"
+          elif [[ "$MSG_LC" =~ (feat|feature|fit) ]]; then
+            BUMP="minor"
+          elif [[ "$MSG_LC" =~ (fix|hotfix|bug|corr|correction) ]]; then
+            BUMP="patch"
+          fi
+
+          IFS='.' read -r MAJOR MINOR PATCH <<< "$BASE_VERSION"
+          if [[ "$BUMP" == "minor" ]]; then
+            MINOR=$((MINOR + 1))
+            PATCH=0
+          else
+            PATCH=$((PATCH + 1))
+          fi
+
+          SEMVER_TAG="$MAJOR.$MINOR.$PATCH"
+          echo "SEMVER_TAG=$SEMVER_TAG" >> $GITHUB_ENV
+          echo "BASE_VERSION=$BASE_VERSION" >> $GITHUB_ENV
 
       - uses: docker/setup-buildx-action@v3
       - uses: docker/login-action@v3
@@ -120,7 +171,7 @@ jobs:
           context: services/auth-service
           push: true
           tags: |
-            ${{ env.REGISTRY }}/${{ env.OWNER }}/intrachat-auth-service:${{ env.TAG }}
+            ${{ env.REGISTRY }}/${{ env.OWNER }}/intrachat-auth-service:${{ env.SEMVER_TAG }}
             ${{ env.REGISTRY }}/${{ env.OWNER }}/intrachat-auth-service:latest
 
       - name: Build & push user-service
@@ -130,7 +181,7 @@ jobs:
           context: services/user-service
           push: true
           tags: |
-            ${{ env.REGISTRY }}/${{ env.OWNER }}/intrachat-user-service:${{ env.TAG }}
+            ${{ env.REGISTRY }}/${{ env.OWNER }}/intrachat-user-service:${{ env.SEMVER_TAG }}
             ${{ env.REGISTRY }}/${{ env.OWNER }}/intrachat-user-service:latest
 
       - name: Build & push chat-service
@@ -140,7 +191,7 @@ jobs:
           context: services/chat-service
           push: true
           tags: |
-            ${{ env.REGISTRY }}/${{ env.OWNER }}/intrachat-chat-service:${{ env.TAG }}
+            ${{ env.REGISTRY }}/${{ env.OWNER }}/intrachat-chat-service:${{ env.SEMVER_TAG }}
             ${{ env.REGISTRY }}/${{ env.OWNER }}/intrachat-chat-service:latest
 
       - name: Build & push ws-manager
@@ -150,7 +201,7 @@ jobs:
           context: services/ws-manager
           push: true
           tags: |
-            ${{ env.REGISTRY }}/${{ env.OWNER }}/intrachat-ws-manager:${{ env.TAG }}
+            ${{ env.REGISTRY }}/${{ env.OWNER }}/intrachat-ws-manager:${{ env.SEMVER_TAG }}
             ${{ env.REGISTRY }}/${{ env.OWNER }}/intrachat-ws-manager:latest
 
       - name: Build & push notification-service
@@ -160,7 +211,7 @@ jobs:
           context: services/notification-service
           push: true
           tags: |
-            ${{ env.REGISTRY }}/${{ env.OWNER }}/intrachat-notification-service:${{ env.TAG }}
+            ${{ env.REGISTRY }}/${{ env.OWNER }}/intrachat-notification-service:${{ env.SEMVER_TAG }}
             ${{ env.REGISTRY }}/${{ env.OWNER }}/intrachat-notification-service:latest
 
       - name: Build & push media-service
@@ -170,7 +221,7 @@ jobs:
           context: services/media-service
           push: true
           tags: |
-            ${{ env.REGISTRY }}/${{ env.OWNER }}/intrachat-media-service:${{ env.TAG }}
+            ${{ env.REGISTRY }}/${{ env.OWNER }}/intrachat-media-service:${{ env.SEMVER_TAG }}
             ${{ env.REGISTRY }}/${{ env.OWNER }}/intrachat-media-service:latest
 
       - name: Build & push web-frontend
@@ -180,7 +231,7 @@ jobs:
           context: services/web-frontend
           push: true
           tags: |
-            ${{ env.REGISTRY }}/${{ env.OWNER }}/intrachat-web-frontend:${{ env.TAG }}
+            ${{ env.REGISTRY }}/${{ env.OWNER }}/intrachat-web-frontend:${{ env.SEMVER_TAG }}
             ${{ env.REGISTRY }}/${{ env.OWNER }}/intrachat-web-frontend:latest
           build-args: |
             VITE_MODE=dev
@@ -193,7 +244,7 @@ jobs:
           update_newtag () {
             file="$1"
             if [ -f "$file" ]; then
-              python3 -c 'import sys, pathlib, re; p = pathlib.Path(sys.argv[1]); tag = sys.argv[2]; s = p.read_text(); s = re.sub(r"(newTag:\\s*).+", r"\\1" + tag, s); p.write_text(s); print("updated", p)' "$file" "$TAG"
+              python3 -c 'import sys, pathlib, re; p = pathlib.Path(sys.argv[1]); tag = sys.argv[2]; s = p.read_text(); s = re.sub(r"(newTag:\\s*).+", r"\\1" + tag, s); p.write_text(s); print("updated", p)' "$file" "$SEMVER_TAG"
             fi
           }
 
@@ -214,5 +265,18 @@ jobs:
             echo "No GitOps changes to commit."
             exit 0
           fi
-          git commit -m "chore(dev): deploy $TAG"
+          git commit -m "chore(dev): deploy $SEMVER_TAG"
           git push
+
+      - name: Tag release
+        if: always()
+        shell: bash
+        run: |
+          set -e
+          TAG="v${SEMVER_TAG}"
+          if git tag --list | grep -q "^${TAG}$"; then
+            echo "Tag ${TAG} already exists, skipping."
+            exit 0
+          fi
+          git tag "${TAG}"
+          git push origin "${TAG}"
