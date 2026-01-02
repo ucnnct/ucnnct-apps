@@ -126,7 +126,7 @@ jobs:
             BASE_VERSION="0.0.0"
           fi
 
-           =""
+          PR_BRANCH=""
           PR_JSON="$(curl -sS -H "Authorization: Bearer $GITHUB_TOKEN" -H "Accept: application/vnd.github+json" \
             "https://api.github.com/repos/${{ github.repository }}/commits/${{ github.sha }}/pulls")"
 
