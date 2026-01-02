@@ -7,7 +7,7 @@ export default function App() {
 
   if (!initialized) return <div color="green">Eloka mich</div>;
   if (!keycloak.authenticated) return <Login />;
-// sscsdfdfdf
+// sscgggsdfdfdf
   return <Home />;
 }
 
