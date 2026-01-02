@@ -40,8 +40,8 @@ jobs:
       - name: Verify images exist in registry
         run: |
           TAG="${{ inputs.tag }}"
-          docker manifest inspect ${REGISTRY}/${OWNER}/intrachat-auth-service:${TAG} >/dev/null
-          docker manifest inspect ${REGISTRY}/${OWNER}/intrachat-web-frontend:${TAG} >/dev/null
+          docker manifest inspect ${REGISTRY}/${OWNER}/uconnect-auth-service:${TAG} >/dev/null
+          docker manifest inspect ${REGISTRY}/${OWNER}/uconnect-web-frontend:${TAG} >/dev/null
           echo " Images exist: ${TAG}"
 
       - name: Promote tag

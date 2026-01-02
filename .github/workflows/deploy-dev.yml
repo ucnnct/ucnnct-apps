@@ -4,7 +4,14 @@ on:
   push:
     branches: ["main"]
     paths:
-      - "services/**"
+      - "auth-service/**"
+      - "user-service/**"
+      - "chat-service/**"
+      - "ws-manager/**"
+      - "notification-service/**"
+      - "media-service/**"
+      - "web-frontend/**"
+      - ".github/workflows/deploy-dev.yml"
 
 permissions:
   contents: write
@@ -13,8 +20,8 @@ permissions:
 
 env:
   REGISTRY: ghcr.io
-  IMAGE_NAMESPACE: ucnnct
-  IMAGE_PREFIX: intrachat
+  IMAGE_NAMESPACE: ${{ github.repository_owner }}
+  IMAGE_PREFIX: uconnect
 
 jobs:
   detect-changes:
@@ -35,13 +42,13 @@ jobs:
         id: filter
         with:
           filters: |
-            auth:  ["services/auth-service/**"]
-            user:  ["services/user-service/**"]
-            chat:  ["services/chat-service/**"]
-            ws:    ["services/ws-manager/**"]
-            notif: ["services/notification-service/**"]
-            media: ["services/media-service/**"]
-            web:   ["services/web-frontend/**"]
+            auth:  ["auth-service/**"]
+            user:  ["user-service/**"]
+            chat:  ["chat-service/**"]
+            ws:    ["ws-manager/**"]
+            notif: ["notification-service/**"]
+            media: ["media-service/**"]
+            web:   ["web-frontend/**"]
 
   tests:
     runs-on: ubuntu-latest
@@ -64,11 +71,11 @@ jobs:
           set -e
           run_maven_tests () {
             svc="$1"
-            if [ -f "services/$svc/mvnw" ]; then
-              chmod +x "services/$svc/mvnw"
-              (cd "services/$svc" && ./mvnw -q test)
-            elif [ -f "services/$svc/pom.xml" ]; then
-              (cd "services/$svc" && mvn -q test)
+            if [ -f "$svc/mvnw" ]; then
+              chmod +x "$svc/mvnw"
+              (cd "$svc" && ./mvnw -q test)
+            elif [ -f "$svc/pom.xml" ]; then
+              (cd "$svc" && mvn -q test)
             fi
           }
 
@@ -85,11 +92,11 @@ jobs:
         with:
           node-version: "20"
           cache: npm
-          cache-dependency-path: services/web-frontend/package-lock.json
+          cache-dependency-path: web-frontend/package-lock.json
 
       - name: React tests
         if: needs.detect-changes.outputs.web == 'true'
-        working-directory: services/web-frontend
+        working-directory: web-frontend
         run: |
           npm ci
           if node -e "const s=require('./package.json').scripts||{}; process.exit(s.test?0:1)"; then
@@ -119,7 +126,7 @@ jobs:
             BASE_VERSION="0.0.0"
           fi
 
-          PR_BRANCH=""
+           =""
           PR_JSON="$(curl -sS -H "Authorization: Bearer $GITHUB_TOKEN" -H "Accept: application/vnd.github+json" \
             "https://api.github.com/repos/${{ github.repository }}/commits/${{ github.sha }}/pulls")"
 
@@ -168,105 +175,73 @@ jobs:
         if: needs.detect-changes.outputs.auth == 'true'
         uses: docker/build-push-action@v6
         with:
-          context: services/auth-service
+          context: auth-service
           push: true
           tags: |
-            ${{ env.REGISTRY }}/${{ env.OWNER }}/intrachat-auth-service:${{ env.SEMVER_TAG }}
-            ${{ env.REGISTRY }}/${{ env.OWNER }}/intrachat-auth-service:latest
+            ${{ env.REGISTRY }}/${{ env.OWNER }}/uconnect-auth-service:${{ env.SEMVER_TAG }}
+            ${{ env.REGISTRY }}/${{ env.OWNER }}/uconnect-auth-service:latest
 
       - name: Build & push user-service
         if: needs.detect-changes.outputs.user == 'true'
         uses: docker/build-push-action@v6
         with:
-          context: services/user-service
+          context: user-service
           push: true
           tags: |
-            ${{ env.REGISTRY }}/${{ env.OWNER }}/intrachat-user-service:${{ env.SEMVER_TAG }}
-            ${{ env.REGISTRY }}/${{ env.OWNER }}/intrachat-user-service:latest
+            ${{ env.REGISTRY }}/${{ env.OWNER }}/uconnect-user-service:${{ env.SEMVER_TAG }}
+            ${{ env.REGISTRY }}/${{ env.OWNER }}/uconnect-user-service:latest
 
       - name: Build & push chat-service
         if: needs.detect-changes.outputs.chat == 'true'
         uses: docker/build-push-action@v6
         with:
-          context: services/chat-service
+          context: chat-service
           push: true
           tags: |
-            ${{ env.REGISTRY }}/${{ env.OWNER }}/intrachat-chat-service:${{ env.SEMVER_TAG }}
-            ${{ env.REGISTRY }}/${{ env.OWNER }}/intrachat-chat-service:latest
+            ${{ env.REGISTRY }}/${{ env.OWNER }}/uconnect-chat-service:${{ env.SEMVER_TAG }}
+            ${{ env.REGISTRY }}/${{ env.OWNER }}/uconnect-chat-service:latest
 
       - name: Build & push ws-manager
         if: needs.detect-changes.outputs.ws == 'true'
         uses: docker/build-push-action@v6
         with:
-          context: services/ws-manager
+          context: ws-manager
           push: true
           tags: |
-            ${{ env.REGISTRY }}/${{ env.OWNER }}/intrachat-ws-manager:${{ env.SEMVER_TAG }}
-            ${{ env.REGISTRY }}/${{ env.OWNER }}/intrachat-ws-manager:latest
+            ${{ env.REGISTRY }}/${{ env.OWNER }}/uconnect-ws-manager:${{ env.SEMVER_TAG }}
+            ${{ env.REGISTRY }}/${{ env.OWNER }}/uconnect-ws-manager:latest
 
       - name: Build & push notification-service
         if: needs.detect-changes.outputs.notif == 'true'
         uses: docker/build-push-action@v6
         with:
-          context: services/notification-service
+          context: notification-service
           push: true
           tags: |
-            ${{ env.REGISTRY }}/${{ env.OWNER }}/intrachat-notification-service:${{ env.SEMVER_TAG }}
-            ${{ env.REGISTRY }}/${{ env.OWNER }}/intrachat-notification-service:latest
+            ${{ env.REGISTRY }}/${{ env.OWNER }}/uconnect-notification-service:${{ env.SEMVER_TAG }}
+            ${{ env.REGISTRY }}/${{ env.OWNER }}/uconnect-notification-service:latest
 
       - name: Build & push media-service
         if: needs.detect-changes.outputs.media == 'true'
         uses: docker/build-push-action@v6
         with:
-          context: services/media-service
+          context: media-service
           push: true
           tags: |
-            ${{ env.REGISTRY }}/${{ env.OWNER }}/intrachat-media-service:${{ env.SEMVER_TAG }}
-            ${{ env.REGISTRY }}/${{ env.OWNER }}/intrachat-media-service:latest
+            ${{ env.REGISTRY }}/${{ env.OWNER }}/uconnect-media-service:${{ env.SEMVER_TAG }}
+            ${{ env.REGISTRY }}/${{ env.OWNER }}/uconnect-media-service:latest
 
       - name: Build & push web-frontend
         if: needs.detect-changes.outputs.web == 'true'
         uses: docker/build-push-action@v6
         with:
-          context: services/web-frontend
+          context: web-frontend
           push: true
           tags: |
-            ${{ env.REGISTRY }}/${{ env.OWNER }}/intrachat-web-frontend:${{ env.SEMVER_TAG }}
-            ${{ env.REGISTRY }}/${{ env.OWNER }}/intrachat-web-frontend:latest
+            ${{ env.REGISTRY }}/${{ env.OWNER }}/uconnect-web-frontend:${{ env.SEMVER_TAG }}
+            ${{ env.REGISTRY }}/${{ env.OWNER }}/uconnect-web-frontend:latest
           build-args: |
             VITE_MODE=dev
-
-      # Update GitOps only for changed services
-      - name: Update GitOps DEV tags (only changed)
-        shell: bash
-        run: |
-          set -e
-          update_newtag () {
-            file="$1"
-            if [ -f "$file" ]; then
-              python3 -c 'import sys, pathlib, re; p = pathlib.Path(sys.argv[1]); tag = sys.argv[2]; s = p.read_text(); s = re.sub(r"(newTag:\\s*).+", r"\\1" + tag, s); p.write_text(s); print("updated", p)' "$file" "$SEMVER_TAG"
-            fi
-          }
-
-          if [[ "${{ needs.detect-changes.outputs.auth }}" == "true" ]]; then update_newtag "gitops/env/dev/apps/auth-service/overlay/kustomization.yaml"; fi
-          if [[ "${{ needs.detect-changes.outputs.user }}" == "true" ]]; then update_newtag "gitops/env/dev/apps/user-service/overlay/kustomization.yaml"; fi
-          if [[ "${{ needs.detect-changes.outputs.chat }}" == "true" ]]; then update_newtag "gitops/env/dev/apps/chat-service/overlay/kustomization.yaml"; fi
-          if [[ "${{ needs.detect-changes.outputs.ws }}" == "true" ]]; then update_newtag "gitops/env/dev/apps/ws-manager/overlay/kustomization.yaml"; fi
-          if [[ "${{ needs.detect-changes.outputs.notif }}" == "true" ]]; then update_newtag "gitops/env/dev/apps/notification-service/overlay/kustomization.yaml"; fi
-          if [[ "${{ needs.detect-changes.outputs.media }}" == "true" ]]; then update_newtag "gitops/env/dev/apps/media-service/overlay/kustomization.yaml"; fi
-          if [[ "${{ needs.detect-changes.outputs.web }}" == "true" ]]; then update_newtag "gitops/env/dev/apps/web-frontend/overlay/kustomization.yaml"; fi
-
-      - name: Commit GitOps DEV
-        run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add gitops/env/dev || true
-          if git diff --staged --quiet; then
-            echo "No GitOps changes to commit."
-            exit 0
-          fi
-          git commit -m "chore(dev): deploy $SEMVER_TAG"
-          git push
 
       - name: Tag release
         if: always()
