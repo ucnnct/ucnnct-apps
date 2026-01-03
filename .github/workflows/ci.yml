@@ -10,7 +10,14 @@ on:
       - "bugfix/**"
       - "hotfix/**"
     paths:
-      - "services/**"
+      - "auth-service/**"
+      - "user-service/**"
+      - "chat-service/**"
+      - "ws-manager/**"
+      - "notification-service/**"
+      - "media-service/**"
+      - "web-frontend/**"
+      - ".github/workflows/ci.yml"
 
 permissions:
   contents: read
@@ -34,13 +41,13 @@ jobs:
         id: filter
         with:
           filters: |
-            auth:  ["services/auth-service/**"]
-            user:  ["services/user-service/**"]
-            chat:  ["services/chat-service/**"]
-            ws:    ["services/ws-manager/**"]
-            notif: ["services/notification-service/**"]
-            media: ["services/media-service/**"]
-            web:   ["services/web-frontend/**"]
+            auth:  ["auth-service/**"]
+            user:  ["user-service/**"]
+            chat:  ["chat-service/**"]
+            ws:    ["ws-manager/**"]
+            notif: ["notification-service/**"]
+            media: ["media-service/**"]
+            web:   ["web-frontend/**"]
 
       - id: set
         run: |
@@ -74,11 +81,11 @@ jobs:
           set -e
           run_maven_tests () {
             svc="$1"
-            if [ -f "services/$svc/mvnw" ]; then
-              chmod +x "services/$svc/mvnw"
-              (cd "services/$svc" && ./mvnw -q test)
-            elif [ -f "services/$svc/pom.xml" ]; then
-              (cd "services/$svc" && mvn -q test)
+            if [ -f "$svc/mvnw" ]; then
+              chmod +x "$svc/mvnw"
+              (cd "$svc" && ./mvnw -q test)
+            elif [ -f "$svc/pom.xml" ]; then
+              (cd "$svc" && mvn -q test)
             fi
           }
 
@@ -99,14 +106,14 @@ jobs:
         with:
           node-version: "20"
           cache: npm
-          cache-dependency-path: services/web-frontend/package-lock.json
+          cache-dependency-path: web-frontend/package-lock.json
 
       - name: Install deps
-        working-directory: services/web-frontend
+        working-directory: web-frontend
         run: npm ci
 
       - name: Run React tests
-        working-directory: services/web-frontend
+        working-directory: web-frontend
         run: |
           if node -e "const s=require('./package.json').scripts||{}; process.exit(s.test?0:1)"; then
             npm test -- --runInBand
