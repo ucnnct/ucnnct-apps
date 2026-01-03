@@ -6,7 +6,7 @@ export default function App() {
   const { keycloak, initialized } = useKeycloak();
 
   if (!initialized) {
-    return <div>Chargement...</div>;
+    return <div>ChargementEloka...</div>;
   }
 
   if (!keycloak.authenticated) {
