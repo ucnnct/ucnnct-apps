@@ -3,7 +3,7 @@ WORKDIR /app
 COPY package.json package-lock.json ./
 RUN npm ci
 COPY . .
-ARG VITE_MODE=dev
+ARG VITE_MODE=prod
 RUN npm run build -- --mode ${VITE_MODE}
 
 FROM nginx:1.27-alpine
