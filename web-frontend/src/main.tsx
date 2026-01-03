@@ -16,6 +16,7 @@ ReactDOM.createRoot(document.getElementById("root")!).render(
         checkLoginIframe: false,
       }}
     >
+      <p>Hello</p>
       <App />
     </ReactKeycloakProvider>
   </React.StrictMode>
