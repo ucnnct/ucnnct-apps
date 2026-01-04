@@ -1,0 +1,7 @@
+spring:
+  config:
+    activate:
+      on-profile: dev
+
+hello:
+  message: ${HELLO_MESSAGE:hello}
