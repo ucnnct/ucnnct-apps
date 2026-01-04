@@ -5,14 +5,31 @@
     <link rel="icon" type="image/svg+xml" href="vite.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>web-frontend</title>
+    <script>
+      (function () {
+        var path = window.location.pathname || "/";
+        var base = "/";
+        if (path === "/dev" || path.indexOf("/dev/") === 0) {
+          base = "/dev/";
+        } else if (path === "/staging" || path.indexOf("/staging/") === 0) {
+          base = "/staging/";
+        }
+        var baseEl = document.createElement("base");
+        baseEl.setAttribute("href", base);
+        baseEl.setAttribute("id", "app-base");
+        document.head.appendChild(baseEl);
+      })();
+    </script>
     <script src="config.js"></script>
     <script>
       (function () {
         var env = window.__ENV__ || {};
-        var base = env.PUBLIC_BASE || "/";
-        var baseEl = document.createElement("base");
-        baseEl.setAttribute("href", base);
-        document.head.appendChild(baseEl);
+        var base = env.PUBLIC_BASE;
+        if (!base) return;
+        var baseEl = document.getElementById("app-base");
+        if (baseEl) {
+          baseEl.setAttribute("href", base);
+        }
       })();
     </script>
   </head>
