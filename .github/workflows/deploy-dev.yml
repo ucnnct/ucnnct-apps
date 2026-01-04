@@ -1,4 +1,4 @@
-name: Deploy DEV (main) - test, build once, update GitOps
+name: Deploy DEV (main) - per-service pipeline
 
 on:
   push:
@@ -30,14 +30,8 @@ jobs:
     if: "!contains(github.event.head_commit.message, '[skip ci]')"
     runs-on: ubuntu-latest
     outputs:
-      auth: ${{ steps.filter.outputs.auth }}
-      user: ${{ steps.filter.outputs.user }}
-      chat: ${{ steps.filter.outputs.chat }}
-      group: ${{ steps.filter.outputs.group }}
-      ws: ${{ steps.filter.outputs.ws }}
-      notif: ${{ steps.filter.outputs.notif }}
-      media: ${{ steps.filter.outputs.media }}
-      web: ${{ steps.filter.outputs.web }}
+      matrix: ${{ steps.set-matrix.outputs.matrix }}
+      has_changes: ${{ steps.set-matrix.outputs.has_changes }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -54,55 +48,74 @@ jobs:
             notif: ["notification-service/**"]
             media: ["media-service/**"]
             web:   ["web-frontend/**"]
+      - id: set-matrix
+        shell: bash
+        run: |
+          set -euo pipefail
+          include=()
+          if [[ "${{ steps.filter.outputs.auth }}" == "true" ]]; then include+=("{\"service\":\"auth-service\",\"type\":\"java\"}"); fi
+          if [[ "${{ steps.filter.outputs.user }}" == "true" ]]; then include+=("{\"service\":\"user-service\",\"type\":\"java\"}"); fi
+          if [[ "${{ steps.filter.outputs.chat }}" == "true" ]]; then include+=("{\"service\":\"chat-service\",\"type\":\"java\"}"); fi
+          if [[ "${{ steps.filter.outputs.group }}" == "true" ]]; then include+=("{\"service\":\"group-service\",\"type\":\"java\"}"); fi
+          if [[ "${{ steps.filter.outputs.ws }}" == "true" ]]; then include+=("{\"service\":\"ws-manager\",\"type\":\"java\"}"); fi
+          if [[ "${{ steps.filter.outputs.notif }}" == "true" ]]; then include+=("{\"service\":\"notification-service\",\"type\":\"java\"}"); fi
+          if [[ "${{ steps.filter.outputs.media }}" == "true" ]]; then include+=("{\"service\":\"media-service\",\"type\":\"java\"}"); fi
+          if [[ "${{ steps.filter.outputs.web }}" == "true" ]]; then include+=("{\"service\":\"web-frontend\",\"type\":\"web\"}"); fi
 
-  tests:
-    if: "!contains(github.event.head_commit.message, '[skip ci]')"
+          if [[ ${#include[@]} -eq 0 ]]; then
+            echo 'matrix={"include":[]}' >> "$GITHUB_OUTPUT"
+            echo "has_changes=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          printf -v json '%s,' "${include[@]}"
+          json="[${json%,}]"
+          echo "matrix={\"include\":$json}" >> "$GITHUB_OUTPUT"
+          echo "has_changes=true" >> "$GITHUB_OUTPUT"
+
+  service-pipeline:
+    if: "!contains(github.event.head_commit.message, '[skip ci]') && needs.detect-changes.outputs.has_changes == 'true'"
     runs-on: ubuntu-latest
     needs: detect-changes
+    strategy:
+      fail-fast: false
+      matrix: ${{ fromJSON(needs.detect-changes.outputs.matrix) }}
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
-      # Java tests (only if any backend changed)
-      - uses: actions/setup-java@v4
-        if: needs.detect-changes.outputs.auth == 'true' || needs.detect-changes.outputs.user == 'true' || needs.detect-changes.outputs.chat == 'true' || needs.detect-changes.outputs.group == 'true' || needs.detect-changes.outputs.ws == 'true' || needs.detect-changes.outputs.notif == 'true' || needs.detect-changes.outputs.media == 'true'
+      - name: Set up Java
+        if: matrix.type == 'java'
+        uses: actions/setup-java@v4
         with:
           distribution: temurin
           java-version: "17"
           cache: maven
 
-      - name: Spring tests (changed services only)
-        if: needs.detect-changes.outputs.auth == 'true' || needs.detect-changes.outputs.user == 'true' || needs.detect-changes.outputs.chat == 'true' || needs.detect-changes.outputs.group == 'true' || needs.detect-changes.outputs.ws == 'true' || needs.detect-changes.outputs.notif == 'true' || needs.detect-changes.outputs.media == 'true'
+      - name: Run Spring tests
+        if: matrix.type == 'java'
         shell: bash
         run: |
           set -e
-          run_maven_tests () {
-            svc="$1"
-            if [ -f "$svc/mvnw" ]; then
-              chmod +x "$svc/mvnw"
-              (cd "$svc" && ./mvnw -q test)
-            elif [ -f "$svc/pom.xml" ]; then
-              (cd "$svc" && mvn -q test)
-            fi
-          }
+          svc="${{ matrix.service }}"
+          if [ -f "$svc/mvnw" ]; then
+            chmod +x "$svc/mvnw"
+            (cd "$svc" && ./mvnw -q test)
+          elif [ -f "$svc/pom.xml" ]; then
+            (cd "$svc" && mvn -q test)
+          fi
 
-          if [[ "${{ needs.detect-changes.outputs.auth }}" == "true" ]]; then run_maven_tests "auth-service"; fi
-          if [[ "${{ needs.detect-changes.outputs.user }}" == "true" ]]; then run_maven_tests "user-service"; fi
-          if [[ "${{ needs.detect-changes.outputs.chat }}" == "true" ]]; then run_maven_tests "chat-service"; fi
-          if [[ "${{ needs.detect-changes.outputs.group }}" == "true" ]]; then run_maven_tests "group-service"; fi
-          if [[ "${{ needs.detect-changes.outputs.ws }}" == "true" ]]; then run_maven_tests "ws-manager"; fi
-          if [[ "${{ needs.detect-changes.outputs.notif }}" == "true" ]]; then run_maven_tests "notification-service"; fi
-          if [[ "${{ needs.detect-changes.outputs.media }}" == "true" ]]; then run_maven_tests "media-service"; fi
-
-      # React tests (only if web changed)
-      - uses: actions/setup-node@v4
-        if: needs.detect-changes.outputs.web == 'true'
+      - name: Set up Node
+        if: matrix.type == 'web'
+        uses: actions/setup-node@v4
         with:
           node-version: "20"
           cache: npm
           cache-dependency-path: web-frontend/package-lock.json
 
-      - name: React tests
-        if: needs.detect-changes.outputs.web == 'true'
+      - name: Run React tests
+        if: matrix.type == 'web'
         working-directory: web-frontend
         run: |
           npm ci
@@ -111,15 +124,6 @@ jobs:
           else
             echo "No test script defined for web-frontend, skipping tests."
           fi
-
-  build-push-and-update-gitops:
-    if: "!contains(github.event.head_commit.message, '[skip ci]')"
-    runs-on: ubuntu-latest
-    needs: [detect-changes, tests]
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
 
       - name: Determine version bump
         id: bump
@@ -155,41 +159,27 @@ jobs:
 
           echo "bump=$BUMP" >> "$GITHUB_OUTPUT"
 
-      - name: Bump versions in pom/package.json
-        if: steps.bump.outputs.bump != 'none'
+      - name: Bump version
+        id: version
         shell: bash
         env:
           BUMP_TYPE: ${{ steps.bump.outputs.bump }}
+          SVC: ${{ matrix.service }}
+          SVC_TYPE: ${{ matrix.type }}
         run: |
           set -euo pipefail
-          SERVICES=""
-          if [[ "${{ needs.detect-changes.outputs.auth }}" == "true" ]]; then SERVICES+="auth-service "; fi
-          if [[ "${{ needs.detect-changes.outputs.user }}" == "true" ]]; then SERVICES+="user-service "; fi
-          if [[ "${{ needs.detect-changes.outputs.chat }}" == "true" ]]; then SERVICES+="chat-service "; fi
-          if [[ "${{ needs.detect-changes.outputs.group }}" == "true" ]]; then SERVICES+="group-service "; fi
-          if [[ "${{ needs.detect-changes.outputs.ws }}" == "true" ]]; then SERVICES+="ws-manager "; fi
-          if [[ "${{ needs.detect-changes.outputs.notif }}" == "true" ]]; then SERVICES+="notification-service "; fi
-          if [[ "${{ needs.detect-changes.outputs.media }}" == "true" ]]; then SERVICES+="media-service "; fi
-          if [[ "${{ needs.detect-changes.outputs.web }}" == "true" ]]; then SERVICES+="web-frontend "; fi
-
-          if [[ -z "$SERVICES" ]]; then
-            echo "No services changed, skipping bump."
-            exit 0
-          fi
-
-          export SERVICES
-          python3 - <<'PY'
+          python3 - <<'PY' >> "$GITHUB_OUTPUT"
           import json
           import os
           import re
           from pathlib import Path
 
           bump = os.environ["BUMP_TYPE"]
-          services = os.environ["SERVICES"].split()
+          svc = os.environ["SVC"]
+          svc_type = os.environ["SVC_TYPE"]
 
           def bump_version(value: str) -> str:
-              value = value.strip()
-              value = value.lstrip("v")
+              value = value.strip().lstrip("v")
               base = value.split("-", 1)[0]
               parts = base.split(".")
               if len(parts) != 3:
@@ -200,28 +190,9 @@ jobs:
                   patch = 0
               elif bump == "patch":
                   patch += 1
-              else:
-                  return value
               return f"{major}.{minor}.{patch}"
 
           def read_pom_version(path: Path) -> str:
-              try:
-                  import xml.etree.ElementTree as ET
-                  root = ET.parse(path).getroot()
-
-                  def strip_ns(tag: str) -> str:
-                      return tag.split("}", 1)[-1]
-
-                  for child in root:
-                      if strip_ns(child.tag) == "version" and child.text:
-                          return child.text.strip()
-
-                  parent_version = root.find(".//{*}parent/{*}version")
-                  if parent_version is not None and parent_version.text:
-                      return parent_version.text.strip()
-              except Exception:
-                  pass
-
               text = path.read_text(encoding="utf-8")
               parent = re.search(r"<parent>.*?</parent>", text, flags=re.S)
               start = parent.end() if parent else 0
@@ -249,60 +220,25 @@ jobs:
               data["version"] = new_version
               path.write_text(json.dumps(data, indent=2) + "\n", encoding="utf-8")
 
-          for svc in services:
-              if svc == "web-frontend":
-                  pkg_path = Path("web-frontend/package.json")
-                  current = read_package_version(pkg_path)
-                  write_package_version(pkg_path, bump_version(current))
-              else:
-                  pom_path = Path(svc) / "pom.xml"
-                  current = read_pom_version(pom_path)
-                  write_pom_version(pom_path, bump_version(current))
+          if svc_type == "web":
+              path = Path("web-frontend/package.json")
+              current = read_package_version(path)
+              new_version = bump_version(current)
+              write_package_version(path, new_version)
+          else:
+              path = Path(svc) / "pom.xml"
+              current = read_pom_version(path)
+              new_version = bump_version(current)
+              write_pom_version(path, new_version)
+
+          print(f"version={new_version}")
           PY
 
-      - name: Compute image versions + image namespace
-        id: versions
+      - name: Compute image namespace
         shell: bash
         run: |
           set -euo pipefail
           echo "OWNER=$(echo '${{ env.IMAGE_NAMESPACE }}' | tr '[:upper:]' '[:lower:]')" >> $GITHUB_ENV
-          python3 - <<'PY' >> "$GITHUB_OUTPUT"
-          import json
-          import xml.etree.ElementTree as ET
-
-          def read_pom_version(path: str) -> str:
-              root = ET.parse(path).getroot()
-
-              def strip_ns(tag: str) -> str:
-                  return tag.split("}", 1)[-1]
-
-              for child in root:
-                  if strip_ns(child.tag) == "version" and child.text:
-                      return child.text.strip()
-
-              parent_version = root.find(".//{*}parent/{*}version")
-              if parent_version is None or not parent_version.text:
-                  raise RuntimeError(f"Missing <version> in {path}")
-              return parent_version.text.strip()
-
-          def read_package_version(path: str) -> str:
-              with open(path, encoding="utf-8") as f:
-                  return json.load(f)["version"].strip()
-
-          versions = {
-              "auth_version": read_pom_version("auth-service/pom.xml"),
-              "user_version": read_pom_version("user-service/pom.xml"),
-              "chat_version": read_pom_version("chat-service/pom.xml"),
-              "group_version": read_pom_version("group-service/pom.xml"),
-              "ws_version": read_pom_version("ws-manager/pom.xml"),
-              "notif_version": read_pom_version("notification-service/pom.xml"),
-              "media_version": read_pom_version("media-service/pom.xml"),
-              "web_version": read_package_version("web-frontend/package.json"),
-          }
-
-          for key, value in versions.items():
-              print(f"{key}={value.lstrip('v')}")
-          PY
 
       - uses: docker/setup-buildx-action@v3
       - uses: docker/login-action@v3
@@ -311,112 +247,52 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      # Build & push only changed
-      - name: Build & push auth-service
-        if: needs.detect-changes.outputs.auth == 'true'
+      - name: Build & push (java services)
+        if: matrix.type == 'java'
         uses: docker/build-push-action@v6
         with:
-          context: auth-service
+          context: ${{ matrix.service }}
           push: true
           tags: |
-            ${{ env.REGISTRY }}/${{ env.OWNER }}/uconnect-auth-service:${{ steps.versions.outputs.auth_version }}
-            ${{ env.REGISTRY }}/${{ env.OWNER }}/uconnect-auth-service:latest
+            ${{ env.REGISTRY }}/${{ env.OWNER }}/uconnect-${{ matrix.service }}:${{ steps.version.outputs.version }}
+            ${{ env.REGISTRY }}/${{ env.OWNER }}/uconnect-${{ matrix.service }}:latest
           build-args: |
             HELLO_MESSAGE=${{ env.HELLO_MESSAGE }}
 
-      - name: Build & push user-service
-        if: needs.detect-changes.outputs.user == 'true'
-        uses: docker/build-push-action@v6
-        with:
-          context: user-service
-          push: true
-          tags: |
-            ${{ env.REGISTRY }}/${{ env.OWNER }}/uconnect-user-service:${{ steps.versions.outputs.user_version }}
-            ${{ env.REGISTRY }}/${{ env.OWNER }}/uconnect-user-service:latest
-          build-args: |
-            HELLO_MESSAGE=${{ env.HELLO_MESSAGE }}
-
-      - name: Build & push chat-service
-        if: needs.detect-changes.outputs.chat == 'true'
-        uses: docker/build-push-action@v6
-        with:
-          context: chat-service
-          push: true
-          tags: |
-            ${{ env.REGISTRY }}/${{ env.OWNER }}/uconnect-chat-service:${{ steps.versions.outputs.chat_version }}
-            ${{ env.REGISTRY }}/${{ env.OWNER }}/uconnect-chat-service:latest
-          build-args: |
-            HELLO_MESSAGE=${{ env.HELLO_MESSAGE }}
-
-      - name: Build & push group-service
-        if: needs.detect-changes.outputs.group == 'true'
-        uses: docker/build-push-action@v6
-        with:
-          context: group-service
-          push: true
-          tags: |
-            ${{ env.REGISTRY }}/${{ env.OWNER }}/uconnect-group-service:${{ steps.versions.outputs.group_version }}
-            ${{ env.REGISTRY }}/${{ env.OWNER }}/uconnect-group-service:latest
-          build-args: |
-            HELLO_MESSAGE=${{ env.HELLO_MESSAGE }}
-
-      - name: Build & push ws-manager
-        if: needs.detect-changes.outputs.ws == 'true'
-        uses: docker/build-push-action@v6
-        with:
-          context: ws-manager
-          push: true
-          tags: |
-            ${{ env.REGISTRY }}/${{ env.OWNER }}/uconnect-ws-manager:${{ steps.versions.outputs.ws_version }}
-            ${{ env.REGISTRY }}/${{ env.OWNER }}/uconnect-ws-manager:latest
-          build-args: |
-            HELLO_MESSAGE=${{ env.HELLO_MESSAGE }}
-
-      - name: Build & push notification-service
-        if: needs.detect-changes.outputs.notif == 'true'
-        uses: docker/build-push-action@v6
-        with:
-          context: notification-service
-          push: true
-          tags: |
-            ${{ env.REGISTRY }}/${{ env.OWNER }}/uconnect-notification-service:${{ steps.versions.outputs.notif_version }}
-            ${{ env.REGISTRY }}/${{ env.OWNER }}/uconnect-notification-service:latest
-          build-args: |
-            HELLO_MESSAGE=${{ env.HELLO_MESSAGE }}
-
-      - name: Build & push media-service
-        if: needs.detect-changes.outputs.media == 'true'
-        uses: docker/build-push-action@v6
-        with:
-          context: media-service
-          push: true
-          tags: |
-            ${{ env.REGISTRY }}/${{ env.OWNER }}/uconnect-media-service:${{ steps.versions.outputs.media_version }}
-            ${{ env.REGISTRY }}/${{ env.OWNER }}/uconnect-media-service:latest
-          build-args: |
-            HELLO_MESSAGE=${{ env.HELLO_MESSAGE }}
-
-      - name: Build & push web-frontend
-        if: needs.detect-changes.outputs.web == 'true'
+      - name: Build & push (web-frontend)
+        if: matrix.type == 'web'
         uses: docker/build-push-action@v6
         with:
           context: web-frontend
           push: true
           tags: |
-            ${{ env.REGISTRY }}/${{ env.OWNER }}/uconnect-web-frontend:${{ steps.versions.outputs.web_version }}
+            ${{ env.REGISTRY }}/${{ env.OWNER }}/uconnect-web-frontend:${{ steps.version.outputs.version }}
             ${{ env.REGISTRY }}/${{ env.OWNER }}/uconnect-web-frontend:latest
           build-args: |
             VITE_MODE=dev
 
-      - name: Commit version bumps
-        if: steps.bump.outputs.bump != 'none'
+      - name: Commit version bump
+        shell: bash
         run: |
+          set -euo pipefail
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add auth-service/pom.xml user-service/pom.xml chat-service/pom.xml group-service/pom.xml ws-manager/pom.xml notification-service/pom.xml media-service/pom.xml web-frontend/package.json
+          if [[ "${{ matrix.type }}" == "web" ]]; then
+            git add web-frontend/package.json
+          else
+            git add "${{ matrix.service }}/pom.xml"
+          fi
           if git diff --staged --quiet; then
             echo "No version changes to commit."
             exit 0
           fi
-          git commit -m "chore(version): bump ${{ steps.bump.outputs.bump }} [skip ci]"
-          git push
+          git commit -m "chore(version): bump ${{ matrix.service }} ${{ steps.bump.outputs.bump }} [skip ci]"
+          for i in 1 2 3; do
+            git fetch origin main
+            git rebase origin/main || git rebase --abort
+            if git push origin HEAD:main; then
+              exit 0
+            fi
+            sleep 2
+          done
+          exit 1
