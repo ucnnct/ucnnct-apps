@@ -18,9 +18,9 @@
         baseEl.setAttribute("href", base);
         baseEl.setAttribute("id", "app-base");
         document.head.appendChild(baseEl);
+        document.write('<script src="' + base + 'config.js"><\\/script>');
       })();
     </script>
-    <script src="config.js"></script>
     <script>
       (function () {
         var env = window.__ENV__ || {};
