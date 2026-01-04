@@ -205,6 +205,23 @@ jobs:
               return f"{major}.{minor}.{patch}"
 
           def read_pom_version(path: Path) -> str:
+              try:
+                  import xml.etree.ElementTree as ET
+                  root = ET.parse(path).getroot()
+
+                  def strip_ns(tag: str) -> str:
+                      return tag.split("}", 1)[-1]
+
+                  for child in root:
+                      if strip_ns(child.tag) == "version" and child.text:
+                          return child.text.strip()
+
+                  parent_version = root.find(".//{*}parent/{*}version")
+                  if parent_version is not None and parent_version.text:
+                      return parent_version.text.strip()
+              except Exception:
+                  pass
+
               text = path.read_text(encoding="utf-8")
               parent = re.search(r"<parent>.*?</parent>", text, flags=re.S)
               start = parent.end() if parent else 0
@@ -254,17 +271,19 @@ jobs:
           import xml.etree.ElementTree as ET
 
           def read_pom_version(path: str) -> str:
-              tree = ET.parse(path)
-              root = tree.getroot()
-              ns_uri = root.tag.split('}')[0].strip('{')
-              ns = {'m': ns_uri}
-              version = root.find('m:version', ns)
-              if version is None or not version.text:
-                  parent_version = root.find('m:parent/m:version', ns)
-                  if parent_version is None or not parent_version.text:
-                      raise RuntimeError(f"Missing <version> in {path}")
-                  return parent_version.text.strip()
-              return version.text.strip()
+              root = ET.parse(path).getroot()
+
+              def strip_ns(tag: str) -> str:
+                  return tag.split("}", 1)[-1]
+
+              for child in root:
+                  if strip_ns(child.tag) == "version" and child.text:
+                      return child.text.strip()
+
+              parent_version = root.find(".//{*}parent/{*}version")
+              if parent_version is None or not parent_version.text:
+                  raise RuntimeError(f"Missing <version> in {path}")
+              return parent_version.text.strip()
 
           def read_package_version(path: str) -> str:
               with open(path, encoding="utf-8") as f:
