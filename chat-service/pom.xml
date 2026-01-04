@@ -13,7 +13,7 @@
 
     <groupId>cc.uconnect</groupId>
     <artifactId>chat-service</artifactId>
-    <version>0.0.1-SNAPSHOT</version>
+    <version>0.2.1</version>
     <name>chat-service</name>
     <description>Chat service</description>
 
@@ -73,5 +73,3 @@
         </profile>
     </profiles>
 </project>
-
-
