@@ -21,6 +21,6 @@ public class HelloController {
 
     @GetMapping("/hello")
     public String hello() {
-        return "Messagefse " + helloMessage + " " + serviceName + " from " + activeProfile;
+        return "Messagefvse " + helloMessage + " " + serviceName + " from " + activeProfile;
     }
 }

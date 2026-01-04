@@ -17,7 +17,7 @@ export default function Home() {
       </pre>
 
       <h3>Chat (bientôt)</h3>
-      <p>UI placeholfdeer  — on ajoutera rooms, messages, présence, WS, etc.</p>
+      <p>UI placeholfdveer  — on ajoutera rooms, messages, présence, WS, etc.</p>
     </div>
   );
 }
