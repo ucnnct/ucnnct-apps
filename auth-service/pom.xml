@@ -13,7 +13,7 @@
 
     <groupId>cc.uconnect</groupId>
     <artifactId>auth-service</artifactId>
-    <version>0.2.0</version>
+    <version>0.3.0</version>
     <name>auth-service</name>
     <description>Auth service</description>
 
