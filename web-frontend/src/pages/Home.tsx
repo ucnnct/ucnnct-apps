@@ -1,6 +1,6 @@
 export default function Home() {
-
-
+  const appEnv =
+    (window as { __ENV__?: { APP_ENV?: string } }).__ENV__?.APP_ENV ?? "unknown";
 
   return (
     <div style={{ maxWidth: 720, margin: "50px auto", fontFamily: "sans-serif" }}>
@@ -10,6 +10,11 @@ export default function Home() {
           Déconnexion
         </button>
       </div>
+
+      <h3>Environment</h3>
+      <pre style={{ background: "#f6f6f6", padding: 12, borderRadius: 8 }}>
+        {appEnv}
+      </pre>
 
       <h3>Profil</h3>
       <pre style={{ background: "#f6f6f6", padding: 12, borderRadius: 8 }}>
