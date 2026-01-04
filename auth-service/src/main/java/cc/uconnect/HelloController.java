@@ -21,7 +21,7 @@ public class HelloController {
 
     @GetMapping("/hello")
     public String hello() {
-        System.out.println("Message " + helloMessage + " " + serviceName + " from " + activeProfile);
+        System.out.println("Messagee " + helloMessage + " " + serviceName + " from " + activeProfile);
         return "Message " + helloMessage + " " + serviceName + " from " + activeProfile;
     }
 }
