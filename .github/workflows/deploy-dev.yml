@@ -22,6 +22,7 @@ env:
   REGISTRY: ghcr.io
   IMAGE_NAMESPACE: ${{ github.repository_owner }}
   IMAGE_PREFIX: uconnect
+  HELLO_MESSAGE: Uconnect hello from
 
 jobs:
   detect-changes:
@@ -184,6 +185,8 @@ jobs:
           tags: |
             ${{ env.REGISTRY }}/${{ env.OWNER }}/uconnect-auth-service:${{ env.SEMVER_TAG }}
             ${{ env.REGISTRY }}/${{ env.OWNER }}/uconnect-auth-service:latest
+          build-args: |
+            HELLO_MESSAGE=${{ env.HELLO_MESSAGE }}
 
       - name: Build & push user-service
         if: needs.detect-changes.outputs.user == 'true'
@@ -194,6 +197,8 @@ jobs:
           tags: |
             ${{ env.REGISTRY }}/${{ env.OWNER }}/uconnect-user-service:${{ env.SEMVER_TAG }}
             ${{ env.REGISTRY }}/${{ env.OWNER }}/uconnect-user-service:latest
+          build-args: |
+            HELLO_MESSAGE=${{ env.HELLO_MESSAGE }}
 
       - name: Build & push chat-service
         if: needs.detect-changes.outputs.chat == 'true'
@@ -204,6 +209,8 @@ jobs:
           tags: |
             ${{ env.REGISTRY }}/${{ env.OWNER }}/uconnect-chat-service:${{ env.SEMVER_TAG }}
             ${{ env.REGISTRY }}/${{ env.OWNER }}/uconnect-chat-service:latest
+          build-args: |
+            HELLO_MESSAGE=${{ env.HELLO_MESSAGE }}
 
       - name: Build & push ws-manager
         if: needs.detect-changes.outputs.ws == 'true'
@@ -214,6 +221,8 @@ jobs:
           tags: |
             ${{ env.REGISTRY }}/${{ env.OWNER }}/uconnect-ws-manager:${{ env.SEMVER_TAG }}
             ${{ env.REGISTRY }}/${{ env.OWNER }}/uconnect-ws-manager:latest
+          build-args: |
+            HELLO_MESSAGE=${{ env.HELLO_MESSAGE }}
 
       - name: Build & push notification-service
         if: needs.detect-changes.outputs.notif == 'true'
@@ -224,6 +233,8 @@ jobs:
           tags: |
             ${{ env.REGISTRY }}/${{ env.OWNER }}/uconnect-notification-service:${{ env.SEMVER_TAG }}
             ${{ env.REGISTRY }}/${{ env.OWNER }}/uconnect-notification-service:latest
+          build-args: |
+            HELLO_MESSAGE=${{ env.HELLO_MESSAGE }}
 
       - name: Build & push media-service
         if: needs.detect-changes.outputs.media == 'true'
@@ -234,6 +245,8 @@ jobs:
           tags: |
             ${{ env.REGISTRY }}/${{ env.OWNER }}/uconnect-media-service:${{ env.SEMVER_TAG }}
             ${{ env.REGISTRY }}/${{ env.OWNER }}/uconnect-media-service:latest
+          build-args: |
+            HELLO_MESSAGE=${{ env.HELLO_MESSAGE }}
 
       - name: Build & push web-frontend
         if: needs.detect-changes.outputs.web == 'true'
