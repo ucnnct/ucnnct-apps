@@ -225,7 +225,7 @@ jobs:
               text = path.read_text(encoding="utf-8")
               parent = re.search(r"<parent>.*?</parent>", text, flags=re.S)
               start = parent.end() if parent else 0
-              match = re.search(r"<version>\\s*([^<]+)\\s*</version>", text[start:])
+              match = re.search(r"<version>\s*([^<]+)\s*</version>", text[start:])
               if not match:
                   raise RuntimeError(f"Missing version in {path}")
               return match.group(1).strip()
@@ -234,7 +234,7 @@ jobs:
               text = path.read_text(encoding="utf-8")
               parent = re.search(r"<parent>.*?</parent>", text, flags=re.S)
               start = parent.end() if parent else 0
-              match = re.search(r"<version>\\s*([^<]+)\\s*</version>", text[start:])
+              match = re.search(r"<version>\s*([^<]+)\s*</version>", text[start:])
               if not match:
                   raise RuntimeError(f"Missing version in {path}")
               before = text[: start + match.start()]
