@@ -18,7 +18,7 @@ export default function Home() {
 
       <h3>Profil</h3>
       <pre style={{ background: "#f6f6f6", padding: 12, borderRadius: 8 }}>
-       MiKeXpert
+       MiKeXpert Ops 1.15.0
       </pre>
 
       <h3>Chat (bientôt)</h3>
