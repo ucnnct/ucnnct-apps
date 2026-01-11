@@ -18,7 +18,7 @@ export default function Home() {
 
       <h3>Profil</h3>
       <pre style={{ background: "#f6f6f6", padding: 12, borderRadius: 8 }}>
-        Eloka michel GGnxckjsc,movidvjqovjiqvquvjdqv
+        Eloka michel GGnxckjsc,ff
       </pre>
 
       <h3>Chat (bientôt)</h3>
