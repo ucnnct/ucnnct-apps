@@ -4,7 +4,9 @@ import Feed from "../components/feed/Feed";
 export default function Home() {
   return (
     <Layout>
-      <Feed />
+      <div className="px-2 pt-8">
+        <Feed />
+      </div>
     </Layout>
   );
 }
