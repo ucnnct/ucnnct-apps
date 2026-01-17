@@ -5,9 +5,13 @@ import SidebarRight from "./SidebarRight";
 
 interface LayoutProps {
   children: React.ReactNode;
+  hideSidebarRight?: boolean;
 }
 
-export default function Layout({ children }: LayoutProps) {
+export default function Layout({
+  children,
+  hideSidebarRight = false,
+}: LayoutProps) {
   return (
     <div className="min-h-screen bg-white">
       <Navbar />
@@ -15,11 +19,11 @@ export default function Layout({ children }: LayoutProps) {
       <div className="max-w-[1250px] mx-auto flex h-[calc(100vh-64px)] overflow-hidden">
         <SidebarLeft />
 
-        <main className="flex-1 border-x border-secondary-100 overflow-y-auto no-scrollbar bg-white">
+        <main className="flex-1 border-x border-secondary-200 overflow-y-auto no-scrollbar bg-white">
           {children}
         </main>
 
-        <SidebarRight />
+        {!hideSidebarRight && <SidebarRight />}
       </div>
     </div>
   );
