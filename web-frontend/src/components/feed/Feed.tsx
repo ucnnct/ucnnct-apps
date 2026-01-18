@@ -10,6 +10,7 @@ import {
   Share,
   MoreHorizontal,
 } from "lucide-react";
+import { useAuth } from "../../auth/AuthProvider";
 
 export default function Feed() {
   const [activeTab, setActiveTab] = useState("discover");
@@ -71,11 +72,13 @@ function TabButton({ active, onClick, label }: any) {
 }
 
 function CreatePostArea() {
+  const { user } = useAuth();
+
   return (
     <div className="p-6 border-b border-secondary-100">
       <div className="flex gap-4">
         <div className="w-10 h-10 bg-secondary-100 border border-secondary-200 rounded-sm overflow-hidden flex-shrink-0">
-          <img src="https://api.dicebear.com/7.x/avataaars/svg?seed=Michel%20Eloka" alt="Me" />
+          <img src={`https://api.dicebear.com/7.x/avataaars/svg?seed=${encodeURIComponent(user?.fullName ?? "User")}`} alt="Me" />
         </div>
         <div className="flex-1">
           <textarea

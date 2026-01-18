@@ -1,8 +1,12 @@
 import { useState } from "react";
-import { Bell, Menu, X, Search } from "lucide-react";
+import { Bell, Menu, X, Search, LogOut } from "lucide-react";
+import { useAuth } from "../../auth/AuthProvider";
 
 export default function Navbar() {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const { user, logout } = useAuth();
+
+  const displayName = user?.preferredUsername?.toUpperCase() ?? "USER";
 
   return (
     <nav className="sticky top-0 z-50 bg-white border-b border-secondary h-16">
@@ -42,14 +46,22 @@ export default function Navbar() {
           <div className="flex items-center gap-3 cursor-pointer group">
             <div className="h-8 w-8 avatar-sharp group-hover:border-primary-500 transition-all">
               <img
-                src="https://api.dicebear.com/7.x/avataaars/svg?seed=Michel%20Eloka"
+                src={`https://api.dicebear.com/7.x/avataaars/svg?seed=${encodeURIComponent(user?.fullName ?? "User")}`}
                 alt="User"
               />
             </div>
             <span className="text-[10px] font-black text-primary-900 tracking-widest hidden lg:block group-hover:text-primary-500 transition-colors uppercase">
-              MICHEL.E
+              {displayName}
             </span>
           </div>
+
+          <button
+            onClick={logout}
+            title="Se déconnecter"
+            className="p-1 text-secondary-400 hover:text-red-500 transition-colors"
+          >
+            <LogOut size={20} />
+          </button>
 
           <div className="flex items-center lg:hidden">
             <button

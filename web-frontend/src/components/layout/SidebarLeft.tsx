@@ -9,9 +9,11 @@ import {
 } from "lucide-react";
 import { Link, useLocation } from "react-router-dom";
 import SectionHeader from "../common/SectionHeader";
+import { useAuth } from "../../auth/AuthProvider";
 
 export default function SidebarLeft() {
   const location = useLocation();
+  const { user } = useAuth();
 
   return (
     <aside className="hidden lg:flex flex-col w-[280px] h-full bg-white border-r border-secondary-100 flex-shrink-0">
@@ -76,27 +78,19 @@ export default function SidebarLeft() {
         <div className="flex items-center gap-3 mb-6 group cursor-pointer">
           <div className="w-10 h-10 avatar-sharp">
             <img
-              src="https://api.dicebear.com/7.x/avataaars/svg?seed=Michel%20Eloka"
+              src={`https://api.dicebear.com/7.x/avataaars/svg?seed=${encodeURIComponent(user?.fullName ?? "User")}`}
               alt="Profile"
             />
           </div>
           <div className="flex-1 min-w-0">
             <p className="font-black text-primary-900 text-xs uppercase truncate tracking-tight">
-              Michel Eloka
+              {user?.fullName ?? "Utilisateur"}
             </p>
             <p className="text-[10px] font-bold text-secondary-400 uppercase tracking-widest truncate">
-              @MICHEL_ELK
+              @{user?.preferredUsername ?? "user"}
             </p>
           </div>
         </div>
-        {/* <button className="btn-primary w-full text-xs">
-          <Plus
-            size={16}
-            strokeWidth={4}
-            className="group-hover:rotate-90 transition-transform"
-          />
-          <span>Nouveau Post</span>
-        </button> */}
       </div>
     </aside>
   );

@@ -10,12 +10,12 @@
     "preview": "vite preview"
   },
   "dependencies": {
-    "@react-keycloak/web": "^3.4.0",
     "@tailwindcss/vite": "^4.1.18",
-    "keycloak-js": "^26.2.2",
     "lucide-react": "^0.563.0",
+    "oidc-client-ts": "^3.4.1",
     "react": "^19.2.0",
     "react-dom": "^19.2.0",
+    "react-oidc-context": "^3.3.0",
     "react-router-dom": "^7.13.0",
     "tailwindcss": "^4.1.18"
   },
