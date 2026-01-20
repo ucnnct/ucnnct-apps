@@ -1,0 +1,519 @@
+/* ── Google Fonts ── */
+@import url("https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Poppins:wght@400;500;600;700;800;900&display=swap");
+
+/* ── Design tokens (matches index.css) ── */
+:root {
+  --uc-primary: #2e89d5;
+  --uc-primary-hover: #216cb4;
+  --uc-primary-700: #1a5690;
+  --uc-primary-900: #173e63;
+  --uc-primary-200: #c2e0f4;
+  --uc-grey-50: #fafafa;
+  --uc-grey-100: #f4f4f5;
+  --uc-grey-200: #e4e4e7;
+  --uc-grey-300: #d4d4d8;
+  --uc-grey-400: #a1a1aa;
+  --uc-grey-500: #71717a;
+  --uc-grey-700: #3f3f46;
+  --uc-grey-800: #27272a;
+  --uc-grey-900: #09090b;
+  --uc-surface: #ffffff;
+  --uc-border: #f4f4f5;
+  --uc-font-display: "Poppins", "Inter", sans-serif;
+  --uc-font-body: "Inter", sans-serif;
+}
+
+/* ── Animations ── */
+@keyframes rise {
+  from { opacity: 0; transform: translateY(12px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+/* ════════════════════════════════════════════
+   FULL RESET — wipe PatternFly defaults
+   ════════════════════════════════════════════ */
+html.login-pf,
+html.login-pf body {
+  margin: 0 !important;
+  padding: 0 !important;
+  min-height: 100vh;
+  background: var(--uc-surface) !important;
+  color: var(--uc-grey-900) !important;
+  font-family: var(--uc-font-body) !important;
+  -webkit-font-smoothing: antialiased;
+  line-height: 1.5 !important;
+}
+
+h1, h2, h3, h4, h5, h6 {
+  font-family: var(--uc-font-display) !important;
+}
+
+/* ════════════════════════════════════════════
+   PAGE LAYOUT
+   ════════════════════════════════════════════ */
+.login-pf-page {
+  position: relative;
+  min-height: 100vh;
+  display: flex !important;
+  flex-direction: column !important;
+  align-items: center !important;
+  justify-content: center !important;
+  padding: 2rem 1.5rem !important;
+  background: var(--uc-surface) !important;
+}
+
+/* ════════════════════════════════════════════
+   HEADER — hidden, logo goes inside card
+   ════════════════════════════════════════════ */
+#kc-header,
+#kc-header-wrapper {
+  display: none !important;
+}
+
+/* ════════════════════════════════════════════
+   CARD — sharp, flat, Swiss-style
+   ════════════════════════════════════════════ */
+.card-pf {
+  position: relative;
+  z-index: 1;
+  width: 100% !important;
+  max-width: 440px !important;
+  margin: 0 !important;
+  background: var(--uc-surface) !important;
+  border: 1px solid var(--uc-grey-200) !important;
+  border-radius: 2px !important;
+  padding: 2.5rem 2rem !important;
+  box-shadow: none !important;
+  animation: rise 0.6s ease both;
+}
+
+/* ════════════════════════════════════════════
+   CARD HEADER — title
+   ════════════════════════════════════════════ */
+.login-pf-header {
+  text-align: left !important;
+  margin-bottom: 1.5rem !important;
+  padding: 0 !important;
+}
+
+/* Logo centered inside the card */
+.login-pf-header::before {
+  content: "";
+  display: block;
+  width: 56px;
+  height: 58px;
+  margin: 0 auto 1.5rem auto;
+  background: url("../img/uconnect.svg") no-repeat center / contain;
+}
+
+#kc-page-title {
+  font-family: var(--uc-font-display) !important;
+  font-size: 1.5rem !important;
+  font-weight: 800 !important;
+  color: var(--uc-grey-900) !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  line-height: 1.3 !important;
+}
+
+.login-pf-header::after {
+  content: "Connectez-vous pour continuer";
+  display: block;
+  font-family: var(--uc-font-body);
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--uc-grey-400);
+  margin-top: 0.5rem;
+  text-transform: uppercase;
+  letter-spacing: 0.15em;
+}
+
+/* ════════════════════════════════════════════
+   ALERTS
+   ════════════════════════════════════════════ */
+.alert {
+  padding: 0.65rem 0.9rem !important;
+  border-radius: 2px !important;
+  font-size: 0.75rem !important;
+  font-weight: 700 !important;
+  text-transform: uppercase !important;
+  letter-spacing: 0.1em !important;
+  margin-bottom: 1rem !important;
+  border-width: 1px !important;
+  border-style: solid !important;
+}
+
+.alert-error,
+.alert-danger {
+  background: #fef2f2 !important;
+  color: #dc2626 !important;
+  border-color: #fecaca !important;
+}
+
+.alert-success {
+  background: #f0fdf4 !important;
+  color: #16a34a !important;
+  border-color: #bbf7d0 !important;
+}
+
+.alert-warning {
+  background: #fffbeb !important;
+  color: #d97706 !important;
+  border-color: #fde68a !important;
+}
+
+.alert-info {
+  background: #f0f7fc !important;
+  color: var(--uc-primary) !important;
+  border-color: var(--uc-primary-200) !important;
+}
+
+.pf-c-form__helper-text.pf-m-error {
+  color: #dc2626 !important;
+  font-size: 0.7rem !important;
+  font-weight: 700 !important;
+  text-transform: uppercase !important;
+  letter-spacing: 0.08em !important;
+  margin-top: 0.4rem !important;
+  display: block;
+}
+
+/* ════════════════════════════════════════════
+   FORM — matches input-sharp / btn-primary
+   ════════════════════════════════════════════ */
+#kc-form,
+#kc-form-wrapper {
+  width: 100%;
+}
+
+#kc-form-login {
+  display: flex;
+  flex-direction: column;
+  gap: 1.1rem;
+}
+
+.form-group {
+  margin-bottom: 0 !important;
+}
+
+/* Labels — micro uppercase bold (matches app) */
+.pf-c-form__label,
+.pf-c-form__label-text,
+#kc-form-login label {
+  display: block !important;
+  font-size: 10px !important;
+  font-weight: 900 !important;
+  letter-spacing: 0.25em !important;
+  text-transform: uppercase !important;
+  color: var(--uc-grey-700) !important;
+  font-family: var(--uc-font-body) !important;
+  margin-bottom: 0.4rem !important;
+  padding: 0 !important;
+}
+
+/* Inputs — matches input-sharp utility */
+.pf-c-form-control,
+#kc-form-login input[type="text"],
+#kc-form-login input[type="password"] {
+  display: block !important;
+  width: 100% !important;
+  background: var(--uc-grey-100) !important;
+  border: 1px solid var(--uc-grey-200) !important;
+  border-radius: 2px !important;
+  padding: 0.6rem 1rem !important;
+  font-size: 10px !important;
+  font-weight: 900 !important;
+  font-family: var(--uc-font-body) !important;
+  color: var(--uc-grey-900) !important;
+  letter-spacing: 0.25em !important;
+  text-transform: uppercase !important;
+  transition: border-color 0.2s ease, background 0.2s ease !important;
+  outline: none !important;
+  box-sizing: border-box !important;
+  box-shadow: none !important;
+  height: auto !important;
+  line-height: 1.5 !important;
+}
+
+.pf-c-form-control:focus,
+#kc-form-login input[type="text"]:focus,
+#kc-form-login input[type="password"]:focus {
+  background: var(--uc-surface) !important;
+  border-color: var(--uc-primary) !important;
+  box-shadow: none !important;
+  outline: none !important;
+}
+
+.pf-c-form-control::placeholder {
+  color: var(--uc-grey-300) !important;
+  text-transform: uppercase !important;
+  letter-spacing: 0.25em !important;
+}
+
+/* Hide PatternFly password toggle */
+.pf-c-input-group {
+  display: block !important;
+}
+
+.pf-c-input-group .pf-c-button.pf-m-control {
+  display: none !important;
+}
+
+/* ════════════════════════════════════════════
+   REMEMBER ME / FORGOT PASSWORD
+   ════════════════════════════════════════════ */
+.login-pf-settings {
+  display: flex !important;
+  align-items: center !important;
+  justify-content: space-between !important;
+  margin: 0 !important;
+}
+
+#kc-form-options {
+  flex: 1;
+}
+
+#kc-form-options .checkbox label {
+  display: flex !important;
+  align-items: center !important;
+  gap: 0.4rem !important;
+  font-size: 10px !important;
+  font-weight: 700 !important;
+  letter-spacing: 0.15em !important;
+  text-transform: uppercase !important;
+  color: var(--uc-grey-500) !important;
+  cursor: pointer;
+  margin: 0 !important;
+  padding: 0 !important;
+}
+
+#kc-form-options input[type="checkbox"] {
+  accent-color: var(--uc-primary);
+  width: 14px;
+  height: 14px;
+  margin: 0 !important;
+  border-radius: 2px;
+}
+
+.kc-forgot-pw {
+  flex-shrink: 0;
+}
+
+.kc-forgot-pw a {
+  color: var(--uc-primary) !important;
+  text-decoration: none !important;
+  font-weight: 700 !important;
+  font-size: 10px !important;
+  letter-spacing: 0.15em !important;
+  text-transform: uppercase !important;
+  transition: color 0.2s ease;
+}
+
+.kc-forgot-pw a:hover {
+  color: var(--uc-primary-hover) !important;
+}
+
+/* ════════════════════════════════════════════
+   SUBMIT BUTTON — matches btn-primary
+   ════════════════════════════════════════════ */
+#kc-form-buttons {
+  margin-top: 0.5rem !important;
+}
+
+.pf-c-button.pf-m-primary,
+#kc-login[type="submit"],
+input.pf-c-button.pf-m-primary.pf-m-block {
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  width: 100% !important;
+  background: var(--uc-primary) !important;
+  color: #ffffff !important;
+  border: none !important;
+  border-radius: 2px !important;
+  padding: 0.75rem 1.5rem !important;
+  font-size: 10px !important;
+  font-weight: 900 !important;
+  font-family: var(--uc-font-body) !important;
+  text-transform: uppercase !important;
+  letter-spacing: 0.25em !important;
+  cursor: pointer !important;
+  transition: background 0.15s ease, transform 0.1s ease !important;
+  box-shadow: none !important;
+  line-height: 1.5 !important;
+}
+
+.pf-c-button.pf-m-primary:hover,
+#kc-login[type="submit"]:hover,
+input.pf-c-button.pf-m-primary.pf-m-block:hover {
+  background: var(--uc-primary-hover) !important;
+}
+
+.pf-c-button.pf-m-primary:active,
+#kc-login[type="submit"]:active {
+  transform: scale(0.98) !important;
+}
+
+/* ════════════════════════════════════════════
+   SOCIAL PROVIDERS
+   ════════════════════════════════════════════ */
+#kc-social-providers {
+  margin-top: 0.5rem !important;
+}
+
+#kc-social-providers hr {
+  border: none !important;
+  border-top: 1px solid var(--uc-border) !important;
+  margin: 0.75rem 0 !important;
+}
+
+.kc-social-links {
+  list-style: none !important;
+  padding: 0 !important;
+  margin: 0 !important;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.kc-social-links li {
+  list-style: none !important;
+}
+
+.kc-social-link {
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  gap: 0.5rem !important;
+  padding: 0.65rem 1rem !important;
+  border: 1px solid var(--uc-grey-200) !important;
+  border-radius: 2px !important;
+  background: var(--uc-surface) !important;
+  color: var(--uc-grey-700) !important;
+  font-size: 10px !important;
+  font-weight: 700 !important;
+  letter-spacing: 0.15em !important;
+  text-transform: uppercase !important;
+  text-decoration: none !important;
+  transition: border-color 0.2s ease, background 0.2s ease !important;
+}
+
+.kc-social-link:hover {
+  border-color: var(--uc-primary) !important;
+  background: var(--uc-grey-50) !important;
+}
+
+/* ════════════════════════════════════════════
+   REGISTRATION / INFO — footer separator
+   ════════════════════════════════════════════ */
+#kc-content {
+  padding: 0 !important;
+}
+
+#kc-content-wrapper {
+  padding: 0 !important;
+}
+
+#kc-info {
+  margin-top: 1.5rem !important;
+  padding-top: 1rem !important;
+  border-top: 1px solid var(--uc-border) !important;
+}
+
+#kc-registration-container,
+#kc-registration {
+  text-align: center !important;
+  font-size: 10px !important;
+  font-weight: 700 !important;
+  color: var(--uc-grey-400) !important;
+  text-transform: uppercase !important;
+  letter-spacing: 0.15em !important;
+}
+
+#kc-registration a {
+  color: var(--uc-primary) !important;
+  text-decoration: none !important;
+  font-weight: 900 !important;
+}
+
+#kc-registration a:hover {
+  color: var(--uc-primary-hover) !important;
+}
+
+/* ════════════════════════════════════════════
+   FOCUS VISIBLE
+   ════════════════════════════════════════════ */
+:focus-visible {
+  outline: 2px solid var(--uc-primary) !important;
+  outline-offset: 3px !important;
+}
+
+/* ════════════════════════════════════════════
+   REGISTER — form layout
+   ════════════════════════════════════════════ */
+#kc-register-form {
+  display: flex;
+  flex-direction: column;
+  gap: 1.1rem;
+}
+
+/* firstName + lastName grid row */
+.uc-name-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+
+.uc-name-row .form-group {
+  margin: 0 !important;
+}
+
+/* Back to login link */
+#kc-form-options a {
+  color: var(--uc-primary) !important;
+  text-decoration: none !important;
+  font-weight: 700 !important;
+  font-size: 10px !important;
+  letter-spacing: 0.15em !important;
+  text-transform: uppercase !important;
+}
+
+#kc-form-options a:hover {
+  color: var(--uc-primary-hover) !important;
+}
+
+/* ════════════════════════════════════════════
+   RESPONSIVE
+   ════════════════════════════════════════════ */
+@media (max-width: 480px) {
+  .login-pf-page {
+    padding: 1.5rem 1rem !important;
+  }
+
+  .card-pf {
+    padding: 2rem 1.5rem !important;
+    border-left: none !important;
+    border-right: none !important;
+    border-radius: 0 !important;
+    max-width: 100% !important;
+  }
+
+  /* Stack firstName/lastName on mobile */
+  .uc-name-row {
+    grid-template-columns: 1fr !important;
+  }
+}
+
+/* ════════════════════════════════════════════
+   REDUCED MOTION
+   ════════════════════════════════════════════ */
+@media (prefers-reduced-motion: reduce) {
+  .card-pf {
+    animation: none !important;
+  }
+
+  .pf-c-button.pf-m-primary,
+  #kc-login[type="submit"] {
+    transition: none !important;
+  }
+}
