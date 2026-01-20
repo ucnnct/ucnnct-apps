@@ -11,6 +11,7 @@ export interface AuthUser {
   email: string;
   fullName: string;
   preferredUsername: string;
+  shortHandle: string;
 }
 
 export function AuthProvider({ children }: { children: ReactNode }) {
@@ -30,12 +31,22 @@ export function useAuth() {
 
   const profile = auth.user?.profile;
 
+  const username = (profile?.preferred_username as string) ?? "";
+  const email = (profile?.email as string) ?? "";
+  const firstName = (profile?.given_name as string) ?? "";
+  const cleanUsername = username.includes("@") ? "" : username;
+  const shortHandle = cleanUsername
+    || firstName
+    || email.split("@")[0]
+    || "user";
+
   const user: AuthUser | null = auth.isAuthenticated && profile
     ? {
         sub: profile.sub ?? "",
-        email: (profile.email as string) ?? "",
-        fullName: (profile.name as string) ?? (profile.preferred_username as string) ?? "",
-        preferredUsername: (profile.preferred_username as string) ?? "",
+        email,
+        fullName: (profile.name as string) ?? username ?? "",
+        preferredUsername: username,
+        shortHandle,
       }
     : null;
 

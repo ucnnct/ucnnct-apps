@@ -6,7 +6,7 @@ export default function Navbar() {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const { user, logout } = useAuth();
 
-  const displayName = user?.preferredUsername?.toUpperCase() ?? "USER";
+  const displayName = user?.shortHandle?.toUpperCase() ?? "USER";
 
   return (
     <nav className="sticky top-0 z-50 bg-white border-b border-secondary h-16">

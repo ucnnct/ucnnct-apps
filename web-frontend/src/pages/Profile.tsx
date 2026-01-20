@@ -41,13 +41,13 @@ export default function Profile() {
   return (
     <Layout hideSidebarRight={true}>
       <div className="px-8 pt-8 flex flex-col bg-white min-h-screen font-body">
-        <div className="h-48 bg-secondary-100 relative">
-          <div className="absolute inset-0 bg-gradient-to-br from-primary-500/20 to-secondary-200/50"></div>
+        <div className="h-28 bg-secondary-100 relative">
+          <div className="absolute inset-0 bg-linear-to-br from-primary-500/20 to-secondary-200/50"></div>
         </div>
 
         <div className="px-8 pb-8 border-b border-secondary-100">
-          <div className="relative flex justify-between items-end -mt-16 mb-6">
-            <div className="w-32 h-32 bg-white p-1 rounded-sm border border-secondary-100 shadow-sm overflow-hidden">
+          <div className="relative flex justify-between items-end -mt-10 mb-6">
+            <div className="w-20 h-20 bg-white p-1 rounded-sm border border-secondary-100 shadow-sm overflow-hidden">
               <div className="w-full h-full bg-secondary-50 rounded-sm overflow-hidden border border-secondary-100">
                 <img
                   src="https://api.dicebear.com/7.x/avataaars/svg?seed=Michel%20Eloka"
@@ -67,10 +67,10 @@ export default function Profile() {
           </div>
 
           <div className="space-y-1">
-            <h1 className="text-2xl font-black text-primary-900 uppercase tracking-tight font-display">
+            <h1 className="text-lg font-black text-primary-900 uppercase tracking-tight font-display">
               Michel Eloka
             </h1>
-            <p className="text-sm font-bold text-secondary-400 uppercase tracking-widest">
+            <p className="text-[10px] font-bold text-secondary-400 uppercase tracking-widest">
               @MICHEL_ELK
             </p>
           </div>

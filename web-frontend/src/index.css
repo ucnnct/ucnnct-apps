@@ -48,7 +48,6 @@
   --shadow-none: none;
 }
 
-/* Custom Component Utilities for a cleaner code base */
 @utility btn-primary {
   @apply bg-primary-500 hover:bg-primary-600 text-white font-black uppercase tracking-widest py-3 px-6 rounded-sm transition-all active:scale-[0.98] flex items-center justify-center gap-2;
 }
