@@ -28,17 +28,88 @@ services:
       KC_SPI_THEME_STATIC_MAX_AGE: -1
       KC_SPI_THEME_CACHE_THEMES: "false"
       KC_SPI_THEME_CACHE_TEMPLATES: "false"
+      KAFKA_BOOTSTRAP_SERVERS: kafka:9092
+      KAFKA_TOPIC_USER_EVENTS: keycloak-user-events
     volumes:
       - ./keycloak/themes/ucnnct:/opt/keycloak/themes/ucnnct
+      - ./keycloak-event-listener/target/keycloak-event-listener-1.0.0.jar:/opt/keycloak/providers/keycloak-event-listener.jar
     ports:
       - "8081:8080"
     depends_on:
       - keycloak-db
+      - kafka
+    networks:
+      - uconnect-network
+
+  kafka:
+    image: apache/kafka:3.7.0
+    container_name: uconnect-kafka
+    restart: unless-stopped
+    environment:
+      KAFKA_NODE_ID: 1
+      KAFKA_PROCESS_ROLES: broker,controller
+      KAFKA_LISTENERS: PLAINTEXT://0.0.0.0:9092,CONTROLLER://0.0.0.0:9093
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:9092
+      KAFKA_CONTROLLER_LISTENER_NAMES: CONTROLLER
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: CONTROLLER:PLAINTEXT,PLAINTEXT:PLAINTEXT
+      KAFKA_CONTROLLER_QUORUM_VOTERS: 1@kafka:9093
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      CLUSTER_ID: uconnect-kafka-cluster-001
+    ports:
+      - "9092:9092"
+    networks:
+      - uconnect-network
+
+  user-db:
+    image: postgres:15
+    container_name: uconnect-user-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: userdb
+      POSTGRES_USER: userservice
+      POSTGRES_PASSWORD: password
+    volumes:
+      - user_data:/var/lib/postgresql/data
+    networks:
+      - uconnect-network
+
+  user-service:
+    build: ./user-service
+    container_name: uconnect-user-service
+    restart: unless-stopped
+    environment:
+      DB_HOST: user-db
+      DB_PORT: 5432
+      DB_NAME: userdb
+      DB_USER: userservice
+      DB_PASSWORD: password
+      KAFKA_BOOTSTRAP_SERVERS: kafka:9092
+    ports:
+      - "8082:8082"
+    depends_on:
+      - user-db
+      - kafka
+    networks:
+      - uconnect-network
+
+  pgadmin:
+    image: dpage/pgadmin4:latest
+    container_name: uconnect-pgadmin
+    restart: unless-stopped
+    environment:
+      PGADMIN_DEFAULT_EMAIL: admin@uconnect.cc
+      PGADMIN_DEFAULT_PASSWORD: admin
+    ports:
+      - "5050:80"
+    depends_on:
+      - keycloak-db
+      - user-db
     networks:
       - uconnect-network
 
 volumes:
   keycloak_data:
+  user_data:
 
 networks:
   uconnect-network:
