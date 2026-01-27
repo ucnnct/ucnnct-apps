@@ -37,6 +37,23 @@ public class User {
     @Column(name = "last_name")
     private String lastName;
 
+    private String bio;
+
+    private String university;
+
+    private String location;
+
+    private String website;
+
+    @Column(name = "avatar_url")
+    private String avatarUrl;
+
+    @Column(name = "field_of_study")
+    private String fieldOfStudy;
+
+    @Column(name = "year_of_study")
+    private Integer yearOfStudy;
+
     @Column(name = "created_at", nullable = false, updatable = false)
     private Instant createdAt;
 
