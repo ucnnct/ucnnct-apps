@@ -3,6 +3,7 @@ import { useAuth } from "./auth/AuthProvider";
 import Home from "./pages/Home";
 import Messages from "./pages/Messages";
 import Profile from "./pages/Profile";
+import Cercles from "./pages/Cercles";
 
 export default function App() {
   const { initialized, authenticated, login } = useAuth();
@@ -39,7 +40,9 @@ export default function App() {
       <Routes>
         <Route path="/" element={<Home />} />
         <Route path="/messages" element={<Messages />} />
+        <Route path="/cercles" element={<Cercles />} />
         <Route path="/profile" element={<Profile />} />
+        <Route path="/profile/:id" element={<Profile />} />
       </Routes>
     </BrowserRouter>
   );

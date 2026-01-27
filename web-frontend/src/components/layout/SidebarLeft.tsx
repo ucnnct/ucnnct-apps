@@ -67,7 +67,7 @@ export default function SidebarLeft() {
                 to="/profile"
                 icon={<User size={20} />}
                 label="Mon Profil"
-                active={location.pathname === "/profile"}
+                active={location.pathname.startsWith("/profile")}
               />
             </div>
           </div>
