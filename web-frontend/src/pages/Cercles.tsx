@@ -1,15 +1,7 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import Layout from "../components/layout/Layout";
-import {
-  UserPlus,
-  UserX,
-  Users,
-  Compass,
-  Check,
-  X,
-  Loader2,
-} from "lucide-react";
+import { UserX, Users, Compass, X, Loader2 } from "lucide-react";
 import SectionHeader from "../components/common/SectionHeader";
 import { useAuth } from "../auth/AuthProvider";
 import { friendApi, type Friendship } from "../api/friends";
@@ -35,28 +27,42 @@ export default function Cercles() {
       friendApi.getPendingRequests(token),
       friendApi.getSentRequests(token),
       userApi.getAll(token),
-    ]).then(([f, r, s, allUsers]) => {
-      setFriends(f);
-      setReceived(r);
-      setSent(s);
+    ])
+      .then(([f, r, s, allUsers]) => {
+        setFriends(f);
+        setReceived(r);
+        setSent(s);
 
-      const friendIds = new Set(f.map((u) => u.keycloakId));
-      const sentKeycloakIds = new Set(s.map((req) => req.receiver.keycloakId));
-      const pendingIds = new Set(r.map((req) => req.requester.keycloakId));
-      const excludeIds = new Set([authUser.sub, ...friendIds, ...sentKeycloakIds, ...pendingIds]);
-      setSuggestions(allUsers.filter((u) => !excludeIds.has(u.keycloakId)));
-      setSentIds(sentKeycloakIds);
-    }).catch(() => {}).finally(() => setLoading(false));
+        const friendIds = new Set(f.map((u) => u.keycloakId));
+        const sentKeycloakIds = new Set(
+          s.map((req) => req.receiver.keycloakId),
+        );
+        const pendingIds = new Set(r.map((req) => req.requester.keycloakId));
+        const excludeIds = new Set([
+          authUser.sub,
+          ...friendIds,
+          ...sentKeycloakIds,
+          ...pendingIds,
+        ]);
+        setSuggestions(allUsers.filter((u) => !excludeIds.has(u.keycloakId)));
+        setSentIds(sentKeycloakIds);
+      })
+      .catch(() => {})
+      .finally(() => setLoading(false));
   };
 
-  useEffect(() => { loadData(); }, [token]);
+  useEffect(() => {
+    loadData();
+  }, [token]);
 
   const handleAddFriend = async (keycloakId: string) => {
     if (!token) return;
     try {
       await friendApi.sendRequest(token, keycloakId);
       setSentIds((prev) => new Set([...prev, keycloakId]));
-    } catch { /* ignore */ }
+    } catch {
+      /* ignore */
+    }
   };
 
   const handleAccept = async (requesterId: string) => {
@@ -117,7 +123,9 @@ export default function Cercles() {
                     return (
                       <UserCard key={u.keycloakId} user={u}>
                         <button
-                          onClick={() => !alreadySent && handleAddFriend(u.keycloakId)}
+                          onClick={() =>
+                            !alreadySent && handleAddFriend(u.keycloakId)
+                          }
                           className={`w-full py-2 text-[10px] font-black uppercase tracking-widest rounded-sm transition-all ${
                             alreadySent
                               ? "bg-secondary-50 text-secondary-400 border border-secondary-100"
@@ -137,19 +145,26 @@ export default function Cercles() {
               {/* Demandes reçues */}
               {received.length > 0 && (
                 <div>
-                  <SectionHeader label={`${received.length} demande${received.length !== 1 ? "s" : ""} reçue${received.length !== 1 ? "s" : ""}`} />
+                  <SectionHeader
+                    label={`${received.length} demande${received.length !== 1 ? "s" : ""} reçue${received.length !== 1 ? "s" : ""}`}
+                  />
                   <div className="space-y-2">
                     {received.map((r) => {
-                      const fullName = `${r.requester.firstName} ${r.requester.lastName}`.trim();
+                      const fullName =
+                        `${r.requester.firstName} ${r.requester.lastName}`.trim();
                       const handle = r.requester.username.includes("@")
-                        ? r.requester.firstName || r.requester.username.split("@")[0]
+                        ? r.requester.firstName ||
+                          r.requester.username.split("@")[0]
                         : r.requester.username;
                       return (
                         <div
                           key={r.id}
                           className="flex items-center justify-between p-3 bg-primary-50/50 border border-primary-100 rounded-sm"
                         >
-                          <Link to={`/profile/${r.requester.keycloakId}`} className="flex items-center gap-3 min-w-0 flex-1">
+                          <Link
+                            to={`/profile/${r.requester.keycloakId}`}
+                            className="flex items-center gap-3 min-w-0 flex-1"
+                          >
                             <div className="w-10 h-10 avatar-sharp shrink-0">
                               <img
                                 src={`https://api.dicebear.com/7.x/avataaars/svg?seed=${encodeURIComponent(fullName)}`}
@@ -167,13 +182,17 @@ export default function Cercles() {
                           </Link>
                           <div className="flex gap-2 shrink-0">
                             <button
-                              onClick={() => handleAccept(r.requester.keycloakId)}
+                              onClick={() =>
+                                handleAccept(r.requester.keycloakId)
+                              }
                               className="px-4 py-1.5 bg-primary-500 hover:bg-primary-600 text-white text-[9px] font-black uppercase tracking-widest rounded-sm transition-all"
                             >
                               ACCEPTER
                             </button>
                             <button
-                              onClick={() => handleReject(r.requester.keycloakId)}
+                              onClick={() =>
+                                handleReject(r.requester.keycloakId)
+                              }
                               className="p-1.5 border border-secondary-200 hover:border-red-300 hover:text-red-500 text-secondary-400 rounded-sm transition-all"
                               title="Refuser"
                             >
@@ -189,7 +208,9 @@ export default function Cercles() {
 
               {/* Amis */}
               <div>
-                <SectionHeader label={`${friends.length} ami${friends.length !== 1 ? "s" : ""}`} />
+                <SectionHeader
+                  label={`${friends.length} ami${friends.length !== 1 ? "s" : ""}`}
+                />
                 {friends.length === 0 ? (
                   <EmptyState text="Aucun ami pour le moment" />
                 ) : (
@@ -220,19 +241,26 @@ export default function Cercles() {
               {/* Demandes envoyées */}
               {sent.length > 0 && (
                 <div>
-                  <SectionHeader label={`${sent.length} demande${sent.length !== 1 ? "s" : ""} en attente`} />
+                  <SectionHeader
+                    label={`${sent.length} demande${sent.length !== 1 ? "s" : ""} en attente`}
+                  />
                   <div className="space-y-1">
                     {sent.map((s) => {
-                      const fullName = `${s.receiver.firstName} ${s.receiver.lastName}`.trim();
+                      const fullName =
+                        `${s.receiver.firstName} ${s.receiver.lastName}`.trim();
                       const handle = s.receiver.username.includes("@")
-                        ? s.receiver.firstName || s.receiver.username.split("@")[0]
+                        ? s.receiver.firstName ||
+                          s.receiver.username.split("@")[0]
                         : s.receiver.username;
                       return (
                         <div
                           key={s.id}
                           className="flex items-center justify-between py-3 px-2 hover:bg-secondary-50 transition-colors rounded-sm"
                         >
-                          <Link to={`/profile/${s.receiver.keycloakId}`} className="flex items-center gap-3 min-w-0 flex-1">
+                          <Link
+                            to={`/profile/${s.receiver.keycloakId}`}
+                            className="flex items-center gap-3 min-w-0 flex-1"
+                          >
                             <div className="w-8 h-8 avatar-sharp shrink-0">
                               <img
                                 src={`https://api.dicebear.com/7.x/avataaars/svg?seed=${encodeURIComponent(fullName)}`}
@@ -298,12 +326,20 @@ function ToggleButton({
   );
 }
 
-function UserCard({ user, children }: { user: UserProfile; children: React.ReactNode }) {
+function UserCard({
+  user,
+  children,
+}: {
+  user: UserProfile;
+  children: React.ReactNode;
+}) {
   const fullName = `${user.firstName} ${user.lastName}`.trim();
   const handle = user.username.includes("@")
     ? user.firstName || user.email.split("@")[0]
     : user.username;
-  const detail = [user.fieldOfStudy, user.university].filter(Boolean).join(" · ");
+  const detail = [user.fieldOfStudy, user.university]
+    .filter(Boolean)
+    .join(" · ");
 
   return (
     <div className="border border-secondary-100 rounded-sm overflow-hidden hover:shadow-md transition-all group">
@@ -313,7 +349,10 @@ function UserCard({ user, children }: { user: UserProfile; children: React.React
         <div className="absolute -bottom-5 left-4">
           <div className="w-14 h-14 bg-white p-0.5 rounded-sm border border-secondary-100 shadow-sm overflow-hidden">
             <img
-              src={user.avatarUrl || `https://api.dicebear.com/7.x/avataaars/svg?seed=${encodeURIComponent(fullName)}`}
+              src={
+                user.avatarUrl ||
+                `https://api.dicebear.com/7.x/avataaars/svg?seed=${encodeURIComponent(fullName)}`
+              }
               alt={fullName}
               className="w-full h-full object-cover rounded-sm"
             />
@@ -322,7 +361,10 @@ function UserCard({ user, children }: { user: UserProfile; children: React.React
       </div>
 
       <div className="pt-8 px-4 pb-4">
-        <Link to={`/profile/${user.keycloakId}`} className="block mb-3 group/link">
+        <Link
+          to={`/profile/${user.keycloakId}`}
+          className="block mb-3 group/link"
+        >
           <p className="text-[11px] font-black text-primary-900 uppercase tracking-tight truncate group-hover/link:text-primary-500 transition-colors">
             {fullName}
           </p>
