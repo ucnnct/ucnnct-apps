@@ -1,12 +1,13 @@
 import { useEffect, useState } from "react";
-import { useParams } from "react-router-dom";
+import { useParams, Link } from "react-router-dom";
 import Layout from "../components/layout/Layout";
 import {
   Calendar,
+  Camera,
   MapPin,
   Link as LinkIcon,
   GraduationCap,
-  MoreHorizontal,
+  Settings,
   LayoutGrid,
   FileText,
   Award,
@@ -16,32 +17,16 @@ import {
   UserMinus,
   Check,
   Loader2,
+  X,
+  Pencil,
+  Trash2,
 } from "lucide-react";
 import SectionHeader from "../components/common/SectionHeader";
 import { useAuth } from "../auth/AuthProvider";
-import { userApi, type UserProfile, type UpdateProfileData } from "../api/users";
+import { userApi, type UserProfile } from "../api/users";
 import { friendApi } from "../api/friends";
-
-const PROJECTS = [
-  {
-    id: 1,
-    title: "U-Connect Design System",
-    description:
-      "Conception d'un système de design complet basé sur les principes du Swiss Design.",
-    tags: ["REACT", "TAILWIND"],
-    image:
-      "https://images.unsplash.com/photo-1581291518062-c12427a9740a?auto=format&fit=crop&w=800&q=80",
-  },
-  {
-    id: 2,
-    title: "EcoTrack Mobile App",
-    description:
-      "Application mobile permettant aux étudiants de suivre leur empreinte carbone.",
-    tags: ["FLUTTER", "FIREBASE"],
-    image:
-      "https://images.unsplash.com/photo-1551650975-87deedd944c3?auto=format&fit=crop&w=800&q=80",
-  },
-];
+import { projectApi, type Project, type ProjectRequest } from "../api/projects";
+import { mediaApi } from "../api/media";
 
 type FriendStatus = "none" | "friends" | "pending_sent" | "pending_received";
 
@@ -52,10 +37,14 @@ export default function Profile() {
   const [friendCount, setFriendCount] = useState(0);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [editing, setEditing] = useState(false);
-  const [editData, setEditData] = useState<UpdateProfileData>({});
   const [friendStatus, setFriendStatus] = useState<FriendStatus>("none");
   const [actionLoading, setActionLoading] = useState(false);
+  const [projects, setProjects] = useState<Project[]>([]);
+  const [showProjectForm, setShowProjectForm] = useState(false);
+  const [editingProject, setEditingProject] = useState<Project | null>(null);
+  const [projectForm, setProjectForm] = useState<ProjectRequest>({ title: "", description: "", tags: "" });
+  const [uploadingProjectImage, setUploadingProjectImage] = useState(false);
+  const [projectImagePreview, setProjectImagePreview] = useState<string | null>(null);
   const { token, user: authUser } = useAuth();
 
   const isOwnProfile = !id || id === authUser?.sub;
@@ -63,20 +52,15 @@ export default function Profile() {
   useEffect(() => {
     if (!token) return;
     setLoading(true);
-    setEditing(false);
     setError(null);
 
     if (isOwnProfile) {
       userApi.getMe(token).then((user) => {
         setProfile(user);
-        setEditData({
-          bio: user.bio ?? "",
-          university: user.university ?? "",
-          location: user.location ?? "",
-          website: user.website ?? "",
-          fieldOfStudy: user.fieldOfStudy ?? "",
-        });
-        return friendApi.getCount(token).then((c) => setFriendCount(c.count)).catch(() => {});
+        return Promise.all([
+          friendApi.getCount(token).then((c) => setFriendCount(c.count)).catch(() => {}),
+          projectApi.getMine(token).then(setProjects).catch(() => {}),
+        ]);
       }).catch((err) => {
         console.error("Profile load error:", err);
         setError(err.message);
@@ -88,6 +72,7 @@ export default function Profile() {
           friendApi.getMyFriends(token),
           friendApi.getSentRequests(token),
           friendApi.getPendingRequests(token),
+          projectApi.getByUser(token, id!).then(setProjects).catch(() => {}),
         ]).then(([friends, sent, pending]) => {
           if (friends.some((f) => f.keycloakId === id)) {
             setFriendStatus("friends");
@@ -106,13 +91,6 @@ export default function Profile() {
     }
   }, [token, id]);
 
-  const handleSave = async () => {
-    if (!token) return;
-    const updated = await userApi.updateMe(token, editData);
-    setProfile(updated);
-    setEditing(false);
-  };
-
   const handleFriendAction = async (action: "add" | "accept" | "remove") => {
     if (!token || !id) return;
     setActionLoading(true);
@@ -127,6 +105,64 @@ export default function Profile() {
         await friendApi.remove(token, id);
         setFriendStatus("none");
       }
+    } catch { /* ignore */ }
+    setActionLoading(false);
+  };
+
+  const openProjectForm = (project?: Project) => {
+    if (project) {
+      setEditingProject(project);
+      setProjectForm({ title: project.title, description: project.description, tags: project.tags, imageUrl: project.imageUrl ?? undefined, link: project.link ?? undefined });
+      setProjectImagePreview(project.imageUrl ?? null);
+    } else {
+      setEditingProject(null);
+      setProjectForm({ title: "", description: "", tags: "" });
+      setProjectImagePreview(null);
+    }
+    setShowProjectForm(true);
+  };
+
+  const handleProjectImageChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file || !token) return;
+
+    setProjectImagePreview(URL.createObjectURL(file));
+    setUploadingProjectImage(true);
+    try {
+      const res = await mediaApi.upload(token, file, "projects");
+      setProjectForm((prev) => ({ ...prev, imageUrl: res.url }));
+    } catch {
+      setProjectImagePreview(null);
+    } finally {
+      setUploadingProjectImage(false);
+    }
+  };
+
+  const handleProjectSubmit = async () => {
+    if (!token || !projectForm.title.trim()) return;
+    setActionLoading(true);
+    try {
+      if (editingProject) {
+        const updated = await projectApi.update(token, editingProject.id, projectForm);
+        setProjects((prev) => prev.map((p) => (p.id === updated.id ? updated : p)));
+      } else {
+        const created = await projectApi.create(token, projectForm);
+        setProjects((prev) => [created, ...prev]);
+      }
+      setShowProjectForm(false);
+      setEditingProject(null);
+      setProjectForm({ title: "", description: "", tags: "" });
+      setProjectImagePreview(null);
+    } catch { /* ignore */ }
+    setActionLoading(false);
+  };
+
+  const handleProjectDelete = async (projectId: number) => {
+    if (!token) return;
+    setActionLoading(true);
+    try {
+      await projectApi.delete(token, projectId);
+      setProjects((prev) => prev.filter((p) => p.id !== projectId));
     } catch { /* ignore */ }
     setActionLoading(false);
   };
@@ -175,7 +211,7 @@ export default function Profile() {
         </div>
 
         <div className="px-8 pb-8 border-b border-secondary-100">
-          <div className="relative flex justify-between items-end -mt-10 mb-6">
+          <div className="relative -mt-10 mb-4">
             <div className="w-20 h-20 bg-white p-1 rounded-sm border border-secondary-100 shadow-sm overflow-hidden">
               <div className="w-full h-full bg-secondary-50 rounded-sm overflow-hidden border border-secondary-100">
                 <img
@@ -185,19 +221,26 @@ export default function Profile() {
                 />
               </div>
             </div>
-            <div className="flex gap-3 mb-2">
+          </div>
+
+          <div className="flex justify-between items-start mb-4">
+            <div className="space-y-1">
+              <h1 className="text-lg font-black text-primary-900 uppercase tracking-tight font-display">
+                {fullName}
+              </h1>
+              <p className="text-[10px] font-bold text-secondary-400 uppercase tracking-widest">
+                @{handle.toUpperCase()}
+              </p>
+            </div>
+            <div className="flex gap-3">
               {isOwnProfile ? (
-                <>
-                  <button
-                    onClick={() => setEditing(!editing)}
-                    className="px-6 py-2 border border-secondary-200 hover:bg-secondary-50 text-primary-900 font-black text-[10px] uppercase tracking-widest rounded-sm transition-all active:scale-95"
-                  >
-                    {editing ? "ANNULER" : "MODIFIER LE PROFIL"}
-                  </button>
-                  <button className="p-2 border border-secondary-200 rounded-sm hover:bg-secondary-50 transition-all text-secondary-600">
-                    <MoreHorizontal size={20} />
-                  </button>
-                </>
+                <Link
+                  to="/profile/edit"
+                  className="flex items-center gap-2 px-6 py-2 border border-secondary-200 hover:bg-secondary-50 text-primary-900 font-black text-[10px] uppercase tracking-widest rounded-sm transition-all active:scale-95"
+                >
+                  <Settings size={14} />
+                  MODIFIER LE PROFIL
+                </Link>
               ) : (
                 <>
                   {friendStatus === "none" && (
@@ -241,58 +284,33 @@ export default function Profile() {
             </div>
           </div>
 
-          <div className="space-y-1">
-            <h1 className="text-lg font-black text-primary-900 uppercase tracking-tight font-display">
-              {fullName}
-            </h1>
-            <p className="text-[10px] font-bold text-secondary-400 uppercase tracking-widest">
-              @{handle.toUpperCase()}
-            </p>
+          <p className="text-primary-900 font-medium leading-relaxed max-w-2xl">
+            {profile.bio || "Aucune bio pour le moment."}
+          </p>
+
+          <div className="mt-6 flex flex-wrap gap-y-2 gap-x-6">
+            {profile.university && (
+              <InfoItem icon={<GraduationCap size={16} />} text={profile.university} />
+            )}
+            {profile.location && (
+              <InfoItem icon={<MapPin size={16} />} text={profile.location} />
+            )}
+            {profile.website && (
+              <InfoItem icon={<LinkIcon size={16} />} text={profile.website} color="text-primary-500" />
+            )}
+            <InfoItem icon={<Calendar size={16} />} text={`Inscrit en ${joinDate}`} />
           </div>
 
-          {editing && isOwnProfile ? (
-            <div className="mt-4 space-y-3 max-w-2xl">
-              <EditField label="Bio" value={editData.bio ?? ""} onChange={(v) => setEditData({ ...editData, bio: v })} multiline />
-              <EditField label="Université" value={editData.university ?? ""} onChange={(v) => setEditData({ ...editData, university: v })} />
-              <EditField label="Localisation" value={editData.location ?? ""} onChange={(v) => setEditData({ ...editData, location: v })} />
-              <EditField label="Site web" value={editData.website ?? ""} onChange={(v) => setEditData({ ...editData, website: v })} />
-              <EditField label="Filière" value={editData.fieldOfStudy ?? ""} onChange={(v) => setEditData({ ...editData, fieldOfStudy: v })} />
-              <button
-                onClick={handleSave}
-                className="px-6 py-2 bg-primary-500 hover:bg-primary-600 text-white font-black text-[10px] uppercase tracking-widest rounded-sm transition-all"
-              >
-                ENREGISTRER
-              </button>
-            </div>
-          ) : (
-            <>
-              <p className="mt-4 text-primary-900 font-medium leading-relaxed max-w-2xl">
-                {profile.bio || "Aucune bio pour le moment."}
-              </p>
-
-              <div className="mt-6 flex flex-wrap gap-y-2 gap-x-6">
-                {profile.university && (
-                  <InfoItem icon={<GraduationCap size={16} />} text={profile.university} />
-                )}
-                {profile.location && (
-                  <InfoItem icon={<MapPin size={16} />} text={profile.location} />
-                )}
-                {profile.website && (
-                  <InfoItem icon={<LinkIcon size={16} />} text={profile.website} color="text-primary-500" />
-                )}
-                <InfoItem icon={<Calendar size={16} />} text={`Inscrit en ${joinDate}`} />
+          {isOwnProfile && (
+            <div className="mt-6 flex gap-6">
+              <div className="flex gap-1.5 items-baseline">
+                <span className="font-black text-primary-900 text-lg">{friendCount}</span>
+                <span className="text-[10px] font-bold text-secondary-400 uppercase tracking-widest">
+                  Amis
+                </span>
               </div>
-            </>
-          )}
-
-          <div className="mt-6 flex gap-6">
-            <div className="flex gap-1.5 items-baseline">
-              <span className="font-black text-primary-900 text-lg">{friendCount}</span>
-              <span className="text-[10px] font-bold text-secondary-400 uppercase tracking-widest">
-                Amis
-              </span>
             </div>
-          </div>
+          )}
         </div>
 
         <div className="flex border-b border-secondary-100 bg-white sticky top-0 z-10">
@@ -328,46 +346,159 @@ export default function Profile() {
           {activeTab === "projects" && (
             <div className="space-y-10">
               <div className="flex justify-between items-center">
-                <SectionHeader label="Mes réalisations" />
-                <button className="flex items-center gap-2 text-[10px] font-black text-primary-500 uppercase tracking-widest hover:text-primary-700 transition-colors">
-                  <Plus size={14} strokeWidth={3} />
-                  AJOUTER
-                </button>
+                <SectionHeader label={isOwnProfile ? "Mes réalisations" : "Réalisations"} />
+                {isOwnProfile && (
+                  <button
+                    onClick={() => openProjectForm()}
+                    className="flex items-center gap-2 text-[10px] font-black text-primary-500 uppercase tracking-widest hover:text-primary-700 transition-colors"
+                  >
+                    <Plus size={14} strokeWidth={3} />
+                    AJOUTER
+                  </button>
+                )}
               </div>
-              <div className="grid grid-cols-1 gap-8">
-                {PROJECTS.map((project) => (
-                  <div key={project.id} className="group cursor-pointer">
-                    <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-                      <div className="aspect-video bg-secondary-50 border border-secondary-100 rounded-sm overflow-hidden">
-                        <img
-                          src={project.image}
-                          alt={project.title}
-                          className="w-full h-full object-cover grayscale group-hover:grayscale-0 transition-all duration-500"
-                        />
+
+              {showProjectForm && (
+                <div className="border border-secondary-100 rounded-sm p-6 space-y-4 bg-secondary-50/30">
+                  <div className="flex justify-between items-center">
+                    <h3 className="text-[10px] font-black text-primary-900 uppercase tracking-widest">
+                      {editingProject ? "MODIFIER LE PROJET" : "NOUVEAU PROJET"}
+                    </h3>
+                    <button onClick={() => setShowProjectForm(false)} className="text-secondary-400 hover:text-secondary-600">
+                      <X size={16} />
+                    </button>
+                  </div>
+                  <input
+                    type="text"
+                    placeholder="Titre du projet"
+                    value={projectForm.title}
+                    onChange={(e) => setProjectForm({ ...projectForm, title: e.target.value })}
+                    className="w-full px-4 py-2.5 bg-white border border-secondary-200 rounded-sm text-sm text-primary-900 font-medium focus:outline-none focus:border-primary-500 transition-colors"
+                  />
+                  <textarea
+                    placeholder="Description"
+                    value={projectForm.description}
+                    onChange={(e) => setProjectForm({ ...projectForm, description: e.target.value })}
+                    rows={3}
+                    className="w-full px-4 py-2.5 bg-white border border-secondary-200 rounded-sm text-sm text-primary-900 font-medium focus:outline-none focus:border-primary-500 transition-colors resize-none"
+                  />
+                  <input
+                    type="text"
+                    placeholder="Tags (séparés par des virgules)"
+                    value={projectForm.tags}
+                    onChange={(e) => setProjectForm({ ...projectForm, tags: e.target.value })}
+                    className="w-full px-4 py-2.5 bg-white border border-secondary-200 rounded-sm text-sm text-primary-900 font-medium focus:outline-none focus:border-primary-500 transition-colors"
+                  />
+                  <input
+                    type="url"
+                    placeholder="Lien du projet (optionnel)"
+                    value={projectForm.link || ""}
+                    onChange={(e) => setProjectForm({ ...projectForm, link: e.target.value })}
+                    className="w-full px-4 py-2.5 bg-white border border-secondary-200 rounded-sm text-sm text-primary-900 font-medium focus:outline-none focus:border-primary-500 transition-colors"
+                  />
+                  <div>
+                    <label className="inline-flex items-center gap-2 px-4 py-2.5 bg-white border border-secondary-200 rounded-sm text-sm text-primary-900 font-medium hover:border-primary-500 transition-colors cursor-pointer">
+                      {uploadingProjectImage ? (
+                        <Loader2 size={14} className="animate-spin" />
+                      ) : (
+                        <Camera size={14} />
+                      )}
+                      <span className="text-[10px] font-black uppercase tracking-widest">
+                        {projectImagePreview ? "Changer l'image" : "Ajouter une image"}
+                      </span>
+                      <input
+                        type="file"
+                        accept="image/*"
+                        className="hidden"
+                        onChange={handleProjectImageChange}
+                      />
+                    </label>
+                    {projectImagePreview && (
+                      <div className="mt-2 w-32 h-20 rounded-sm overflow-hidden border border-secondary-100">
+                        <img src={projectImagePreview} alt="Preview" className="w-full h-full object-cover" />
                       </div>
-                      <div className="md:col-span-3 flex flex-col justify-center space-y-2">
-                        <div className="flex gap-2">
-                          {project.tags.map((tag) => (
-                            <span
-                              key={tag}
-                              className="text-[8px] font-black text-primary-500 tracking-tighter"
-                            >
-                              {tag}
-                            </span>
-                          ))}
+                    )}
+                  </div>
+                  <div className="flex justify-end gap-3">
+                    <button
+                      onClick={() => setShowProjectForm(false)}
+                      className="px-6 py-2 border border-secondary-200 text-primary-900 font-black text-[10px] uppercase tracking-widest rounded-sm hover:bg-secondary-50 transition-colors"
+                    >
+                      ANNULER
+                    </button>
+                    <button
+                      onClick={handleProjectSubmit}
+                      disabled={actionLoading || !projectForm.title.trim()}
+                      className="px-6 py-2 bg-primary-500 text-white font-black text-[10px] uppercase tracking-widest rounded-sm hover:bg-primary-600 transition-colors disabled:opacity-50"
+                    >
+                      {actionLoading ? <Loader2 size={14} className="animate-spin" /> : editingProject ? "ENREGISTRER" : "CRÉER"}
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {projects.length === 0 && !showProjectForm ? (
+                <div className="py-12 flex flex-col items-center justify-center border-2 border-dashed border-secondary-100 rounded-sm">
+                  <p className="text-[10px] font-black text-secondary-300 uppercase tracking-[0.3em]">
+                    Aucun projet pour le moment
+                  </p>
+                </div>
+              ) : (
+                <div className="grid grid-cols-1 gap-8">
+                  {projects.map((project) => (
+                    <div key={project.id} className="group">
+                      <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+                        <div className="aspect-video bg-secondary-50 border border-secondary-100 rounded-sm overflow-hidden flex items-center justify-center">
+                          {project.imageUrl ? (
+                            <img
+                              src={project.imageUrl}
+                              alt={project.title}
+                              className="w-full h-full object-cover grayscale group-hover:grayscale-0 transition-all duration-500"
+                            />
+                          ) : (
+                            <FileText size={32} className="text-secondary-200" />
+                          )}
                         </div>
-                        <h3 className="text-lg font-black text-primary-900 uppercase tracking-tight group-hover:text-primary-500 transition-colors flex items-center gap-2">
-                          {project.title}
-                          <ExternalLink size={14} />
-                        </h3>
-                        <p className="text-secondary-500 text-sm leading-relaxed">
-                          {project.description}
-                        </p>
+                        <div className="md:col-span-3 flex flex-col justify-center space-y-2">
+                          <div className="flex gap-2">
+                            {project.tags.split(",").filter(Boolean).map((tag) => (
+                              <span
+                                key={tag.trim()}
+                                className="text-[8px] font-black text-primary-500 uppercase tracking-wider"
+                              >
+                                {tag.trim()}
+                              </span>
+                            ))}
+                          </div>
+                          <div className="flex items-center gap-3">
+                            <h3 className="text-lg font-black text-primary-900 uppercase tracking-tight group-hover:text-primary-500 transition-colors flex items-center gap-2">
+                              {project.title}
+                              {project.link && (
+                                <a href={project.link} target="_blank" rel="noopener noreferrer" onClick={(e) => e.stopPropagation()}>
+                                  <ExternalLink size={14} />
+                                </a>
+                              )}
+                            </h3>
+                            {isOwnProfile && (
+                              <div className="flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                                <button onClick={() => openProjectForm(project)} className="text-secondary-400 hover:text-primary-500">
+                                  <Pencil size={14} />
+                                </button>
+                                <button onClick={() => handleProjectDelete(project.id)} className="text-secondary-400 hover:text-red-500">
+                                  <Trash2 size={14} />
+                                </button>
+                              </div>
+                            )}
+                          </div>
+                          <p className="text-secondary-500 text-sm leading-relaxed">
+                            {project.description}
+                          </p>
+                        </div>
                       </div>
                     </div>
-                  </div>
-                ))}
-              </div>
+                  ))}
+                </div>
+              )}
             </div>
           )}
 
@@ -381,32 +512,6 @@ export default function Profile() {
         </div>
       </div>
     </Layout>
-  );
-}
-
-function EditField({
-  label,
-  value,
-  onChange,
-  multiline = false,
-}: {
-  label: string;
-  value: string;
-  onChange: (v: string) => void;
-  multiline?: boolean;
-}) {
-  const cls = "w-full bg-secondary-50 border border-secondary-100 focus:bg-white focus:border-primary-500 focus:ring-0 rounded-sm py-2 px-3 text-sm text-primary-900 transition-all";
-  return (
-    <div>
-      <label className="text-[10px] font-black text-secondary-400 uppercase tracking-widest mb-1 block">
-        {label}
-      </label>
-      {multiline ? (
-        <textarea value={value} onChange={(e) => onChange(e.target.value)} rows={3} className={cls} />
-      ) : (
-        <input type="text" value={value} onChange={(e) => onChange(e.target.value)} className={cls} />
-      )}
-    </div>
   );
 }
 
