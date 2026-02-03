@@ -78,7 +78,7 @@ export default function SidebarLeft() {
         <div className="flex items-center gap-3 group cursor-pointer">
           <div className="w-10 h-10 avatar-sharp">
             <img
-              src={`https://api.dicebear.com/7.x/avataaars/svg?seed=${encodeURIComponent(user?.fullName ?? "User")}`}
+              src={user?.avatarUrl || `https://api.dicebear.com/7.x/avataaars/svg?seed=${encodeURIComponent(user?.fullName ?? "User")}`}
               alt="Profile"
             />
           </div>

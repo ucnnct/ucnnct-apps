@@ -167,7 +167,7 @@ export default function Cercles() {
                           >
                             <div className="w-10 h-10 avatar-sharp shrink-0">
                               <img
-                                src={`https://api.dicebear.com/7.x/avataaars/svg?seed=${encodeURIComponent(fullName)}`}
+                                src={r.requester.avatarUrl || `https://api.dicebear.com/7.x/avataaars/svg?seed=${encodeURIComponent(fullName)}`}
                                 alt={fullName}
                               />
                             </div>
@@ -263,7 +263,7 @@ export default function Cercles() {
                           >
                             <div className="w-8 h-8 avatar-sharp shrink-0">
                               <img
-                                src={`https://api.dicebear.com/7.x/avataaars/svg?seed=${encodeURIComponent(fullName)}`}
+                                src={s.receiver.avatarUrl || `https://api.dicebear.com/7.x/avataaars/svg?seed=${encodeURIComponent(fullName)}`}
                                 alt={fullName}
                               />
                             </div>

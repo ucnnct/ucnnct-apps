@@ -1,10 +1,11 @@
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import {
   AuthProvider as OidcAuthProvider,
   useAuth as useOidcAuth,
 } from "react-oidc-context";
 import { oidcConfig } from "./keycloak";
 import type { ReactNode } from "react";
+import { userApi } from "../api/users";
 
 export interface AuthUser {
   sub: string;
@@ -12,6 +13,7 @@ export interface AuthUser {
   fullName: string;
   preferredUsername: string;
   shortHandle: string;
+  avatarUrl: string | null;
 }
 
 export function AuthProvider({ children }: { children: ReactNode }) {
@@ -30,6 +32,15 @@ export function useAuth() {
   }, [auth.events, auth.signinSilent]);
 
   const profile = auth.user?.profile;
+  const accessToken = auth.user?.access_token;
+  const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!auth.isAuthenticated || !accessToken) return;
+    userApi.getMe(accessToken).then((me) => {
+      setAvatarUrl(me.avatarUrl ?? null);
+    }).catch(() => {});
+  }, [auth.isAuthenticated, accessToken]);
 
   const username = (profile?.preferred_username as string) ?? "";
   const email = (profile?.email as string) ?? "";
@@ -47,6 +58,7 @@ export function useAuth() {
         fullName: (profile.name as string) ?? username ?? "",
         preferredUsername: username,
         shortHandle,
+        avatarUrl,
       }
     : null;
 
@@ -54,7 +66,7 @@ export function useAuth() {
     initialized: !auth.isLoading,
     authenticated: auth.isAuthenticated,
     user,
-    token: auth.user?.access_token,
+    token: accessToken,
     login: () => auth.signinRedirect(),
     logout: () => auth.signoutRedirect(),
   };

@@ -78,7 +78,7 @@ function CreatePostArea() {
     <div className="p-6 border-b border-secondary-100">
       <div className="flex gap-4">
         <div className="w-10 h-10 bg-secondary-100 border border-secondary-200 rounded-sm overflow-hidden flex-shrink-0">
-          <img src={`https://api.dicebear.com/7.x/avataaars/svg?seed=${encodeURIComponent(user?.fullName ?? "User")}`} alt="Me" />
+          <img src={user?.avatarUrl || `https://api.dicebear.com/7.x/avataaars/svg?seed=${encodeURIComponent(user?.fullName ?? "User")}`} alt="Me" />
         </div>
         <div className="flex-1">
           <textarea

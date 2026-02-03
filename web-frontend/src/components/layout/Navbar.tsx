@@ -12,7 +12,7 @@ export default function Navbar() {
   const [searching, setSearching] = useState(false);
   const [showResults, setShowResults] = useState(false);
   const searchRef = useRef<HTMLDivElement>(null);
-  const debounceRef = useRef<ReturnType<typeof setTimeout>>();
+  const debounceRef = useRef<ReturnType<typeof setTimeout>>(undefined);
 
   const displayName = user?.shortHandle?.toUpperCase() ?? "USER";
 
@@ -125,7 +125,7 @@ export default function Navbar() {
           <div className="flex items-center gap-3 cursor-pointer group">
             <div className="h-8 w-8 avatar-sharp group-hover:border-primary-500 transition-all">
               <img
-                src={`https://api.dicebear.com/7.x/avataaars/svg?seed=${encodeURIComponent(user?.fullName ?? "User")}`}
+                src={user?.avatarUrl || `https://api.dicebear.com/7.x/avataaars/svg?seed=${encodeURIComponent(user?.fullName ?? "User")}`}
                 alt="User"
               />
             </div>

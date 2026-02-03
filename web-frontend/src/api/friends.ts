@@ -3,8 +3,8 @@ import type { UserProfile } from "./users";
 
 export interface Friendship {
   id: number;
-  requester: Pick<UserProfile, "keycloakId" | "username" | "email" | "firstName" | "lastName">;
-  receiver: Pick<UserProfile, "keycloakId" | "username" | "email" | "firstName" | "lastName">;
+  requester: Pick<UserProfile, "keycloakId" | "username" | "email" | "firstName" | "lastName" | "avatarUrl">;
+  receiver: Pick<UserProfile, "keycloakId" | "username" | "email" | "firstName" | "lastName" | "avatarUrl">;
   status: "PENDING" | "ACCEPTED" | "REJECTED";
   createdAt: string;
 }
