@@ -1,4 +1,21 @@
 services:
+  traefik:
+    image: traefik:v3.6
+    container_name: uconnect-traefik
+    restart: unless-stopped
+    command:
+      - "--api.insecure=true"
+      - "--providers.docker=true"
+      - "--providers.docker.exposedbydefault=false"
+      - "--entrypoints.web.address=:80"
+    ports:
+      - "80:80"
+      - "8080:8080"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    networks:
+      - uconnect-network
+
   keycloak-db:
     image: postgres:15
     container_name: uconnect-keycloak-db
@@ -13,7 +30,7 @@ services:
       - uconnect-network
 
   keycloak:
-    image: quay.io/keycloak/keycloak:23.0.0
+    build: ./keycloak
     restart: unless-stopped
     container_name: uconnect-keycloak
     command: start-dev
@@ -30,9 +47,6 @@ services:
       KC_SPI_THEME_CACHE_TEMPLATES: "false"
       KAFKA_BOOTSTRAP_SERVERS: kafka:9092
       KAFKA_TOPIC_USER_EVENTS: keycloak-user-events
-    volumes:
-      - ./keycloak/themes/ucnnct:/opt/keycloak/themes/ucnnct
-      - ./keycloak-event-listener/target/keycloak-event-listener-1.0.0.jar:/opt/keycloak/providers/keycloak-event-listener.jar
     ports:
       - "8081:8080"
     depends_on:
@@ -86,8 +100,6 @@ services:
       KAFKA_BOOTSTRAP_SERVERS: kafka:9092
       KEYCLOAK_ISSUER_URI: http://keycloak:8080/realms/ucnnct
       KEYCLOAK_JWKSET_URI: http://keycloak:8080/realms/ucnnct/protocol/openid-connect/certs
-    ports:
-      - "8082:8082"
     depends_on:
       - user-db
       - kafka
@@ -119,8 +131,12 @@ services:
       MINIO_ROOT_USER: minioadmin
       MINIO_ROOT_PASSWORD: minioadmin
     ports:
-      - "9000:9000"
       - "9001:9001"
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.minio-public.rule=PathPrefix(`/uconnect-media`)"
+      - "traefik.http.routers.minio-public.entrypoints=web"
+      - "traefik.http.services.minio-public.loadbalancer.server.port=9000"
     volumes:
       - minio_data:/data
     networks:
@@ -151,14 +167,52 @@ services:
       MINIO_ACCESS_KEY: minioadmin
       MINIO_SECRET_KEY: minioadmin
       MINIO_BUCKET: uconnect-media
-      MINIO_PUBLIC_URL: http://localhost:9000
+      MINIO_PUBLIC_URL: http://localhost
       KEYCLOAK_ISSUER_URI: http://keycloak:8080/realms/ucnnct
       KEYCLOAK_JWKSET_URI: http://keycloak:8080/realms/ucnnct/protocol/openid-connect/certs
-    ports:
-      - "8083:8083"
     depends_on:
       - minio
       - keycloak
+    networks:
+      - uconnect-network
+
+  bff:
+    build: ./bff
+    container_name: uconnect-bff
+    restart: unless-stopped
+    environment:
+      KEYCLOAK_ISSUER_URI: http://keycloak:8080/realms/ucnnct
+      KEYCLOAK_EXTERNAL_URI: http://localhost:8081/realms/ucnnct
+      BFF_CLIENT_SECRET: DCFCpkcKObZ9ixmJcoBqoeUMGdgEL36e
+      USER_SERVICE_URL: http://user-service:8082
+      MEDIA_SERVICE_URL: http://media-service:8083
+      REDIRECT_URI: http://localhost/login/oauth2/code/keycloak
+      SESSION_SECRET: ${SESSION_SECRET:-change-me-in-prod}
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.bff.rule=PathPrefix(`/api`) || PathPrefix(`/bff`) || PathPrefix(`/login/oauth2`)"
+      - "traefik.http.routers.bff.entrypoints=web"
+      - "traefik.http.services.bff.loadbalancer.server.port=3001"
+    depends_on:
+      - user-service
+      - media-service
+      - keycloak
+    networks:
+      - uconnect-network
+
+  web-frontend:
+    build: ./web-frontend
+    container_name: uconnect-web-frontend
+    restart: unless-stopped
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.web-frontend.rule=PathPrefix(`/`)"
+      - "traefik.http.routers.web-frontend.entrypoints=web"
+      - "traefik.http.routers.web-frontend.priority=1"
+      - "traefik.http.services.web-frontend.loadbalancer.server.port=80"
+    depends_on:
+      - user-service
+      - media-service
     networks:
       - uconnect-network
 
