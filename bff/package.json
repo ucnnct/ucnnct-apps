@@ -1,0 +1,22 @@
+{
+  "name": "uconnect-bff",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "build": "tsc",
+    "start": "node dist/index.js"
+  },
+  "dependencies": {
+    "express": "^4.21",
+    "express-session": "^1.18",
+    "openid-client": "^5.7",
+    "http-proxy-middleware": "^3.0",
+    "connect-redis": "^7.1",
+    "ioredis": "^5.4"
+  },
+  "devDependencies": {
+    "typescript": "^5.7",
+    "@types/express": "^5",
+    "@types/express-session": "^1"
+  }
+}
