@@ -19,26 +19,26 @@ export interface ProjectRequest {
 }
 
 export const projectApi = {
-  getMine: (token: string) =>
-    apiFetch<Project[]>("/api/projects/me", token),
+  getMine: () =>
+    apiFetch<Project[]>("/api/projects/me"),
 
-  getByUser: (token: string, userId: string) =>
-    apiFetch<Project[]>(`/api/projects/user/${userId}`, token),
+  getByUser: (userId: string) =>
+    apiFetch<Project[]>(`/api/projects/user/${userId}`),
 
-  create: (token: string, data: ProjectRequest) =>
-    apiFetch<Project>("/api/projects", token, {
+  create: (data: ProjectRequest) =>
+    apiFetch<Project>("/api/projects", {
       method: "POST",
       body: JSON.stringify(data),
     }),
 
-  update: (token: string, id: number, data: Partial<ProjectRequest>) =>
-    apiFetch<Project>(`/api/projects/${id}`, token, {
+  update: (id: number, data: Partial<ProjectRequest>) =>
+    apiFetch<Project>(`/api/projects/${id}`, {
       method: "PUT",
       body: JSON.stringify(data),
     }),
 
-  delete: (token: string, id: number) =>
-    apiFetch<void>(`/api/projects/${id}`, token, {
+  delete: (id: number) =>
+    apiFetch<void>(`/api/projects/${id}`, {
       method: "DELETE",
     }),
 };

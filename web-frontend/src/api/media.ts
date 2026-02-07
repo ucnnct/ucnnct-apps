@@ -1,4 +1,4 @@
-const MEDIA_BASE_URL = window.__ENV__?.MEDIA_BASE_URL ?? "http://localhost:8083";
+const MEDIA_BASE_URL = window.__ENV__?.MEDIA_BASE_URL ?? "";
 
 export interface UploadResponse {
   url: string;
@@ -6,13 +6,13 @@ export interface UploadResponse {
 }
 
 export const mediaApi = {
-  upload: async (token: string, file: File, folder: string): Promise<UploadResponse> => {
+  upload: async (file: File, folder: string): Promise<UploadResponse> => {
     const formData = new FormData();
     formData.append("file", file);
 
     const res = await fetch(`${MEDIA_BASE_URL}/api/media/upload?folder=${encodeURIComponent(folder)}`, {
       method: "POST",
-      headers: { Authorization: `Bearer ${token}` },
+      credentials: "include",
       body: formData,
     });
 
@@ -23,10 +23,10 @@ export const mediaApi = {
     return res.json();
   },
 
-  delete: async (token: string, key: string): Promise<void> => {
+  delete: async (key: string): Promise<void> => {
     const res = await fetch(`${MEDIA_BASE_URL}/api/media?key=${encodeURIComponent(key)}`, {
       method: "DELETE",
-      headers: { Authorization: `Bearer ${token}` },
+      credentials: "include",
     });
 
     if (!res.ok) {

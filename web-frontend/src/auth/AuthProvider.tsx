@@ -1,11 +1,5 @@
-import { useEffect, useState } from "react";
-import {
-  AuthProvider as OidcAuthProvider,
-  useAuth as useOidcAuth,
-} from "react-oidc-context";
-import { oidcConfig } from "./keycloak";
+import { createContext, useContext, useEffect, useState } from "react";
 import type { ReactNode } from "react";
-import { userApi } from "../api/users";
 
 export interface AuthUser {
   sub: string;
@@ -16,58 +10,54 @@ export interface AuthUser {
   avatarUrl: string | null;
 }
 
+interface AuthState {
+  initialized: boolean;
+  authenticated: boolean;
+  user: AuthUser | null;
+  login: () => void;
+  logout: () => void;
+}
+
+const AuthContext = createContext<AuthState>(null!);
+
 export function AuthProvider({ children }: { children: ReactNode }) {
-  return <OidcAuthProvider {...oidcConfig}>{children}</OidcAuthProvider>;
-}
-
-export function useAuth() {
-  const auth = useOidcAuth();
+  const [state, setState] = useState<Omit<AuthState, "login" | "logout">>({
+    initialized: false, authenticated: false, user: null,
+  });
 
   useEffect(() => {
-    return auth.events.addAccessTokenExpiring(() => {
-      auth.signinSilent().catch((err) => {
-        console.warn("Silent renew failed", err);
-      });
-    });
-  }, [auth.events, auth.signinSilent]);
-
-  const profile = auth.user?.profile;
-  const accessToken = auth.user?.access_token;
-  const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
+    fetch("/bff/userinfo", { credentials: "include" })
+      .then((res) => { if (!res.ok) throw new Error(); return res.json(); })
+      .then((p) => {
+        const username = p.preferred_username ?? "";
+        const email = p.email ?? "";
+        const cleanUsername = username.includes("@") ? "" : username;
+        const shortHandle = cleanUsername || p.given_name || email.split("@")[0] || "user";
+        setState({
+          initialized: true, authenticated: true,
+          user: { sub: p.sub ?? "", email, fullName: p.name ?? username, preferredUsername: username, shortHandle, avatarUrl: null },
+        });
+      })
+      .catch(() => setState({ initialized: true, authenticated: false, user: null }));
+  }, []);
 
   useEffect(() => {
-    if (!auth.isAuthenticated || !accessToken) return;
-    userApi.getMe(accessToken).then((me) => {
-      setAvatarUrl(me.avatarUrl ?? null);
-    }).catch(() => {});
-  }, [auth.isAuthenticated, accessToken]);
+    if (!state.authenticated) return;
+    fetch("/api/users/me", { credentials: "include" })
+      .then((r) => r.ok ? r.json() : null)
+      .then((me) => { if (me?.avatarUrl) setState((prev) => ({ ...prev, user: prev.user ? { ...prev.user, avatarUrl: me.avatarUrl } : null })); })
+      .catch(() => {});
+  }, [state.authenticated]);
 
-  const username = (profile?.preferred_username as string) ?? "";
-  const email = (profile?.email as string) ?? "";
-  const firstName = (profile?.given_name as string) ?? "";
-  const cleanUsername = username.includes("@") ? "" : username;
-  const shortHandle = cleanUsername
-    || firstName
-    || email.split("@")[0]
-    || "user";
-
-  const user: AuthUser | null = auth.isAuthenticated && profile
-    ? {
-        sub: profile.sub ?? "",
-        email,
-        fullName: (profile.name as string) ?? username ?? "",
-        preferredUsername: username,
-        shortHandle,
-        avatarUrl,
-      }
-    : null;
-
-  return {
-    initialized: !auth.isLoading,
-    authenticated: auth.isAuthenticated,
-    user,
-    token: accessToken,
-    login: () => auth.signinRedirect(),
-    logout: () => auth.signoutRedirect(),
-  };
+  return (
+    <AuthContext.Provider value={{
+      ...state,
+      login: () => { window.location.href = "/bff/login"; },
+      logout: () => { window.location.href = "/bff/logout"; },
+    }}>
+      {children}
+    </AuthContext.Provider>
+  );
 }
+
+export function useAuth() { return useContext(AuthContext); }

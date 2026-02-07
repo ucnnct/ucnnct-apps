@@ -6,18 +6,18 @@ import { userApi, type UserProfile } from "../../api/users";
 import { friendApi } from "../../api/friends";
 
 export default function SidebarRight() {
-  const { token, user: authUser } = useAuth();
+  const { user: authUser } = useAuth();
   const [suggestions, setSuggestions] = useState<UserProfile[]>([]);
   const [sentIds, setSentIds] = useState<Set<string>>(new Set());
   const [loadingSuggestions, setLoadingSuggestions] = useState(true);
 
   useEffect(() => {
-    if (!token || !authUser) return;
+    if (!authUser) return;
     Promise.all([
-      userApi.getAll(token),
-      friendApi.getMyFriends(token),
-      friendApi.getSentRequests(token),
-      friendApi.getPendingRequests(token),
+      userApi.getAll(),
+      friendApi.getMyFriends(),
+      friendApi.getSentRequests(),
+      friendApi.getPendingRequests(),
     ]).then(([allUsers, friends, sent, pending]) => {
       const friendIds = new Set(friends.map((f) => f.keycloakId));
       const sentKeycloakIds = new Set(sent.map((s) => s.receiver.keycloakId));
@@ -26,12 +26,11 @@ export default function SidebarRight() {
       setSuggestions(allUsers.filter((u) => !excludeIds.has(u.keycloakId)).slice(0, 5));
       setSentIds(sentKeycloakIds);
     }).catch(() => {}).finally(() => setLoadingSuggestions(false));
-  }, [token, authUser]);
+  }, [authUser]);
 
   const handleAddFriend = async (keycloakId: string) => {
-    if (!token) return;
     try {
-      await friendApi.sendRequest(token, keycloakId);
+      await friendApi.sendRequest(keycloakId);
       setSentIds((prev) => new Set([...prev, keycloakId]));
     } catch { /* ignore */ }
   };

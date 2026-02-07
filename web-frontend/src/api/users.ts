@@ -28,21 +28,21 @@ export interface UpdateProfileData {
 }
 
 export const userApi = {
-  getMe: (token: string) =>
-    apiFetch<UserProfile>("/api/users/me", token),
+  getMe: () =>
+    apiFetch<UserProfile>("/api/users/me"),
 
-  updateMe: (token: string, data: UpdateProfileData) =>
-    apiFetch<UserProfile>("/api/users/me", token, {
+  updateMe: (data: UpdateProfileData) =>
+    apiFetch<UserProfile>("/api/users/me", {
       method: "PUT",
       body: JSON.stringify(data),
     }),
 
-  getById: (token: string, id: string) =>
-    apiFetch<UserProfile>(`/api/users/${id}`, token),
+  getById: (id: string) =>
+    apiFetch<UserProfile>(`/api/users/${id}`),
 
-  getAll: (token: string) =>
-    apiFetch<UserProfile[]>("/api/users", token),
+  getAll: () =>
+    apiFetch<UserProfile[]>("/api/users"),
 
-  search: (token: string, query: string) =>
-    apiFetch<UserProfile[]>(`/api/users/search?q=${encodeURIComponent(query)}`, token),
+  search: (query: string) =>
+    apiFetch<UserProfile[]>(`/api/users/search?q=${encodeURIComponent(query)}`),
 };

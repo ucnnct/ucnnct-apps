@@ -45,34 +45,33 @@ export default function Profile() {
   const [projectForm, setProjectForm] = useState<ProjectRequest>({ title: "", description: "", tags: "" });
   const [uploadingProjectImage, setUploadingProjectImage] = useState(false);
   const [projectImagePreview, setProjectImagePreview] = useState<string | null>(null);
-  const { token, user: authUser } = useAuth();
+  const { user: authUser } = useAuth();
 
   const isOwnProfile = !id || id === authUser?.sub;
 
   useEffect(() => {
-    if (!token) return;
     setLoading(true);
     setError(null);
 
     if (isOwnProfile) {
-      userApi.getMe(token).then((user) => {
+      userApi.getMe().then((user) => {
         setProfile(user);
         return Promise.all([
-          friendApi.getCount(token).then((c) => setFriendCount(c.count)).catch(() => {}),
-          projectApi.getMine(token).then(setProjects).catch(() => {}),
+          friendApi.getCount().then((c) => setFriendCount(c.count)).catch(() => {}),
+          projectApi.getMine().then(setProjects).catch(() => {}),
         ]);
       }).catch((err) => {
         console.error("Profile load error:", err);
         setError(err.message);
       }).finally(() => setLoading(false));
     } else {
-      userApi.getById(token, id!).then((user) => {
+      userApi.getById(id!).then((user) => {
         setProfile(user);
         return Promise.all([
-          friendApi.getMyFriends(token),
-          friendApi.getSentRequests(token),
-          friendApi.getPendingRequests(token),
-          projectApi.getByUser(token, id!).then(setProjects).catch(() => {}),
+          friendApi.getMyFriends(),
+          friendApi.getSentRequests(),
+          friendApi.getPendingRequests(),
+          projectApi.getByUser(id!).then(setProjects).catch(() => {}),
         ]).then(([friends, sent, pending]) => {
           if (friends.some((f) => f.keycloakId === id)) {
             setFriendStatus("friends");
@@ -89,20 +88,20 @@ export default function Profile() {
         setError(err.message);
       }).finally(() => setLoading(false));
     }
-  }, [token, id]);
+  }, [id]);
 
   const handleFriendAction = async (action: "add" | "accept" | "remove") => {
-    if (!token || !id) return;
+    if (!id) return;
     setActionLoading(true);
     try {
       if (action === "add") {
-        await friendApi.sendRequest(token, id);
+        await friendApi.sendRequest(id);
         setFriendStatus("pending_sent");
       } else if (action === "accept") {
-        await friendApi.accept(token, id);
+        await friendApi.accept(id);
         setFriendStatus("friends");
       } else {
-        await friendApi.remove(token, id);
+        await friendApi.remove(id);
         setFriendStatus("none");
       }
     } catch { /* ignore */ }
@@ -124,12 +123,12 @@ export default function Profile() {
 
   const handleProjectImageChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
-    if (!file || !token) return;
+    if (!file) return;
 
     setProjectImagePreview(URL.createObjectURL(file));
     setUploadingProjectImage(true);
     try {
-      const res = await mediaApi.upload(token, file, "projects");
+      const res = await mediaApi.upload(file, "projects");
       setProjectForm((prev) => ({ ...prev, imageUrl: res.url }));
     } catch {
       setProjectImagePreview(null);
@@ -139,14 +138,14 @@ export default function Profile() {
   };
 
   const handleProjectSubmit = async () => {
-    if (!token || !projectForm.title.trim()) return;
+    if (!projectForm.title.trim()) return;
     setActionLoading(true);
     try {
       if (editingProject) {
-        const updated = await projectApi.update(token, editingProject.id, projectForm);
+        const updated = await projectApi.update(editingProject.id, projectForm);
         setProjects((prev) => prev.map((p) => (p.id === updated.id ? updated : p)));
       } else {
-        const created = await projectApi.create(token, projectForm);
+        const created = await projectApi.create(projectForm);
         setProjects((prev) => [created, ...prev]);
       }
       setShowProjectForm(false);
@@ -158,10 +157,9 @@ export default function Profile() {
   };
 
   const handleProjectDelete = async (projectId: number) => {
-    if (!token) return;
     setActionLoading(true);
     try {
-      await projectApi.delete(token, projectId);
+      await projectApi.delete(projectId);
       setProjects((prev) => prev.filter((p) => p.id !== projectId));
     } catch { /* ignore */ }
     setActionLoading(false);

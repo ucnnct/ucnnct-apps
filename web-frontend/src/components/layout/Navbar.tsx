@@ -6,7 +6,7 @@ import { Link } from "react-router-dom";
 
 export default function Navbar() {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
-  const { user, token, logout } = useAuth();
+  const { user, logout } = useAuth();
   const [query, setQuery] = useState("");
   const [results, setResults] = useState<UserProfile[]>([]);
   const [searching, setSearching] = useState(false);
@@ -29,7 +29,7 @@ export default function Navbar() {
   const handleSearch = (value: string) => {
     setQuery(value);
     if (debounceRef.current) clearTimeout(debounceRef.current);
-    if (!value.trim() || !token) {
+    if (!value.trim()) {
       setResults([]);
       setShowResults(false);
       return;
@@ -37,7 +37,7 @@ export default function Navbar() {
     setSearching(true);
     setShowResults(true);
     debounceRef.current = setTimeout(() => {
-      userApi.search(token, value.trim()).then((users) => {
+      userApi.search(value.trim()).then((users) => {
         setResults(users.slice(0, 8));
       }).catch(() => setResults([])).finally(() => setSearching(false));
     }, 300);

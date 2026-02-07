@@ -10,7 +10,7 @@ import { userApi, type UserProfile } from "../api/users";
 type Tab = "discover" | "network";
 
 export default function Cercles() {
-  const { token, user: authUser } = useAuth();
+  const { user: authUser } = useAuth();
   const [tab, setTab] = useState<Tab>("discover");
   const [friends, setFriends] = useState<UserProfile[]>([]);
   const [received, setReceived] = useState<Friendship[]>([]);
@@ -20,13 +20,13 @@ export default function Cercles() {
   const [loading, setLoading] = useState(true);
 
   const loadData = () => {
-    if (!token || !authUser) return;
+    if (!authUser) return;
     setLoading(true);
     Promise.all([
-      friendApi.getMyFriends(token),
-      friendApi.getPendingRequests(token),
-      friendApi.getSentRequests(token),
-      userApi.getAll(token),
+      friendApi.getMyFriends(),
+      friendApi.getPendingRequests(),
+      friendApi.getSentRequests(),
+      userApi.getAll(),
     ])
       .then(([f, r, s, allUsers]) => {
         setFriends(f);
@@ -53,12 +53,11 @@ export default function Cercles() {
 
   useEffect(() => {
     loadData();
-  }, [token]);
+  }, [authUser]);
 
   const handleAddFriend = async (keycloakId: string) => {
-    if (!token) return;
     try {
-      await friendApi.sendRequest(token, keycloakId);
+      await friendApi.sendRequest(keycloakId);
       setSentIds((prev) => new Set([...prev, keycloakId]));
     } catch {
       /* ignore */
@@ -66,20 +65,17 @@ export default function Cercles() {
   };
 
   const handleAccept = async (requesterId: string) => {
-    if (!token) return;
-    await friendApi.accept(token, requesterId);
+    await friendApi.accept(requesterId);
     loadData();
   };
 
   const handleReject = async (requesterId: string) => {
-    if (!token) return;
-    await friendApi.reject(token, requesterId);
+    await friendApi.reject(requesterId);
     loadData();
   };
 
   const handleRemove = async (friendId: string) => {
-    if (!token) return;
-    await friendApi.remove(token, friendId);
+    await friendApi.remove(friendId);
     loadData();
   };
 

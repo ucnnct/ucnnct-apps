@@ -10,27 +10,27 @@ export interface Friendship {
 }
 
 export const friendApi = {
-  sendRequest: (token: string, userId: string) =>
-    apiFetch<Friendship>(`/api/friends/request/${userId}`, token, { method: "POST" }),
+  sendRequest: (userId: string) =>
+    apiFetch<Friendship>(`/api/friends/request/${userId}`, { method: "POST" }),
 
-  accept: (token: string, userId: string) =>
-    apiFetch<Friendship>(`/api/friends/accept/${userId}`, token, { method: "POST" }),
+  accept: (userId: string) =>
+    apiFetch<Friendship>(`/api/friends/accept/${userId}`, { method: "POST" }),
 
-  reject: (token: string, userId: string) =>
-    apiFetch<void>(`/api/friends/reject/${userId}`, token, { method: "POST" }),
+  reject: (userId: string) =>
+    apiFetch<void>(`/api/friends/reject/${userId}`, { method: "POST" }),
 
-  remove: (token: string, userId: string) =>
-    apiFetch<void>(`/api/friends/${userId}`, token, { method: "DELETE" }),
+  remove: (userId: string) =>
+    apiFetch<void>(`/api/friends/${userId}`, { method: "DELETE" }),
 
-  getMyFriends: (token: string) =>
-    apiFetch<UserProfile[]>("/api/friends", token),
+  getMyFriends: () =>
+    apiFetch<UserProfile[]>("/api/friends"),
 
-  getPendingRequests: (token: string) =>
-    apiFetch<Friendship[]>("/api/friends/requests", token),
+  getPendingRequests: () =>
+    apiFetch<Friendship[]>("/api/friends/requests"),
 
-  getSentRequests: (token: string) =>
-    apiFetch<Friendship[]>("/api/friends/sent", token),
+  getSentRequests: () =>
+    apiFetch<Friendship[]>("/api/friends/sent"),
 
-  getCount: (token: string) =>
-    apiFetch<{ count: number }>("/api/friends/count", token),
+  getCount: () =>
+    apiFetch<{ count: number }>("/api/friends/count"),
 };

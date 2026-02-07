@@ -11,12 +11,10 @@ import {
   Link as LinkIcon,
   FileText,
 } from "lucide-react";
-import { useAuth } from "../auth/AuthProvider";
 import { userApi, type UserProfile, type UpdateProfileData } from "../api/users";
 import { mediaApi } from "../api/media";
 
 export default function EditProfile() {
-  const { token } = useAuth();
   const navigate = useNavigate();
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState(true);
@@ -27,8 +25,7 @@ export default function EditProfile() {
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
-    if (!token) return;
-    userApi.getMe(token).then((user) => {
+    userApi.getMe().then((user) => {
       setProfile(user);
       setEditData({
         bio: user.bio ?? "",
@@ -39,16 +36,16 @@ export default function EditProfile() {
         avatarUrl: user.avatarUrl ?? "",
       });
     }).finally(() => setLoading(false));
-  }, [token]);
+  }, []);
 
   const handleAvatarChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
-    if (!file || !token) return;
+    if (!file) return;
 
     setAvatarPreview(URL.createObjectURL(file));
     setUploadingAvatar(true);
     try {
-      const res = await mediaApi.upload(token, file, "avatars");
+      const res = await mediaApi.upload(file, "avatars");
       setEditData((prev) => ({ ...prev, avatarUrl: res.url }));
     } catch {
       setAvatarPreview(null);
@@ -58,9 +55,8 @@ export default function EditProfile() {
   };
 
   const handleSave = async () => {
-    if (!token) return;
     setSaving(true);
-    await userApi.updateMe(token, editData);
+    await userApi.updateMe(editData);
     setSaving(false);
     navigate("/profile");
   };
