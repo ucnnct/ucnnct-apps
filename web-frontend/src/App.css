@@ -49,7 +49,7 @@
   width: 54px;
   height: 54px;
   border-radius: 16px;
-  background: linear-gradient(135deg, var(--brand-700), var(--brand-500));
+  background: linear-gradient(135deg, var(--color-primary-700), var(--color-primary-500));
   color: #ffffff;
   display: grid;
   place-items: center;
@@ -72,7 +72,7 @@
 }
 
 .brand-tagline {
-  color: var(--ink-500);
+  color: var(--color-secondary-500);
   font-size: 0.95rem;
 }
 
@@ -84,7 +84,7 @@
 
 .auth-lead {
   margin: 0;
-  color: var(--ink-700);
+  color: var(--color-secondary-700);
   font-size: 1.05rem;
 }
 
@@ -98,7 +98,7 @@
   padding: 1rem 1.2rem;
   border-radius: 18px;
   background: rgba(255, 255, 255, 0.75);
-  border: 1px solid var(--border);
+  border: 1px solid var(--color-border);
   box-shadow: var(--shadow-md);
   display: flex;
   flex-direction: column;
@@ -117,11 +117,11 @@
 .highlight-title {
   font-family: var(--font-display);
   font-weight: 600;
-  color: var(--ink-900);
+  color: var(--color-primary-900);
 }
 
 .highlight-text {
-  color: var(--ink-500);
+  color: var(--color-secondary-500);
   font-size: 0.95rem;
 }
 
@@ -134,15 +134,15 @@
 .auth-badges span {
   padding: 0.4rem 0.8rem;
   border-radius: 999px;
-  background: var(--brand-200);
-  color: var(--brand-700);
+  background: var(--color-primary-200);
+  color: var(--color-primary-700);
   font-size: 0.85rem;
   font-weight: 600;
 }
 
 .auth-card {
-  background: var(--surface-1);
-  border: 1px solid var(--border);
+  background: var(--color-surface-1);
+  border: 1px solid var(--color-border);
   border-radius: 28px;
   padding: clamp(1.8rem, 3vw, 2.4rem);
   box-shadow: var(--shadow-lg);
@@ -162,7 +162,7 @@
   font-size: 0.75rem;
   letter-spacing: 0.3em;
   text-transform: uppercase;
-  color: var(--brand-700);
+  color: var(--color-primary-700);
   margin: 0;
 }
 
@@ -173,7 +173,7 @@
 
 .auth-card-text {
   margin: 0;
-  color: var(--ink-500);
+  color: var(--color-secondary-500);
 }
 
 .auth-actions {
@@ -183,7 +183,7 @@
 }
 
 .auth-button {
-  border: 1px solid var(--border);
+  border: 1px solid var(--color-border);
   border-radius: 18px;
   padding: 0.9rem 1rem;
   background: #fdfbf7;
@@ -213,10 +213,10 @@
   width: 38px;
   height: 38px;
   border-radius: 12px;
-  background: var(--surface-2);
+  background: var(--color-surface-2);
   display: grid;
   place-items: center;
-  color: var(--brand-700);
+  color: var(--color-primary-700);
   flex-shrink: 0;
 }
 
@@ -242,7 +242,7 @@
   flex: 1;
   text-align: left;
   font-weight: 600;
-  color: var(--ink-900);
+  color: var(--color-primary-900);
 }
 
 .auth-button-pill {
@@ -250,22 +250,22 @@
   font-weight: 700;
   letter-spacing: 0.08em;
   text-transform: uppercase;
-  background: var(--brand-200);
-  color: var(--brand-700);
+  background: var(--color-primary-200);
+  color: var(--color-primary-700);
   padding: 0.25rem 0.6rem;
   border-radius: 999px;
 }
 
 .auth-note {
   font-size: 0.85rem;
-  color: var(--ink-500);
+  color: var(--color-secondary-500);
 }
 
 .auth-card-footer {
   font-size: 0.85rem;
-  color: var(--ink-500);
+  color: var(--color-secondary-500);
   padding-top: 0.5rem;
-  border-top: 1px solid var(--border);
+  border-top: 1px solid var(--color-border);
 }
 
 @keyframes rise {
