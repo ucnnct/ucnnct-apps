@@ -4,6 +4,9 @@ import type { Express, Request, Response, NextFunction } from "express";
 let oidcClient: Client | undefined;
 let isOidcReady = false;
 
+const REDIRECT_URI = process.env.REDIRECT_URI || "http://localhost:5173/login/oauth2/code/keycloak";
+const LOGOUT_REDIRECT_URI = process.env.LOGOUT_REDIRECT_URI || "http://localhost:5173/";
+
 export async function setupAuth(app: Express) {
   const internalIssuerUri = process.env.KEYCLOAK_ISSUER_URI || "http://keycloak:8080/realms/ucnnct";
   const externalIssuerUri = process.env.KEYCLOAK_EXTERNAL_URI || "http://localhost:8882/realms/ucnnct";
@@ -24,9 +27,11 @@ export async function setupAuth(app: Express) {
       oidcClient = new issuer.Client({
         client_id: "ucnnct-bff",
         client_secret: process.env.BFF_CLIENT_SECRET!,
-        redirect_uris: [process.env.REDIRECT_URI || "http://localhost:5173/login/oauth2/code/keycloak"],
+        redirect_uris: [REDIRECT_URI],
         response_types: ["code"],
       });
+
+      console.log(`[OIDC] redirect_uri = ${REDIRECT_URI}`);
 
       isOidcReady = true;
       console.log("[OIDC] Keycloak est prêt.");
@@ -76,17 +81,28 @@ export async function setupAuth(app: Express) {
   app.get("/login/oauth2/code/keycloak", ensureOidcReady, async (req, res) => {
     try {
       const params = oidcClient!.callbackParams(req);
+
+      // Guard: if the session was lost (no nonce/state), don't loop -- show an error
+      if (!req.session.nonce || !req.session.state) {
+        console.error("[OIDC] Session perdue lors du callback (nonce/state absents). Vérifiez les cookies secure/sameSite.");
+        return res.status(400).send("Session perdue. Veuillez réessayer : <a href='/bff/login'>Se connecter</a>");
+      }
+
       const tokenSet = await oidcClient!.callback(
-        process.env.REDIRECT_URI || "http://localhost:5173/login/oauth2/code/keycloak",
+        REDIRECT_URI,
         params,
         { nonce: req.session.nonce, state: req.session.state }
       );
       req.session.tokenSet = tokenSet;
       req.session.userinfo = tokenSet.claims();
-      res.redirect("/");
+      // Clear the nonce and state after successful use
+      delete (req.session as any).nonce;
+      delete (req.session as any).state;
+      req.session.save(() => res.redirect("/"));
     } catch (err) {
       console.error("[OIDC] Erreur callback :", err);
-      res.redirect("/bff/login");
+      // Do NOT redirect to /bff/login to avoid infinite loops -- show the error
+      res.status(500).send("Erreur d'authentification. <a href='/bff/login'>Réessayer</a>");
     }
   });
 
@@ -101,9 +117,9 @@ export async function setupAuth(app: Express) {
     const idToken = req.session.tokenSet?.id_token;
     req.session.destroy(() => {
       if (idToken) {
-        const logoutUrl = oidcClient!.endSessionUrl({ 
-          id_token_hint: idToken, 
-          post_logout_redirect_uri: process.env.LOGOUT_REDIRECT_URI || "http://localhost:5173/" 
+        const logoutUrl = oidcClient!.endSessionUrl({
+          id_token_hint: idToken,
+          post_logout_redirect_uri: LOGOUT_REDIRECT_URI
         });
         res.redirect(logoutUrl);
       } else {

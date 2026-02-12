@@ -5,8 +5,9 @@ import { setupProxy } from "./proxy";
 
 const app = express();
 
-// Indispensable pour gérer les cookies derrière un reverse-proxy (Traefik)
-app.set("trust proxy", 1);
+// Trust the reverse-proxy chain (Cloudflare → nginx ingress → BFF)
+// This ensures req.protocol returns "https" when X-Forwarded-Proto is set
+app.set("trust proxy", true);
 
 // Configuration de la session utilisateur
 app.use(session({
@@ -14,9 +15,10 @@ app.use(session({
   secret: process.env.SESSION_SECRET || "dev-secret",
   resave: false,
   saveUninitialized: false,
+  proxy: true,
   cookie: {
     httpOnly: true,
-    secure: process.env.NODE_ENV === "production",
+    secure: "auto",
     sameSite: "lax",
     maxAge: 3600_000,
   },

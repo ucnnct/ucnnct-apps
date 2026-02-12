@@ -12,14 +12,23 @@ export function setupProxy(app: Express) {
   };
 
   for (const [path, target] of Object.entries(services)) {
+    // Middleware qui récupère le token AVANT le proxy
+    app.use(path.replace("/**", ""), async (req, _res, next) => {
+      const token = await refreshAccessTokenIfNeeded(req as any);
+      if (token) {
+        (req as any)._accessToken = token;
+      }
+      next();
+    });
+
     app.use(createProxyMiddleware({
       pathFilter: path,
       target,
       changeOrigin: true,
       on: {
-        proxyReq: async (proxyReq, req) => {
-          // Ajoute le token d'accès au header (et le rafraîchit si besoin)
-          const token = await refreshAccessTokenIfNeeded(req as any);
+        proxyReq: (proxyReq, req) => {
+          // Token déjà récupéré de façon synchrone
+          const token = (req as any)._accessToken;
           if (token) {
             proxyReq.setHeader("Authorization", `Bearer ${token}`);
           }

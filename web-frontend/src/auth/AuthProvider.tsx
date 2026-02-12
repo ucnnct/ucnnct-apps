@@ -16,12 +16,13 @@ interface AuthState {
   user: AuthUser | null;
   login: () => void;
   logout: () => void;
+  updateUser: (patch: Partial<AuthUser>) => void;
 }
 
 const AuthContext = createContext<AuthState>(null!);
 
 export function AuthProvider({ children }: { children: ReactNode }) {
-  const [state, setState] = useState<Omit<AuthState, "login" | "logout">>({
+  const [state, setState] = useState<Omit<AuthState, "login" | "logout" | "updateUser">>({
     initialized: false, 
     authenticated: false, 
     user: null,
@@ -50,6 +51,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             initialized: true, authenticated: true,
             user: { sub: p.sub ?? "", email, fullName: p.name ?? username, preferredUsername: username, shortHandle, avatarUrl: null },
           });
+          // Charge l'avatar depuis le profil utilisateur
+          fetch("/api/users/me", { credentials: "include" })
+            .then((r) => r.ok ? r.json() : null)
+            .then((profile) => {
+              if (profile?.avatarUrl) {
+                setState((prev) => prev.user ? { ...prev, user: { ...prev.user, avatarUrl: profile.avatarUrl } } : prev);
+              }
+            })
+            .catch(() => {});
         })
         .catch(() => setState({ initialized: true, authenticated: false, user: null }));
     };
@@ -75,11 +85,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     );
   }
 
+  const updateUser = (patch: Partial<AuthUser>) => {
+    setState((prev) => prev.user ? { ...prev, user: { ...prev.user, ...patch } } : prev);
+  };
+
   return (
     <AuthContext.Provider value={{
       ...state,
       login: () => { window.location.href = "/bff/login"; },
       logout: () => { window.location.href = "/bff/logout"; },
+      updateUser,
     }}>
       {children}
     </AuthContext.Provider>
