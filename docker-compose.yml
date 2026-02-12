@@ -33,7 +33,9 @@ services:
     build: ./keycloak
     restart: unless-stopped
     container_name: uconnect-keycloak
-    command: start-dev
+    command: start-dev --import-realm
+    volumes:
+      - ./keycloak/realm-ucnnct.json:/opt/keycloak/data/import/realm-ucnnct.json:ro
     environment:
       KC_DB: postgres
       KC_DB_URL: jdbc:postgresql://keycloak-db:5432/keycloak
@@ -45,6 +47,12 @@ services:
       KC_SPI_THEME_STATIC_MAX_AGE: -1
       KC_SPI_THEME_CACHE_THEMES: "false"
       KC_SPI_THEME_CACHE_TEMPLATES: "false"
+      # Cloudflare Tunnel Configuration
+      KC_PROXY: edge
+      KC_HOSTNAME: auth.uconnect.cc
+      KC_HOSTNAME_STRICT: "false"
+      KC_HTTP_ENABLED: "true"
+      # Kafka Event Listener
       KAFKA_BOOTSTRAP_SERVERS: kafka:9092
       KAFKA_TOPIC_USER_EVENTS: keycloak-user-events
     ports:
