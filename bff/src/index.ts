@@ -1,13 +1,14 @@
 import express from "express";
 import session from "express-session";
-import { setupAuth } from "./auth";
+import { setupAuth, getOidcStatus } from "./auth";
 import { setupProxy } from "./proxy";
 
 const app = express();
 
-// Fait confiance au reverse proxy (Traefik / Ingress) pour les cookies de session
+// Indispensable pour gérer les cookies derrière un reverse-proxy (Traefik)
 app.set("trust proxy", 1);
 
+// Configuration de la session utilisateur
 app.use(session({
   name: "uconnect.token.key",
   secret: process.env.SESSION_SECRET || "dev-secret",
@@ -21,10 +22,14 @@ app.use(session({
   },
 }));
 
-app.get("/actuator/health", (_req, res) => res.json({ status: "UP" }));
+// Route de santé utilisée par Docker/Traefik
+app.get("/actuator/health", (_req, res) => {
+  const oidcStatus = getOidcStatus();
+  res.status(oidcStatus === "UP" ? 200 : 503).json({ status: oidcStatus });
+});
 
 (async () => {
-  await setupAuth(app);
+  setupAuth(app);
   setupProxy(app);
-  app.listen(3001, () => console.log("BFF listening on :3001"));
+  app.listen(3001, () => console.log("[BFF] Prêt sur le port 3001"));
 })();

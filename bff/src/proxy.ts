@@ -1,6 +1,8 @@
 import { createProxyMiddleware } from "http-proxy-middleware";
 import type { Express } from "express";
+import { refreshAccessTokenIfNeeded } from "./auth";
 
+// Redirige les appels API vers les bons microservices en ajoutant le token
 export function setupProxy(app: Express) {
   const services: Record<string, string> = {
     "/api/users/**": process.env.USER_SERVICE_URL || "http://localhost:8082",
@@ -15,9 +17,12 @@ export function setupProxy(app: Express) {
       target,
       changeOrigin: true,
       on: {
-        proxyReq: (proxyReq, req) => {
-          const token = (req as any).session?.tokenSet?.access_token;
-          if (token) proxyReq.setHeader("Authorization", `Bearer ${token}`);
+        proxyReq: async (proxyReq, req) => {
+          // Ajoute le token d'accès au header (et le rafraîchit si besoin)
+          const token = await refreshAccessTokenIfNeeded(req as any);
+          if (token) {
+            proxyReq.setHeader("Authorization", `Bearer ${token}`);
+          }
         },
       },
     }));

@@ -1,47 +1,83 @@
-import { Issuer, generators } from "openid-client";
-import type { Express } from "express";
+import { Issuer, generators, Client, TokenSet } from "openid-client";
+import type { Express, Request, Response, NextFunction } from "express";
+
+let oidcClient: Client | undefined;
+let isOidcReady = false;
 
 export async function setupAuth(app: Express) {
-  const internalIssuerUri = process.env.KEYCLOAK_ISSUER_URI || "http://localhost:8081/realms/ucnnct";
-  const externalIssuerUri = process.env.KEYCLOAK_EXTERNAL_URI || "http://localhost:8081/realms/ucnnct";
+  const internalIssuerUri = process.env.KEYCLOAK_ISSUER_URI || "http://keycloak:8080/realms/ucnnct";
+  const externalIssuerUri = process.env.KEYCLOAK_EXTERNAL_URI || "http://localhost:8882/realms/ucnnct";
 
-  // Decouverte OIDC via l'URL interne du cluster (server-to-server)
-  const discovered = await Issuer.discover(internalIssuerUri);
+  // Connexion à Keycloak avec tentative de reconnexion toutes les 5s
+  const discoverIssuer = async () => {
+    console.log(`[OIDC] Connexion à Keycloak : ${internalIssuerUri}...`);
+    try {
+      const discovered = await Issuer.discover(internalIssuerUri);
+      
+      const issuer = new Issuer({
+        ...discovered.metadata,
+        issuer: externalIssuerUri,
+        authorization_endpoint: discovered.metadata.authorization_endpoint?.replace(internalIssuerUri, externalIssuerUri),
+        end_session_endpoint: (discovered.metadata.end_session_endpoint as string | undefined)?.replace(internalIssuerUri, externalIssuerUri),
+      });
 
-  // Remplace les endpoints navigateur par l'URL externe (localhost:8081)
-  const issuer = new Issuer({
-    ...discovered.metadata,
-    issuer: externalIssuerUri,
-    authorization_endpoint: discovered.metadata.authorization_endpoint?.replace(internalIssuerUri, externalIssuerUri),
-    token_endpoint: discovered.metadata.token_endpoint,
-    end_session_endpoint: (discovered.metadata.end_session_endpoint as string | undefined)?.replace(internalIssuerUri, externalIssuerUri),
-  });
+      oidcClient = new issuer.Client({
+        client_id: "ucnnct-bff",
+        client_secret: process.env.BFF_CLIENT_SECRET!,
+        redirect_uris: [process.env.REDIRECT_URI || "http://localhost:5173/login/oauth2/code/keycloak"],
+        response_types: ["code"],
+      });
 
-  const client = new issuer.Client({
-    client_id: "ucnnct-bff",
-    client_secret: process.env.BFF_CLIENT_SECRET!,
-    redirect_uris: [process.env.REDIRECT_URI || "http://localhost/login/oauth2/code/keycloak"],
-    response_types: ["code"],
-  });
+      isOidcReady = true;
+      console.log("[OIDC] Keycloak est prêt.");
+    } catch (err) {
+      console.error("[OIDC] Keycloak injoignable, nouvelle tentative dans 5s...");
+      setTimeout(discoverIssuer, 5000);
+    }
+  };
 
-  // Login — redirige le navigateur vers Keycloak
-  app.get("/bff/login", (req, res) => {
+  discoverIssuer();
+
+  // Vérifie si l'authentification est prête avant de continuer
+  const ensureOidcReady = (req: Request, res: Response, next: NextFunction) => {
+    if (!isOidcReady || !oidcClient) {
+      if (req.accepts('html')) {
+        return res.status(503).send(`
+          <html>
+            <body style="display:flex;flex-direction:column;align-items:center;justify-content:center;height:100vh;font-family:sans-serif;text-align:center;">
+              <img src="/uconnect.svg" style="width:80px;margin-bottom:20px" onerror="this.style.display='none'">
+              <div style="width:30px;height:30px;border:3px solid #f3f3f3;border-top:3px solid #3498db;border-radius:50%;animation:spin 1s linear infinite;"></div>
+              <h2 style="margin:20px 0 10px 0;">U-Connect arrive...</h2>
+              <p style="color:#666;">Un petit instant, on prépare votre accès.</p>
+              <script>setTimeout(() => window.location.reload(), 3000);</script>
+              <style>@keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }</style>
+            </body>
+          </html>
+        `);
+      }
+      return res.status(503).json({ error: "En cours de démarrage" });
+    }
+    next();
+  };
+
+  // Route pour lancer la connexion
+  app.get("/bff/login", ensureOidcReady, (req, res) => {
     const nonce = generators.nonce();
     const state = generators.state();
     req.session.nonce = nonce;
     req.session.state = state;
     req.session.save(() => {
-      const url = client.authorizationUrl({ scope: "openid profile email", nonce, state });
+      const url = oidcClient!.authorizationUrl({ scope: "openid profile email", nonce, state });
       res.redirect(url);
     });
   });
 
-  // Callback Keycloak — echange le code d'autorisation contre les tokens
-  app.get("/login/oauth2/code/keycloak", async (req, res) => {
+  // Retour de Keycloak après connexion réussie
+  app.get("/login/oauth2/code/keycloak", ensureOidcReady, async (req, res) => {
     try {
-      const params = client.callbackParams(req);
-      const tokenSet = await client.callback(
-        process.env.REDIRECT_URI || "http://localhost/login/oauth2/code/keycloak",
+      const params = oidcClient!.callbackParams(req);
+      const tokenSet = await oidcClient!.callback(
+        process.env.REDIRECT_URI || "http://localhost:5173/login/oauth2/code/keycloak",
         params,
         { nonce: req.session.nonce, state: req.session.state }
       );
@@ -49,27 +85,54 @@ export async function setupAuth(app: Express) {
       req.session.userinfo = tokenSet.claims();
       res.redirect("/");
     } catch (err) {
-      console.error("Callback error:", err);
+      console.error("[OIDC] Erreur callback :", err);
       res.redirect("/bff/login");
     }
   });
 
-  // Userinfo — retourne les infos utilisateur depuis la session
+  // Récupérer les infos de l'utilisateur connecté
   app.get("/bff/userinfo", (req, res) => {
-    if (!req.session.userinfo) return res.status(401).json({ error: "Not authenticated" });
+    if (!req.session.userinfo) return res.status(401).json({ error: "Non connecté" });
     res.json(req.session.userinfo);
   });
 
-  // Logout — detruit la session et deconnecte de Keycloak
-  app.get("/bff/logout", (req, res) => {
+  // Déconnexion
+  app.get("/bff/logout", ensureOidcReady, (req, res) => {
     const idToken = req.session.tokenSet?.id_token;
     req.session.destroy(() => {
       if (idToken) {
-        const logoutUrl = client.endSessionUrl({ id_token_hint: idToken, post_logout_redirect_uri: "http://localhost/" });
+        const logoutUrl = oidcClient!.endSessionUrl({ 
+          id_token_hint: idToken, 
+          post_logout_redirect_uri: process.env.LOGOUT_REDIRECT_URI || "http://localhost:5173/" 
+        });
         res.redirect(logoutUrl);
       } else {
         res.redirect("/");
       }
     });
   });
+}
+
+// Rafraîchit le token automatiquement s'il a expiré
+export async function refreshAccessTokenIfNeeded(req: Request): Promise<string | undefined> {
+  if (!isOidcReady || !oidcClient || !req.session.tokenSet) return undefined;
+
+  let tokenSet = new TokenSet(req.session.tokenSet);
+
+  if (tokenSet.expired()) {
+    try {
+      tokenSet = await oidcClient.refresh(tokenSet);
+      req.session.tokenSet = tokenSet;
+      req.session.userinfo = tokenSet.claims();
+      return tokenSet.access_token;
+    } catch (err) {
+      return undefined;
+    }
+  }
+
+  return tokenSet.access_token;
+}
+
+export function getOidcStatus() {
+  return isOidcReady ? "UP" : "STARTING";
 }
