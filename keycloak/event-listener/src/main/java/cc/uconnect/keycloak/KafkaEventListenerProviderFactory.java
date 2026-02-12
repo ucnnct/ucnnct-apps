@@ -28,15 +28,25 @@ public class KafkaEventListenerProviderFactory implements EventListenerProviderF
 
     @Override
     public void init(Config.Scope config) {
-        String bootstrapServers = System.getenv("KAFKA_BOOTSTRAP_SERVERS");
+        String bootstrapServers = config.get("bootstrapServers");
         if (bootstrapServers == null || bootstrapServers.isBlank()) {
-            bootstrapServers = "kafka:9092";
+            bootstrapServers = System.getenv("KAFKA_BOOTSTRAP_SERVERS");
+            if (bootstrapServers == null || bootstrapServers.isBlank()) {
+                bootstrapServers = "kafka:9092";
+            }
         }
 
-        topic = System.getenv("KAFKA_TOPIC_USER_EVENTS");
+        LOG.info("Initializing Kafka Event Listener with bootstrapServers: " + bootstrapServers);
+
+        topic = config.get("topic");
         if (topic == null || topic.isBlank()) {
-            topic = "keycloak-user-events";
+            topic = System.getenv("KAFKA_TOPIC_USER_EVENTS");
+            if (topic == null || topic.isBlank()) {
+                topic = "keycloak-user-events";
+            }
         }
+
+        LOG.info("Initializing Kafka Event Listener with topic: " + topic);
 
         Properties props = new Properties();
         props.put(ProducerConfig.BOOTSTRAP_SERVERS_CONFIG, bootstrapServers);
@@ -48,9 +58,9 @@ public class KafkaEventListenerProviderFactory implements EventListenerProviderF
 
         try {
             producer = new KafkaProducer<>(props);
-            LOG.info("Kafka producer initialized — bootstrap: " + bootstrapServers + ", topic: " + topic);
+            LOG.info("Kafka producer initialized successfully");
         } catch (Exception e) {
-            LOG.log(Level.SEVERE, "Failed to initialize Kafka producer", e);
+            LOG.log(Level.SEVERE, "Failed to initialize Kafka producer with bootstrapServers: " + bootstrapServers, e);
             throw new RuntimeException("Cannot start Kafka producer", e);
         }
     }
