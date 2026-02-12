@@ -1,7 +1,15 @@
 spring:
   application:
     name: ws-manager
+  main:
+    web-application-type: reactive
 
 server:
   port: 8080
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health
 
