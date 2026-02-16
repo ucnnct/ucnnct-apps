@@ -41,14 +41,14 @@ export default function SidebarRight() {
         <div className="bg-primary-50 border border-primary-100 p-4 rounded-sm">
           <div className="flex items-center gap-2 mb-2 text-primary-600">
             <Clock size={12} strokeWidth={3} />
-            <span className="text-[9px] font-black uppercase tracking-widest">
+            <span className="text-[11px] font-medium uppercase tracking-widest">
               Prochain cours
             </span>
           </div>
-          <p className="text-xs font-black text-primary-900 uppercase">
+          <p className="text-sm font-semibold text-primary-900">
             Architecture Cloud
           </p>
-          <p className="text-[10px] font-bold text-primary-500 mt-1 uppercase text-right">
+          <p className="text-[11px] font-normal text-primary-500 mt-1 text-right">
             15:00 · Salle D20
           </p>
         </div>
@@ -58,10 +58,10 @@ export default function SidebarRight() {
             <CalendarDays size={14} className="text-accent-500" />
           </div>
           <div>
-            <p className="text-[11px] font-black text-primary-900 leading-tight uppercase">
+            <p className="text-sm font-semibold text-primary-900 leading-tight">
               Hackathon U-Connect
             </p>
-            <p className="text-[9px] font-bold text-secondary-400 mt-1 uppercase">
+            <p className="text-[11px] font-normal text-secondary-400 mt-1">
               Demain · 09:00
             </p>
           </div>
@@ -72,10 +72,10 @@ export default function SidebarRight() {
             <BookOpen size={14} className="text-success-500" />
           </div>
           <div>
-            <p className="text-[11px] font-black text-primary-900 leading-tight uppercase">
+            <p className="text-sm font-semibold text-primary-900 leading-tight">
               Rendu Projet Maths
             </p>
-            <p className="text-[9px] font-bold text-secondary-400 mt-1 uppercase">
+            <p className="text-[11px] font-normal text-secondary-400 mt-1">
               Vendredi · 23:59
             </p>
           </div>
@@ -89,10 +89,10 @@ export default function SidebarRight() {
           { tag: "#MATHS_HELP", desc: "Entraide active" },
         ].map((item, i) => (
           <div key={i} className="group cursor-pointer">
-            <p className="text-xs font-black text-primary-900 group-hover:text-primary-500 transition-colors uppercase tracking-tighter">
+            <p className="text-sm font-semibold text-primary-900 group-hover:text-primary-500 transition-colors">
               {item.tag}
             </p>
-            <p className="text-[9px] font-bold text-secondary-400 mt-1 uppercase">
+            <p className="text-[11px] font-normal text-secondary-400 mt-1">
               {item.desc}
             </p>
           </div>
@@ -105,7 +105,7 @@ export default function SidebarRight() {
             <Loader2 className="w-4 h-4 animate-spin text-secondary-300" />
           </div>
         ) : suggestions.length === 0 ? (
-          <p className="text-[9px] font-bold text-secondary-400 uppercase tracking-widest">
+          <p className="text-[11px] font-normal text-secondary-400">
             Aucune suggestion
           </p>
         ) : (
@@ -126,11 +126,11 @@ export default function SidebarRight() {
                     />
                   </div>
                   <div className="min-w-0">
-                    <p className="text-[11px] font-black text-primary-900 uppercase truncate">
+                    <p className="text-sm font-semibold text-primary-900 truncate">
                       {fullName}
                     </p>
-                    <p className="text-[9px] font-bold text-secondary-400">
-                      @{handle.toUpperCase()}
+                    <p className="text-[11px] font-normal text-secondary-400">
+                      @{handle}
                     </p>
                   </div>
                 </div>
@@ -148,8 +148,8 @@ export default function SidebarRight() {
       </Panel>
 
       <footer className="mt-auto px-6 py-4 border-t border-secondary">
-        <p className="text-[9px] font-black text-secondary-400 uppercase tracking-widest leading-relaxed">
-          © 2026 U-CONNECT
+        <p className="text-[11px] font-normal text-secondary-400 leading-relaxed">
+          © 2026 U-Connect
         </p>
       </footer>
     </aside>

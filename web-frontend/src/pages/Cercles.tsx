@@ -83,7 +83,7 @@ export default function Cercles() {
     <Layout hideSidebarRight>
       <div className="flex flex-col h-full bg-white font-body">
         <div className="p-6 border-b border-secondary-100 flex items-center justify-between">
-          <h1 className="text-xl font-black text-primary-900 uppercase tracking-tight font-display">
+          <h1 className="text-xl font-bold text-primary-900 font-display">
             Mes Cercles
           </h1>
           <div className="flex bg-secondary-50 border border-secondary-100 rounded-sm overflow-hidden">
@@ -122,7 +122,7 @@ export default function Cercles() {
                           onClick={() =>
                             !alreadySent && handleAddFriend(u.keycloakId)
                           }
-                          className={`w-full py-2 text-[10px] font-black uppercase tracking-widest rounded-sm transition-all ${
+                          className={`w-full py-2 text-xs font-medium uppercase tracking-wide rounded-sm transition-all ${
                             alreadySent
                               ? "bg-secondary-50 text-secondary-400 border border-secondary-100"
                               : "bg-primary-500 hover:bg-primary-600 text-white active:scale-[0.98]"
@@ -168,11 +168,11 @@ export default function Cercles() {
                               />
                             </div>
                             <div className="min-w-0">
-                              <p className="text-[11px] font-black text-primary-900 uppercase truncate tracking-tight">
+                              <p className="text-sm font-semibold text-primary-900 truncate">
                                 {fullName}
                               </p>
-                              <p className="text-[9px] font-bold text-secondary-400 uppercase tracking-widest">
-                                @{handle.toUpperCase()}
+                              <p className="text-[11px] font-normal text-secondary-400">
+                                @{handle}
                               </p>
                             </div>
                           </Link>
@@ -181,7 +181,7 @@ export default function Cercles() {
                               onClick={() =>
                                 handleAccept(r.requester.keycloakId)
                               }
-                              className="px-4 py-1.5 bg-primary-500 hover:bg-primary-600 text-white text-[9px] font-black uppercase tracking-widest rounded-sm transition-all"
+                              className="px-4 py-1.5 bg-primary-500 hover:bg-primary-600 text-white text-xs font-medium uppercase tracking-wide rounded-sm transition-all"
                             >
                               ACCEPTER
                             </button>
@@ -216,7 +216,7 @@ export default function Cercles() {
                         <div className="flex gap-2">
                           <Link
                             to={`/profile/${f.keycloakId}`}
-                            className="flex-1 py-2 text-center text-[10px] font-black uppercase tracking-widest border border-secondary-200 hover:bg-secondary-50 text-primary-900 rounded-sm transition-all"
+                            className="flex-1 py-2 text-center text-xs font-medium uppercase tracking-wide border border-secondary-200 hover:bg-secondary-50 text-primary-900 rounded-sm transition-all"
                           >
                             VOIR PROFIL
                           </Link>
@@ -264,15 +264,15 @@ export default function Cercles() {
                               />
                             </div>
                             <div className="min-w-0">
-                              <p className="text-[11px] font-black text-primary-900 uppercase truncate tracking-tight">
+                              <p className="text-sm font-semibold text-primary-900 truncate">
                                 {fullName}
                               </p>
-                              <p className="text-[9px] font-bold text-secondary-400 uppercase tracking-widest">
-                                @{handle.toUpperCase()}
+                              <p className="text-[11px] font-normal text-secondary-400">
+                                @{handle}
                               </p>
                             </div>
                           </Link>
-                          <span className="text-[9px] font-black text-secondary-300 uppercase tracking-widest">
+                          <span className="text-[11px] font-normal text-secondary-300">
                             En attente
                           </span>
                         </div>
@@ -305,7 +305,7 @@ function ToggleButton({
   return (
     <button
       onClick={onClick}
-      className={`flex items-center gap-2 px-4 py-2 text-[10px] font-black tracking-widest transition-all ${
+      className={`flex items-center gap-2 px-4 py-2 text-xs font-medium tracking-wide uppercase transition-all ${
         active
           ? "bg-white text-primary-500 shadow-sm"
           : "text-secondary-400 hover:text-secondary-600"
@@ -314,7 +314,7 @@ function ToggleButton({
       {icon}
       <span>{label}</span>
       {badge && badge > 0 && (
-        <span className="w-4 h-4 flex items-center justify-center bg-primary-500 text-white text-[8px] font-black rounded-full">
+        <span className="w-4 h-4 flex items-center justify-center bg-primary-500 text-white text-[9px] font-medium rounded-full">
           {badge}
         </span>
       )}
@@ -361,22 +361,22 @@ function UserCard({
           to={`/profile/${user.keycloakId}`}
           className="block mb-3 group/link"
         >
-          <p className="text-[11px] font-black text-primary-900 uppercase tracking-tight truncate group-hover/link:text-primary-500 transition-colors">
+          <p className="text-sm font-semibold text-primary-900 truncate group-hover/link:text-primary-500 transition-colors">
             {fullName}
           </p>
-          <p className="text-[9px] font-bold text-secondary-400 uppercase tracking-widest">
-            @{handle.toUpperCase()}
+          <p className="text-[11px] font-normal text-secondary-400">
+            @{handle}
           </p>
         </Link>
 
         {detail && (
-          <p className="text-[9px] font-bold text-secondary-400 uppercase tracking-widest mb-2 truncate">
+          <p className="text-[11px] font-normal text-secondary-400 mb-2 truncate">
             {detail}
           </p>
         )}
 
         {user.bio && (
-          <p className="text-[11px] text-secondary-500 leading-relaxed mb-3 line-clamp-2">
+          <p className="text-sm font-normal text-secondary-500 leading-relaxed mb-3 line-clamp-2">
             {user.bio}
           </p>
         )}
@@ -390,7 +390,7 @@ function UserCard({
 function EmptyState({ text }: { text: string }) {
   return (
     <div className="py-16 flex flex-col items-center justify-center border-2 border-dashed border-secondary-100 rounded-sm">
-      <p className="text-[10px] font-black text-secondary-300 uppercase tracking-[0.3em]">
+      <p className="text-xs font-normal text-secondary-300">
         {text}
       </p>
     </div>

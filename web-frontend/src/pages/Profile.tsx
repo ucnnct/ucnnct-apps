@@ -179,11 +179,11 @@ export default function Profile() {
     return (
       <Layout hideSidebarRight>
         <div className="flex flex-col items-center justify-center h-96 gap-2">
-          <p className="text-[10px] font-black text-secondary-300 uppercase tracking-[0.3em]">
+          <p className="text-xs font-normal text-secondary-300">
             Profil non trouvé
           </p>
           {error && (
-            <p className="text-[10px] font-bold text-red-400 uppercase tracking-widest">
+            <p className="text-xs font-normal text-red-400">
               {error}
             </p>
           )}
@@ -223,18 +223,18 @@ export default function Profile() {
 
           <div className="flex justify-between items-start mb-4">
             <div className="space-y-1">
-              <h1 className="text-lg font-black text-primary-900 uppercase tracking-tight font-display">
+              <h1 className="text-xl font-bold text-primary-900 font-display">
                 {fullName}
               </h1>
-              <p className="text-[10px] font-bold text-secondary-400 uppercase tracking-widest">
-                @{handle.toUpperCase()}
+              <p className="text-sm font-normal text-secondary-400">
+                @{handle}
               </p>
             </div>
             <div className="flex gap-3">
               {isOwnProfile ? (
                 <Link
                   to="/profile/edit"
-                  className="flex items-center gap-2 px-6 py-2 border border-secondary-200 hover:bg-secondary-50 text-primary-900 font-black text-[10px] uppercase tracking-widest rounded-sm transition-all active:scale-95"
+                  className="flex items-center gap-2 px-6 py-2 border border-secondary-200 hover:bg-secondary-50 text-primary-900 font-medium text-xs uppercase tracking-wide rounded-sm transition-all active:scale-95"
                 >
                   <Settings size={14} />
                   MODIFIER LE PROFIL
@@ -245,14 +245,14 @@ export default function Profile() {
                     <button
                       onClick={() => handleFriendAction("add")}
                       disabled={actionLoading}
-                      className="flex items-center gap-2 px-6 py-2 bg-primary-500 hover:bg-primary-600 text-white font-black text-[10px] uppercase tracking-widest rounded-sm transition-all active:scale-95 disabled:opacity-50"
+                      className="flex items-center gap-2 px-6 py-2 bg-primary-500 hover:bg-primary-600 text-white font-medium text-xs uppercase tracking-wide rounded-sm transition-all active:scale-95 disabled:opacity-50"
                     >
                       <UserPlus size={14} strokeWidth={3} />
                       AJOUTER EN AMI
                     </button>
                   )}
                   {friendStatus === "pending_sent" && (
-                    <span className="flex items-center gap-2 px-6 py-2 border border-secondary-200 text-secondary-400 font-black text-[10px] uppercase tracking-widest rounded-sm">
+                    <span className="flex items-center gap-2 px-6 py-2 border border-secondary-200 text-secondary-400 font-medium text-xs uppercase tracking-wide rounded-sm">
                       <Check size={14} strokeWidth={3} />
                       DEMANDE ENVOYÉE
                     </span>
@@ -261,7 +261,7 @@ export default function Profile() {
                     <button
                       onClick={() => handleFriendAction("accept")}
                       disabled={actionLoading}
-                      className="flex items-center gap-2 px-6 py-2 bg-primary-500 hover:bg-primary-600 text-white font-black text-[10px] uppercase tracking-widest rounded-sm transition-all active:scale-95 disabled:opacity-50"
+                      className="flex items-center gap-2 px-6 py-2 bg-primary-500 hover:bg-primary-600 text-white font-medium text-xs uppercase tracking-wide rounded-sm transition-all active:scale-95 disabled:opacity-50"
                     >
                       <Check size={14} strokeWidth={3} />
                       ACCEPTER LA DEMANDE
@@ -271,7 +271,7 @@ export default function Profile() {
                     <button
                       onClick={() => handleFriendAction("remove")}
                       disabled={actionLoading}
-                      className="flex items-center gap-2 px-6 py-2 border border-red-200 text-red-500 hover:bg-red-50 font-black text-[10px] uppercase tracking-widest rounded-sm transition-all active:scale-95 disabled:opacity-50"
+                      className="flex items-center gap-2 px-6 py-2 border border-red-200 text-red-500 hover:bg-red-50 font-medium text-xs uppercase tracking-wide rounded-sm transition-all active:scale-95 disabled:opacity-50"
                     >
                       <UserMinus size={14} strokeWidth={3} />
                       RETIRER DES AMIS
@@ -282,7 +282,7 @@ export default function Profile() {
             </div>
           </div>
 
-          <p className="text-primary-900 font-medium leading-relaxed max-w-2xl">
+          <p className="text-sm text-primary-900 font-normal leading-relaxed max-w-2xl">
             {profile.bio || "Aucune bio pour le moment."}
           </p>
 
@@ -302,8 +302,8 @@ export default function Profile() {
           {isOwnProfile && (
             <div className="mt-6 flex gap-6">
               <div className="flex gap-1.5 items-baseline">
-                <span className="font-black text-primary-900 text-lg">{friendCount}</span>
-                <span className="text-[10px] font-bold text-secondary-400 uppercase tracking-widest">
+                <span className="font-bold text-primary-900 text-lg">{friendCount}</span>
+                <span className="text-[11px] font-medium text-secondary-400 uppercase tracking-widest">
                   Amis
                 </span>
               </div>
@@ -335,7 +335,7 @@ export default function Profile() {
         <div className="p-8 flex-1">
           {activeTab === "posts" && (
             <div className="py-12 flex flex-col items-center justify-center border-2 border-dashed border-secondary-100 rounded-sm">
-              <p className="text-[10px] font-black text-secondary-300 uppercase tracking-[0.3em]">
+              <p className="text-xs font-normal text-secondary-300">
                 Aucun post public
               </p>
             </div>
@@ -348,7 +348,7 @@ export default function Profile() {
                 {isOwnProfile && (
                   <button
                     onClick={() => openProjectForm()}
-                    className="flex items-center gap-2 text-[10px] font-black text-primary-500 uppercase tracking-widest hover:text-primary-700 transition-colors"
+                    className="flex items-center gap-2 text-xs font-medium text-primary-500 uppercase tracking-wide hover:text-primary-700 transition-colors"
                   >
                     <Plus size={14} strokeWidth={3} />
                     AJOUTER
@@ -359,7 +359,7 @@ export default function Profile() {
               {showProjectForm && (
                 <div className="border border-secondary-100 rounded-sm p-6 space-y-4 bg-secondary-50/30">
                   <div className="flex justify-between items-center">
-                    <h3 className="text-[10px] font-black text-primary-900 uppercase tracking-widest">
+                    <h3 className="text-[11px] font-medium text-primary-900 uppercase tracking-widest">
                       {editingProject ? "MODIFIER LE PROJET" : "NOUVEAU PROJET"}
                     </h3>
                     <button onClick={() => setShowProjectForm(false)} className="text-secondary-400 hover:text-secondary-600">
@@ -401,7 +401,7 @@ export default function Profile() {
                       ) : (
                         <Camera size={14} />
                       )}
-                      <span className="text-[10px] font-black uppercase tracking-widest">
+                      <span className="text-xs font-medium uppercase tracking-wide">
                         {projectImagePreview ? "Changer l'image" : "Ajouter une image"}
                       </span>
                       <input
@@ -420,14 +420,14 @@ export default function Profile() {
                   <div className="flex justify-end gap-3">
                     <button
                       onClick={() => setShowProjectForm(false)}
-                      className="px-6 py-2 border border-secondary-200 text-primary-900 font-black text-[10px] uppercase tracking-widest rounded-sm hover:bg-secondary-50 transition-colors"
+                      className="px-6 py-2 border border-secondary-200 text-primary-900 font-medium text-xs uppercase tracking-wide rounded-sm hover:bg-secondary-50 transition-colors"
                     >
                       ANNULER
                     </button>
                     <button
                       onClick={handleProjectSubmit}
                       disabled={actionLoading || !projectForm.title.trim()}
-                      className="px-6 py-2 bg-primary-500 text-white font-black text-[10px] uppercase tracking-widest rounded-sm hover:bg-primary-600 transition-colors disabled:opacity-50"
+                      className="px-6 py-2 bg-primary-500 text-white font-medium text-xs uppercase tracking-wide rounded-sm hover:bg-primary-600 transition-colors disabled:opacity-50"
                     >
                       {actionLoading ? <Loader2 size={14} className="animate-spin" /> : editingProject ? "ENREGISTRER" : "CRÉER"}
                     </button>
@@ -437,7 +437,7 @@ export default function Profile() {
 
               {projects.length === 0 && !showProjectForm ? (
                 <div className="py-12 flex flex-col items-center justify-center border-2 border-dashed border-secondary-100 rounded-sm">
-                  <p className="text-[10px] font-black text-secondary-300 uppercase tracking-[0.3em]">
+                  <p className="text-xs font-normal text-secondary-300">
                     Aucun projet pour le moment
                   </p>
                 </div>
@@ -462,14 +462,14 @@ export default function Profile() {
                             {project.tags.split(",").filter(Boolean).map((tag) => (
                               <span
                                 key={tag.trim()}
-                                className="text-[8px] font-black text-primary-500 uppercase tracking-wider"
+                                className="text-[11px] font-normal text-primary-500"
                               >
                                 {tag.trim()}
                               </span>
                             ))}
                           </div>
                           <div className="flex items-center gap-3">
-                            <h3 className="text-lg font-black text-primary-900 uppercase tracking-tight group-hover:text-primary-500 transition-colors flex items-center gap-2">
+                            <h3 className="text-base font-semibold text-primary-900 group-hover:text-primary-500 transition-colors flex items-center gap-2">
                               {project.title}
                               {project.link && (
                                 <a href={project.link} target="_blank" rel="noopener noreferrer" onClick={(e) => e.stopPropagation()}>
@@ -502,7 +502,7 @@ export default function Profile() {
 
           {activeTab === "awards" && (
             <div className="py-12 flex flex-col items-center justify-center border-2 border-dashed border-secondary-100 rounded-sm">
-              <p className="text-[10px] font-black text-secondary-300 uppercase tracking-[0.3em]">
+              <p className="text-xs font-normal text-secondary-300">
                 Aucun badge pour le moment
               </p>
             </div>
@@ -525,7 +525,7 @@ function InfoItem({
   return (
     <div className={`flex items-center gap-2 ${color}`}>
       {icon}
-      <span className="text-[10px] font-black uppercase tracking-tight">
+      <span className="text-sm font-normal">
         {text}
       </span>
     </div>
@@ -536,7 +536,7 @@ function ProfileTab({ active, onClick, icon, label }: any) {
   return (
     <button
       onClick={onClick}
-      className={`flex-1 py-4 flex items-center justify-center gap-2 text-[10px] font-black tracking-[0.2em] transition-all relative ${active ? "text-primary-500" : "text-secondary-400 hover:text-secondary-600"}`}
+      className={`flex-1 py-4 flex items-center justify-center gap-2 text-xs font-medium tracking-wide uppercase transition-all relative ${active ? "text-primary-500" : "text-secondary-400 hover:text-secondary-600"}`}
     >
       {icon}
       <span>{label}</span>

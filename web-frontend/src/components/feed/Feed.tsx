@@ -61,7 +61,7 @@ function TabButton({ active, onClick, label }: any) {
   return (
     <button
       onClick={onClick}
-      className={`flex-1 py-4 text-[10px] font-black tracking-[0.2em] transition-all relative ${active ? "text-primary-500" : "text-secondary-400 hover:text-secondary-600"}`}
+      className={`flex-1 py-4 text-xs font-medium tracking-wide uppercase transition-all relative ${active ? "text-primary-500" : "text-secondary-400 hover:text-secondary-600"}`}
     >
       {label}
       {active && (
@@ -97,7 +97,7 @@ function CreatePostArea() {
                 <Smile size={18} />
               </button>
             </div>
-            <button className="bg-primary-500 hover:bg-primary-600 text-white text-[10px] font-black uppercase tracking-widest px-6 py-2 rounded-sm transition-all">
+            <button className="bg-primary-500 hover:bg-primary-600 text-white text-xs font-medium uppercase tracking-wide px-6 py-2 rounded-sm transition-all">
               PUBLIER
             </button>
           </div>
@@ -128,10 +128,10 @@ function Post({
       <div className="flex-1 min-w-0">
         <div className="flex items-center justify-between mb-1">
           <div className="flex items-center gap-2">
-            <span className="font-black text-xs text-primary-900 uppercase tracking-tight">
+            <span className="font-semibold text-sm text-primary-900">
               {author}
             </span>
-            <span className="text-[10px] font-bold text-secondary-400 lowercase tracking-tighter">
+            <span className="text-[11px] font-normal text-secondary-400">
               {handle} · {time}
             </span>
           </div>
@@ -140,7 +140,7 @@ function Post({
           </button>
         </div>
 
-        <p className="text-sm text-primary-900 leading-relaxed font-medium mb-4">
+        <p className="text-sm text-primary-900 leading-relaxed font-normal mb-4">
           {content}
         </p>
 
@@ -171,7 +171,7 @@ function PostAction({ icon, count }: any) {
     <button className="flex items-center gap-2 hover:text-primary-500 transition-colors p-1">
       {icon}
       {count !== undefined && (
-        <span className="text-[10px] font-black">{count}</span>
+        <span className="text-[11px] font-normal">{count}</span>
       )}
     </button>
   );

@@ -83,10 +83,10 @@ export default function SidebarLeft() {
             />
           </div>
           <div className="flex-1 min-w-0">
-            <p className="font-black text-primary-900 text-xs uppercase truncate tracking-tight">
+            <p className="font-semibold text-primary-900 text-sm truncate">
               {user?.fullName ?? "Utilisateur"}
             </p>
-            <p className="text-[10px] font-bold text-secondary-400 uppercase tracking-widest truncate">
+            <p className="text-[11px] font-normal text-secondary-400 truncate">
               @{user?.shortHandle ?? "user"}
             </p>
           </div>

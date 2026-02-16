@@ -14,7 +14,7 @@ export default function App() {
       <div className="flex items-center justify-center h-screen bg-white">
         <div className="text-center space-y-4">
           <div className="w-10 h-10 border-4 border-primary-500 border-t-transparent rounded-full animate-spin mx-auto" />
-          <p className="text-xs font-black uppercase tracking-widest text-secondary-400">
+          <p className="text-xs font-normal text-secondary-400">
             Connexion en cours...
           </p>
         </div>
@@ -28,7 +28,7 @@ export default function App() {
       <div className="flex items-center justify-center h-screen bg-white">
         <div className="text-center space-y-4">
           <div className="w-10 h-10 border-4 border-primary-500 border-t-transparent rounded-full animate-spin mx-auto" />
-          <p className="text-xs font-black uppercase tracking-widest text-secondary-400">
+          <p className="text-xs font-normal text-secondary-400">
             Redirection vers la connexion...
           </p>
         </div>

@@ -14,7 +14,7 @@ export default function Navbar() {
   const searchRef = useRef<HTMLDivElement>(null);
   const debounceRef = useRef<ReturnType<typeof setTimeout>>(undefined);
 
-  const displayName = user?.shortHandle?.toUpperCase() ?? "USER";
+  const displayName = user?.shortHandle ?? "User";
 
   useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {
@@ -54,7 +54,7 @@ export default function Navbar() {
               className="w-full h-full object-contain"
             />
           </div>
-          <span className="font-display font-black text-xl tracking-tighter text-primary-900 uppercase">
+          <span className="font-display font-bold text-xl tracking-tight text-primary-900">
             U-Connect
           </span>
         </div>
@@ -69,8 +69,8 @@ export default function Navbar() {
               value={query}
               onChange={(e) => handleSearch(e.target.value)}
               onFocus={() => query.trim() && setShowResults(true)}
-              placeholder="RECHERCHER SUR LE CAMPUS..."
-              className="block w-full bg-secondary-50 border border-secondary-100 focus:bg-white focus:border-primary-500 focus:ring-4 focus:ring-primary-500/10 rounded-full py-2.5 pl-12 pr-4 text-[10px] font-black tracking-widest uppercase transition-all placeholder:text-secondary-300"
+              placeholder="Rechercher sur le campus..."
+              className="block w-full bg-secondary-50 border border-secondary-100 focus:bg-white focus:border-primary-500 focus:ring-4 focus:ring-primary-500/10 rounded-full py-2.5 pl-12 pr-4 text-xs font-normal tracking-normal transition-all placeholder:text-secondary-300"
             />
             {showResults && (
               <div className="absolute top-full left-0 right-0 mt-2 bg-white border border-secondary-100 rounded-sm shadow-lg overflow-hidden z-50">
@@ -79,7 +79,7 @@ export default function Navbar() {
                     <Loader2 className="w-4 h-4 animate-spin text-secondary-300" />
                   </div>
                 ) : results.length === 0 ? (
-                  <p className="text-[9px] font-bold text-secondary-400 uppercase tracking-widest p-4 text-center">
+                  <p className="text-[11px] font-normal text-secondary-400 p-4 text-center">
                     Aucun résultat
                   </p>
                 ) : (
@@ -100,11 +100,11 @@ export default function Navbar() {
                           />
                         </div>
                         <div className="min-w-0">
-                          <p className="text-[11px] font-black text-primary-900 uppercase truncate">
+                          <p className="text-sm font-semibold text-primary-900 truncate">
                             {fullName}
                           </p>
-                          <p className="text-[9px] font-bold text-secondary-400">
-                            @{handle.toUpperCase()}
+                          <p className="text-[11px] font-normal text-secondary-400">
+                            @{handle}
                           </p>
                         </div>
                       </Link>
@@ -129,7 +129,7 @@ export default function Navbar() {
                 alt="User"
               />
             </div>
-            <span className="text-[10px] font-black text-primary-900 tracking-widest hidden lg:block group-hover:text-primary-500 transition-colors uppercase">
+            <span className="text-xs font-medium text-primary-900 hidden lg:block group-hover:text-primary-500 transition-colors">
               {displayName}
             </span>
           </div>
@@ -175,7 +175,7 @@ function MobileNavItem({
   return (
     <a
       href="#"
-      className={`block text-xs font-black tracking-[0.2em] ${
+      className={`block text-xs font-medium tracking-wide uppercase ${
         active ? "text-primary-500" : "text-secondary-500"
       }`}
     >
