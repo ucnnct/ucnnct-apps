@@ -3,6 +3,11 @@ spring:
     name: ws-manager
   main:
     web-application-type: reactive
+  data:
+    redis:
+      host: ${REDIS_HOST:localhost}
+      port: ${REDIS_PORT:6379}
+      password: ${REDIS_PASSWORD:}
 
 server:
   port: 8080
@@ -12,4 +17,10 @@ management:
     web:
       exposure:
         include: health
+
+app:
+  instance:
+    id: ${WS_INSTANCE_ID:}
+  presence:
+    key-prefix: ${WS_PRESENCE_KEY_PREFIX:ws:presence:user:}
 

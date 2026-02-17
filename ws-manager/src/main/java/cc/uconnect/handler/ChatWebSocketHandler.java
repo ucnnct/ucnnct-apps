@@ -2,6 +2,7 @@ package cc.uconnect.handler;
 
 import cc.uconnect.model.WsPacket;
 import cc.uconnect.service.WsActionService;
+import cc.uconnect.service.WsPresenceRedisService;
 import cc.uconnect.service.WsSessionPacketSender;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
@@ -31,6 +32,7 @@ public class ChatWebSocketHandler implements WebSocketHandler {
     private final ObjectMapper objectMapper;
     private final WsSessionPacketSender packetSender;
     private final WsActionService actionService;
+    private final WsPresenceRedisService presenceRedisService;
 
     @Override
     public Mono<Void> handle(WebSocketSession session) {
@@ -58,7 +60,13 @@ public class ChatWebSocketHandler implements WebSocketHandler {
                 })
                 .then();
 
-        return Mono.when(outbound, inbound)
+        Mono<Void> registerPresence = presenceRedisService.saveUserInstance(userId)
+                .onErrorResume(ex -> {
+                    log.error("Redis presence registration failed userId={} sessionId={}", userId, sessionId, ex);
+                    return Mono.empty();
+                });
+
+        return registerPresence.then(Mono.when(outbound, inbound))
                 .doFinally(signal -> {
                     packetSender.unregister(sessionId);
                     log.info("Connection closed: sessionId={} userId={} signal={}", sessionId, userId, signal);
