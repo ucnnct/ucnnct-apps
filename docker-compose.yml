@@ -144,6 +144,31 @@ services:
     networks:
       - uconnect-network
 
+  # --- DATABASES ---
+  group-db:
+    image: postgres:15
+    container_name: uconnect-group-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${GROUP_DB_NAME}
+      POSTGRES_USER: ${GROUP_DB_USER}
+      POSTGRES_PASSWORD: ${GROUP_DB_PASSWORD}
+    volumes:
+      - group_data:/var/lib/postgresql/data
+    networks:
+      - uconnect-network
+
+  mongodb:
+    image: mongo:7
+    container_name: uconnect-mongodb
+    restart: unless-stopped
+    environment:
+      MONGO_INITDB_DATABASE: chatdb
+    volumes:
+      - mongo_data:/data/db
+    networks:
+      - uconnect-network
+
   # --- BACKEND SERVICES ---
   user-service:
     build: ./user-service
@@ -183,6 +208,42 @@ services:
     networks:
       - uconnect-network
 
+  group-service:
+    build: ./group-service
+    container_name: uconnect-group-service
+    restart: unless-stopped
+    environment:
+      DB_HOST: group-db
+      DB_PORT: 5432
+      DB_NAME: ${GROUP_DB_NAME}
+      DB_USER: ${GROUP_DB_USER}
+      DB_PASSWORD: ${GROUP_DB_PASSWORD}
+      KAFKA_BOOTSTRAP_SERVERS: kafka:9092
+      KEYCLOAK_ISSUER_URI: http://keycloak:8080/realms/ucnnct
+      KEYCLOAK_JWKSET_URI: http://keycloak:8080/realms/ucnnct/protocol/openid-connect/certs
+    depends_on:
+      - group-db
+      - kafka
+      - keycloak
+    networks:
+      - uconnect-network
+
+  chat-service:
+    build: ./chat-service
+    container_name: uconnect-chat-service
+    restart: unless-stopped
+    environment:
+      MONGODB_URI: mongodb://mongodb:27017/chatdb
+      KAFKA_BOOTSTRAP_SERVERS: kafka:9092
+      KEYCLOAK_ISSUER_URI: http://keycloak:8080/realms/ucnnct
+      KEYCLOAK_JWKSET_URI: http://keycloak:8080/realms/ucnnct/protocol/openid-connect/certs
+    depends_on:
+      - mongodb
+      - kafka
+      - keycloak
+    networks:
+      - uconnect-network
+
   bff:
     build: ./bff
     container_name: uconnect-bff
@@ -193,6 +254,8 @@ services:
       BFF_CLIENT_SECRET: ${KEYCLOAK_CLIENT_SECRET}
       USER_SERVICE_URL: http://user-service:8082
       MEDIA_SERVICE_URL: http://media-service:8083
+      # GROUP_SERVICE_URL: http://group-service:8085
+      # CHAT_SERVICE_URL: http://chat-service:8084
       REDIRECT_URI: http://localhost:${APP_PORT}/login/oauth2/code/keycloak
       LOGOUT_REDIRECT_URI: http://localhost:${APP_PORT}/
       SESSION_SECRET: ${SESSION_SECRET}
@@ -227,6 +290,8 @@ volumes:
   keycloak_data:
   user_data:
   minio_data:
+  group_data:
+  mongo_data:
 
 networks:
   uconnect-network:
