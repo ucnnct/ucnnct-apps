@@ -1,6 +1,6 @@
-package cc.uconnect.service.handler;
+package cc.uconnect.handler;
 
-import cc.uconnect.model.WsInboundActionType;
+import cc.uconnect.enums.WsInboundActionType;
 import com.fasterxml.jackson.databind.JsonNode;
 import lombok.extern.log4j.Log4j2;
 import org.springframework.stereotype.Component;
@@ -8,16 +8,16 @@ import reactor.core.publisher.Mono;
 
 @Component
 @Log4j2
-public class UploadCompletedHandler implements WsInboundActionHandler {
+public class SendPrivateMessageHandler implements WsInboundActionHandler {
 
     @Override
     public WsInboundActionType actionType() {
-        return WsInboundActionType.UPLOAD_COMPLETED;
+        return WsInboundActionType.SEND_PRIVATE_MESSAGE;
     }
 
     @Override
     public Mono<Void> handle(JsonNode payload) {
-        log.debug("handle UPLOAD_COMPLETED payload={}", payload);
+        log.debug("handle SEND_PRIVATE_MESSAGE payload={}", payload);
         return Mono.empty();
     }
 }

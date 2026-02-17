@@ -1,4 +1,4 @@
-package cc.uconnect.model;
+package cc.uconnect.enums;
 
 public enum WsOutboundActionType {
     PRIVATE_MESSAGE,
