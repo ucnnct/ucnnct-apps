@@ -1,5 +1,6 @@
 import { Issuer, generators, Client, TokenSet } from "openid-client";
 import type { Express, Request, Response, NextFunction } from "express";
+import logger from "./logger";
 
 let oidcClient: Client | undefined;
 let isOidcReady = false;
@@ -11,12 +12,11 @@ export async function setupAuth(app: Express) {
   const internalIssuerUri = process.env.KEYCLOAK_ISSUER_URI || "http://keycloak:8080/realms/ucnnct";
   const externalIssuerUri = process.env.KEYCLOAK_EXTERNAL_URI || "http://localhost:8882/realms/ucnnct";
 
-  // Connexion à Keycloak avec tentative de reconnexion toutes les 5s
   const discoverIssuer = async () => {
-    console.log(`[OIDC] Connexion à Keycloak : ${internalIssuerUri}...`);
+    logger.info("[OIDC] Connecting to Keycloak: {}", internalIssuerUri);
     try {
       const discovered = await Issuer.discover(internalIssuerUri);
-      
+
       const issuer = new Issuer({
         ...discovered.metadata,
         issuer: externalIssuerUri,
@@ -31,19 +31,17 @@ export async function setupAuth(app: Express) {
         response_types: ["code"],
       });
 
-      console.log(`[OIDC] redirect_uri = ${REDIRECT_URI}`);
-
+      logger.info("[OIDC] redirect_uri = {}", REDIRECT_URI);
       isOidcReady = true;
-      console.log("[OIDC] Keycloak est prêt.");
+      logger.info("[OIDC] Keycloak ready");
     } catch (err) {
-      console.error("[OIDC] Keycloak injoignable, nouvelle tentative dans 5s...");
+      logger.warn("[OIDC] Keycloak unreachable, retrying in 5s...");
       setTimeout(discoverIssuer, 5000);
     }
   };
 
   discoverIssuer();
 
-  // Vérifie si l'authentification est prête avant de continuer
   const ensureOidcReady = (req: Request, res: Response, next: NextFunction) => {
     if (!isOidcReady || !oidcClient) {
       if (req.accepts('html')) {
@@ -65,7 +63,6 @@ export async function setupAuth(app: Express) {
     next();
   };
 
-  // Route pour lancer la connexion
   app.get("/bff/login", ensureOidcReady, (req, res) => {
     const nonce = generators.nonce();
     const state = generators.state();
@@ -73,18 +70,18 @@ export async function setupAuth(app: Express) {
     req.session.state = state;
     req.session.save(() => {
       const url = oidcClient!.authorizationUrl({ scope: "openid profile email", nonce, state });
+      logger.debug("[OIDC] Login redirect initiated");
       res.redirect(url);
     });
   });
 
-  // Retour de Keycloak après connexion réussie
   app.get("/login/oauth2/code/keycloak", ensureOidcReady, async (req, res) => {
     try {
       const params = oidcClient!.callbackParams(req);
 
-      // Guard: if the session was lost (no nonce/state), don't loop -- show an error
+      // session perdue : on affiche une erreur plutôt que de rediriger en boucle
       if (!req.session.nonce || !req.session.state) {
-        console.error("[OIDC] Session perdue lors du callback (nonce/state absents). Vérifiez les cookies secure/sameSite.");
+        logger.warn("[OIDC] Session lost during callback (missing nonce/state) — check cookie secure/sameSite config");
         return res.status(400).send("Session perdue. Veuillez réessayer : <a href='/bff/login'>Se connecter</a>");
       }
 
@@ -95,27 +92,27 @@ export async function setupAuth(app: Express) {
       );
       req.session.tokenSet = tokenSet;
       req.session.userinfo = tokenSet.claims();
-      // Clear the nonce and state after successful use
       delete (req.session as any).nonce;
       delete (req.session as any).state;
+      logger.info("[OIDC] User authenticated sub={}", tokenSet.claims().sub);
       req.session.save(() => res.redirect("/"));
     } catch (err) {
-      console.error("[OIDC] Erreur callback :", err);
-      // Do NOT redirect to /bff/login to avoid infinite loops -- show the error
+      logger.error("[OIDC] Callback error", err as Error);
+      // pas de redirect vers /bff/login pour éviter une boucle infinie
       res.status(500).send("Erreur d'authentification. <a href='/bff/login'>Réessayer</a>");
     }
   });
 
-  // Récupérer les infos de l'utilisateur connecté
   app.get("/bff/userinfo", (req, res) => {
     if (!req.session.userinfo) return res.status(401).json({ error: "Non connecté" });
     res.json(req.session.userinfo);
   });
 
-  // Déconnexion
   app.get("/bff/logout", ensureOidcReady, (req, res) => {
     const idToken = req.session.tokenSet?.id_token;
+    const sub = req.session.userinfo?.sub;
     req.session.destroy(() => {
+      logger.info("[OIDC] User logged out sub={}", sub ?? "unknown");
       if (idToken) {
         const logoutUrl = oidcClient!.endSessionUrl({
           id_token_hint: idToken,
@@ -129,7 +126,6 @@ export async function setupAuth(app: Express) {
   });
 }
 
-// Rafraîchit le token automatiquement s'il a expiré
 export async function refreshAccessTokenIfNeeded(req: Request): Promise<string | undefined> {
   if (!isOidcReady || !oidcClient || !req.session.tokenSet) return undefined;
 
@@ -140,8 +136,10 @@ export async function refreshAccessTokenIfNeeded(req: Request): Promise<string |
       tokenSet = await oidcClient.refresh(tokenSet);
       req.session.tokenSet = tokenSet;
       req.session.userinfo = tokenSet.claims();
+      logger.debug("[OIDC] Token refreshed sub={}", tokenSet.claims().sub);
       return tokenSet.access_token;
     } catch (err) {
+      logger.warn("[OIDC] Token refresh failed — user will need to re-authenticate");
       return undefined;
     }
   }

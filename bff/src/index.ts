@@ -1,15 +1,16 @@
 import express from "express";
 import session from "express-session";
+import pinoHttp from "pino-http";
 import { setupAuth, getOidcStatus } from "./auth";
 import { setupProxy } from "./proxy";
+import logger, { pinoInstance } from "./logger";
 
 const app = express();
 
-// Trust the reverse-proxy chain (Cloudflare → nginx ingress → BFF)
-// This ensures req.protocol returns "https" when X-Forwarded-Proto is set
 app.set("trust proxy", true);
 
-// Configuration de la session utilisateur
+app.use(pinoHttp({ logger: pinoInstance }));
+
 app.use(session({
   name: "uconnect.token.key",
   secret: process.env.SESSION_SECRET || "dev-secret",
@@ -24,7 +25,6 @@ app.use(session({
   },
 }));
 
-// Route de santé utilisée par Docker/Traefik
 app.get("/actuator/health", (_req, res) => {
   const oidcStatus = getOidcStatus();
   res.status(oidcStatus === "UP" ? 200 : 503).json({ status: oidcStatus });
@@ -33,5 +33,5 @@ app.get("/actuator/health", (_req, res) => {
 (async () => {
   setupAuth(app);
   setupProxy(app);
-  app.listen(3001, () => console.log("[BFF] Prêt sur le port 3001"));
+  app.listen(3001, () => logger.info("[BFF] Ready on port 3001"));
 })();
