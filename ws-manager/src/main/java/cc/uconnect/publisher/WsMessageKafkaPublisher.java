@@ -23,6 +23,9 @@ public class WsMessageKafkaPublisher {
     @Value("${app.kafka.topics.chat-messages:chatmessage}")
     private String chatMessagesTopic;
 
+    @Value("${app.kafka.topics.message-status-updates:message.status.update}")
+    private String messageStatusUpdatesTopic;
+
     public Mono<Void> publishToGroupResolve(Message message) {
         String key = resolveKafkaKey(message);
         return kafkaPublisher.publish(groupResolveTopic, key, message)
@@ -44,6 +47,19 @@ public class WsMessageKafkaPublisher {
                         chatMessagesTopic,
                         key,
                         message.getType(),
+                        sendResult.getRecordMetadata().partition(),
+                        sendResult.getRecordMetadata().offset()))
+                .then();
+    }
+
+    public Mono<Void> publishStatusUpdate(Message message) {
+        String key = resolveStatusKey(message);
+        return kafkaPublisher.publish(messageStatusUpdatesTopic, key, message)
+                .doOnNext(sendResult -> log.debug(
+                        "Message status update published topic={} key={} status={} partition={} offset={}",
+                        messageStatusUpdatesTopic,
+                        key,
+                        message.getStatus(),
                         sendResult.getRecordMetadata().partition(),
                         sendResult.getRecordMetadata().offset()))
                 .then();
@@ -73,5 +89,12 @@ public class WsMessageKafkaPublisher {
         }
 
         throw new IllegalArgumentException("Kafka key cannot be resolved from message");
+    }
+
+    private String resolveStatusKey(Message message) {
+        if (message != null && message.getMessageId() != null && !message.getMessageId().isBlank()) {
+            return message.getMessageId();
+        }
+        return resolveKafkaKey(message);
     }
 }

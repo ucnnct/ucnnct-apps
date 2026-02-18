@@ -41,5 +41,6 @@ app:
       group-resolve: ${WS_KAFKA_TOPIC_GROUP_RESOLVE:groupmessage}
       group-resolved: ${WS_KAFKA_TOPIC_GROUP_RESOLVED:groupmessage.resolved}
       chat-messages: ${WS_KAFKA_TOPIC_CHAT_MESSAGES:chatmessage}
+      message-status-updates: ${WS_KAFKA_TOPIC_MESSAGE_STATUS_UPDATES:message.status.update}
       messages: ${WS_KAFKA_TOPIC_MESSAGES:newmessage}
 
