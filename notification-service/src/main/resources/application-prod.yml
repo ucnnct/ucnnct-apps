@@ -3,6 +3,3 @@ spring:
     activate:
       on-profile: prod
 
-hello:
-  message: ${HELLO_MESSAGE:hello}
-

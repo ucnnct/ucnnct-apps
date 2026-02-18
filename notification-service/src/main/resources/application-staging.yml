@@ -3,6 +3,3 @@ spring:
     activate:
       on-profile: staging
 
-hello:
-  message: ${HELLO_MESSAGE:hello}
-

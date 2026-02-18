@@ -3,6 +3,3 @@ spring:
     activate:
       on-profile: local
 
-hello:
-  message: ${HELLO_MESSAGE:hello}
-
