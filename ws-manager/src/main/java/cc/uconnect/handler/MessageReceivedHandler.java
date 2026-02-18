@@ -4,6 +4,7 @@ import cc.uconnect.enums.MessageType;
 import cc.uconnect.enums.WsInboundActionType;
 import cc.uconnect.enums.WsOutboundActionType;
 import cc.uconnect.model.Message;
+import cc.uconnect.publisher.WsMessageKafkaPublisher;
 import cc.uconnect.service.WsMessagePayloadDecoder;
 import cc.uconnect.service.WsOutboundPacketService;
 import cc.uconnect.service.WsUserPacketRoutingService;
@@ -21,6 +22,7 @@ import java.util.List;
 public class MessageReceivedHandler implements WsInboundActionHandler {
 
     private final WsMessagePayloadDecoder messagePayloadDecoder;
+    private final WsMessageKafkaPublisher messageKafkaPublisher;
     private final WsOutboundPacketService outboundPacketService;
     private final WsUserPacketRoutingService userPacketRoutingService;
 
@@ -33,10 +35,11 @@ public class MessageReceivedHandler implements WsInboundActionHandler {
     public Mono<Void> handle(String receiverUserId, JsonNode payload) {
         return messagePayloadDecoder.decodeReceiptPayload(payload)
                 .map(message -> enrichMessage(message, receiverUserId))
-                .flatMap(message -> userPacketRoutingService.routeToUser(
-                        message.getSenderId(),
-                        resolveOutboundAction(message.getType()),
-                        message))
+                .flatMap(message -> messageKafkaPublisher.publishStatusUpdate(message)
+                        .then(userPacketRoutingService.routeToUser(
+                                message.getSenderId(),
+                                resolveOutboundAction(message.getType()),
+                                message)))
                 .onErrorResume(ex -> {
                     log.warn("MESSAGE_RECEIVED processing error receiverUserId={}", receiverUserId, ex);
                     return outboundPacketService.sendErrorToUser(receiverUserId, ex.getMessage());
