@@ -1,8 +1,6 @@
 package cc.uconnect.service;
 
-import cc.uconnect.enums.MessageType;
 import cc.uconnect.enums.WsOutboundActionType;
-import cc.uconnect.model.Message;
 import cc.uconnect.model.WsPacket;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
@@ -34,18 +32,6 @@ public class WsOutboundPacketService {
         });
     }
 
-    public Mono<Void> sendMessageToUser(String targetUserId, Message message) {
-        return Mono.fromRunnable(() -> {
-            WsPacket packet = buildMessagePacket(message);
-            boolean delivered = packetSender.sendPacketToUser(targetUserId, packet);
-            if (!delivered) {
-                log.debug("Message outbound not delivered type={} targetUserId={}",
-                        packet.getType(),
-                        targetUserId);
-            }
-        });
-    }
-
     public Mono<Void> sendErrorToUser(String targetUserId, String message) {
         return sendToUser(targetUserId, WsOutboundActionType.ERROR, Map.of("message", message));
     }
@@ -56,18 +42,6 @@ public class WsOutboundPacketService {
                 .timestamp(Instant.now().toEpochMilli())
                 .payload(actionPayload == null ? null : objectMapper.valueToTree(actionPayload))
                 .build();
-    }
-
-    public WsPacket buildMessagePacket(Message message) {
-        WsOutboundActionType actionType = resolveMessageAction(message);
-        return buildPacket(actionType, message);
-    }
-
-    private WsOutboundActionType resolveMessageAction(Message message) {
-        if (message != null && message.getType() == MessageType.GROUP) {
-            return WsOutboundActionType.GROUP_MESSAGE;
-        }
-        return WsOutboundActionType.PRIVATE_MESSAGE;
     }
 
     private void traceOutbound(String targetUserId, WsOutboundActionType actionType, Object actionPayload) {
