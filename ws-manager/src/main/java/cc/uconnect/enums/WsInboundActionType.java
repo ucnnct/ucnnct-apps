@@ -5,7 +5,9 @@ import java.util.Optional;
 
 public enum WsInboundActionType {
     SEND_PRIVATE_MESSAGE,
-    SEND_GROUP_MESSAGE;
+    SEND_GROUP_MESSAGE,
+    MESSAGE_RECEIVED,
+    MESSAGE_READ;
 
     public static Optional<WsInboundActionType> from(String rawValue) {
         if (rawValue == null || rawValue.isBlank()) {
