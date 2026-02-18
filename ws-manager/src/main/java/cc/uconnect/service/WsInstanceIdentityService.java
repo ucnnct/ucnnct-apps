@@ -23,7 +23,7 @@ public class WsInstanceIdentityService {
         if (configuredInstanceId != null && !configuredInstanceId.isBlank()) {
             instanceId = configuredInstanceId;
         } else {
-            instanceId = "ws-manager-" + UUID.randomUUID();
+            instanceId = ""+UUID.randomUUID();
         }
         log.info("WebSocket manager instanceId initialized: {}", instanceId);
     }

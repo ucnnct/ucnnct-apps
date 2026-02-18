@@ -8,6 +8,16 @@ spring:
       host: ${REDIS_HOST:localhost}
       port: ${REDIS_PORT:6379}
       password: ${REDIS_PASSWORD:}
+  kafka:
+    bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:localhost:9092}
+    producer:
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+      value-serializer: org.apache.kafka.common.serialization.StringSerializer
+    consumer:
+      group-id: ${KAFKA_CONSUMER_GROUP_ID:ws-manager-message-delivery}
+      key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+      value-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+      auto-offset-reset: earliest
 
 server:
   port: 8080
@@ -23,4 +33,13 @@ app:
     id: ${WS_INSTANCE_ID:}
   presence:
     key-prefix: ${WS_PRESENCE_KEY_PREFIX:ws:presence:user:}
+  redis:
+    pubsub:
+      channel-prefix: ${WS_REDIS_CHANNEL_PREFIX:ws:instance:}
+  kafka:
+    topics:
+      group-resolve: ${WS_KAFKA_TOPIC_GROUP_RESOLVE:groupmessage}
+      group-resolved: ${WS_KAFKA_TOPIC_GROUP_RESOLVED:groupmessage.resolved}
+      chat-messages: ${WS_KAFKA_TOPIC_CHAT_MESSAGES:chatmessage}
+      messages: ${WS_KAFKA_TOPIC_MESSAGES:newmessage}
 

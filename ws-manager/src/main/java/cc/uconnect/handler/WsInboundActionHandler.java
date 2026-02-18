@@ -8,5 +8,5 @@ public interface WsInboundActionHandler {
 
     WsInboundActionType actionType();
 
-    Mono<Void> handle(JsonNode payload);
+    Mono<Void> handle(String senderUserId, JsonNode payload);
 }

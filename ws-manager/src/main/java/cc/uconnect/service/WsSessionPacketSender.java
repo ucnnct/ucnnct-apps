@@ -89,4 +89,9 @@ public class WsSessionPacketSender {
             return false;
         }
     }
+
+    public boolean hasLocalUser(String userId) {
+        Set<String> sessions = userSessions.get(userId);
+        return sessions != null && !sessions.isEmpty();
+    }
 }

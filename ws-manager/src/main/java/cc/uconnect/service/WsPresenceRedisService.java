@@ -33,4 +33,11 @@ public class WsPresenceRedisService {
                 })
                 .then();
     }
+
+    public Mono<String> findInstanceByUserId(String userId) {
+        String key = keyPrefix + userId;
+        return redisTemplate.opsForValue()
+                .get(key)
+                .doOnNext(instanceId -> log.debug("Presence lookup userId={} instanceId={}", userId, instanceId));
+    }
 }

@@ -41,7 +41,7 @@ public class WsActionService {
         if (actionHandler == null) {
             return sendError(userId, "No handler registered for action type: " + actionType);
         }
-        return actionHandler.handle(packet.getPayload());
+        return actionHandler.handle(userId, packet.getPayload());
     }
 
     public Mono<Void> sendError(String userId, String errorMessage) {
