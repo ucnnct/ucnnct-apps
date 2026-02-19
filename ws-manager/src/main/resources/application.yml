@@ -33,6 +33,8 @@ app:
     id: ${WS_INSTANCE_ID:}
   presence:
     key-prefix: ${WS_PRESENCE_KEY_PREFIX:ws:presence:user:}
+  active-context:
+    key-prefix: ${WS_ACTIVE_CONTEXT_KEY_PREFIX:ws:context:user:}
   redis:
     pubsub:
       channel-prefix: ${WS_REDIS_CHANNEL_PREFIX:ws:instance:}
@@ -43,4 +45,5 @@ app:
       chat-messages: ${WS_KAFKA_TOPIC_CHAT_MESSAGES:chatmessage}
       message-status-updates: ${WS_KAFKA_TOPIC_MESSAGE_STATUS_UPDATES:message.status.update}
       messages: ${WS_KAFKA_TOPIC_MESSAGES:newmessage}
+      in-app-notifications: ${WS_KAFKA_TOPIC_INAPP_NOTIFICATIONS:inapp.notification}
 

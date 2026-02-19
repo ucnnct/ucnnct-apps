@@ -7,7 +7,8 @@ public enum WsInboundActionType {
     SEND_PRIVATE_MESSAGE,
     SEND_GROUP_MESSAGE,
     MESSAGE_RECEIVED,
-    MESSAGE_READ;
+    MESSAGE_READ,
+    UPDATE_ACTIVE_CONTEXT;
 
     public static Optional<WsInboundActionType> from(String rawValue) {
         if (rawValue == null || rawValue.isBlank()) {

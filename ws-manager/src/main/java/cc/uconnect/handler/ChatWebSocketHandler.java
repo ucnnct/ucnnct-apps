@@ -69,6 +69,16 @@ public class ChatWebSocketHandler implements WebSocketHandler {
         return registerPresence.then(Mono.when(outbound, inbound))
                 .doFinally(signal -> {
                     packetSender.unregister(sessionId);
+                    if (!packetSender.hasLocalUser(userId)) {
+                        Mono.when(
+                                        presenceRedisService.deleteUserInstance(userId),
+                                        presenceRedisService.deleteUserActiveContext(userId))
+                                .onErrorResume(ex -> {
+                                    log.error("Redis cleanup failed userId={} sessionId={}", userId, sessionId, ex);
+                                    return Mono.empty();
+                                })
+                                .subscribe();
+                    }
                     log.info("Connection closed: sessionId={} userId={} signal={}", sessionId, userId, signal);
                 });
     }
