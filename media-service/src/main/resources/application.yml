@@ -21,3 +21,26 @@ minio:
   secret-key: ${MINIO_SECRET_KEY:minioadmin}
   bucket: ${MINIO_BUCKET:uconnect-media}
   public-url: ${MINIO_PUBLIC_URL:http://localhost:9000}
+  presigned-upload-expiry-seconds: ${MINIO_PRESIGNED_UPLOAD_EXPIRY_SECONDS:900}
+  presigned-download-expiry-seconds: ${MINIO_PRESIGNED_DOWNLOAD_EXPIRY_SECONDS:900}
+  max-upload-size-bytes: ${MINIO_MAX_UPLOAD_SIZE_BYTES:26214400}
+  allowed-mime-types:
+    - image/jpeg
+    - image/png
+    - image/gif
+    - image/webp
+    - image/svg+xml
+    - application/pdf
+    - text/plain
+    - application/zip
+    - application/x-zip-compressed
+    - audio/mpeg
+    - audio/ogg
+    - video/mp4
+    - video/webm
+    - application/msword
+    - application/vnd.openxmlformats-officedocument.wordprocessingml.document
+    - application/vnd.ms-excel
+    - application/vnd.openxmlformats-officedocument.spreadsheetml.sheet
+    - application/vnd.ms-powerpoint
+    - application/vnd.openxmlformats-officedocument.presentationml.presentation
