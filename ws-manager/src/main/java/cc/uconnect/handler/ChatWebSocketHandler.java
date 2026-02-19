@@ -60,7 +60,7 @@ public class ChatWebSocketHandler implements WebSocketHandler {
                 })
                 .then();
 
-        Mono<Void> registerPresence = presenceRedisService.saveUserInstance(userId)
+        Mono<Void> registerPresence =  .saveUserInstance(userId)
                 .onErrorResume(ex -> {
                     log.error("Redis presence registration failed userId={} sessionId={}", userId, sessionId, ex);
                     return Mono.empty();
