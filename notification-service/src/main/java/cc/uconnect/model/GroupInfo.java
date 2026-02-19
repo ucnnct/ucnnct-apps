@@ -1,6 +1,5 @@
 package cc.uconnect.model;
 
-import com.fasterxml.jackson.annotation.JsonAlias;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -12,10 +11,8 @@ import lombok.NoArgsConstructor;
 @NoArgsConstructor
 @AllArgsConstructor
 @JsonIgnoreProperties(ignoreUnknown = true)
-public class Notification {
+public class GroupInfo {
 
-    private String notificationId;
-    private String targetId;
-    private String category;
-    private String content;
+    private String groupId;
+    private String name;
 }
