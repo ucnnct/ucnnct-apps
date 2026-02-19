@@ -2,7 +2,7 @@ package cc.uconnect.consumer;
 
 import cc.uconnect.configs.NotificationServiceProperties;
 import cc.uconnect.model.Message;
-import cc.uconnect.service.NotificationDispatchService;
+import cc.uconnect.service.NotificationActionService;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.log4j.Log4j2;
@@ -17,16 +17,16 @@ import reactor.core.scheduler.Schedulers;
 public class NotificationMessageKafkaConsumer {
 
     private final ObjectMapper objectMapper;
-    private final NotificationDispatchService notificationDispatchService;
+    private final NotificationActionService notificationActionService;
     private final NotificationServiceProperties properties;
 
     @KafkaListener(
-            topics = "${app.kafka.topics.messages-persisted:newmessage}",
-            groupId = "${spring.kafka.consumer.group-id:notification-service}"
+            topics = "${app.kafka.topics.messages-persisted}",
+            groupId = "${spring.kafka.consumer.group-id}"
     )
     public void onPersistedMessage(String rawPayload) {
         decode(rawPayload)
-                .flatMap(message -> notificationDispatchService.dispatchForPersistedMessage(message)
+                .flatMap(message -> notificationActionService.handlePersistedMessage(message)
                         .onErrorResume(ex -> {
                             log.error("Notification dispatch failed messageId={} senderId={}",
                                     message.getMessageId(),

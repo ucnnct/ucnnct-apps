@@ -1,0 +1,9 @@
+package cc.uconnect.repository;
+
+import cc.uconnect.model.NotificationEntity;
+import org.springframework.data.repository.reactive.ReactiveCrudRepository;
+import org.springframework.stereotype.Repository;
+
+@Repository
+public interface NotificationRepository extends ReactiveCrudRepository<NotificationEntity, String> {
+}

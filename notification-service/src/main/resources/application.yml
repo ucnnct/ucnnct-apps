@@ -8,6 +8,17 @@ spring:
       host: ${REDIS_HOST:localhost}
       port: ${REDIS_PORT:6379}
       password: ${REDIS_PASSWORD:}
+  r2dbc:
+    url: ${POSTGRES_R2DBC_URL:r2dbc:postgresql://localhost:5432/uconnect_notifications}
+    username: ${POSTGRES_USER:postgres}
+    password: ${POSTGRES_PASSWORD:postgres}
+    pool:
+      enabled: true
+      initial-size: ${R2DBC_POOL_INITIAL_SIZE:5}
+      max-size: ${R2DBC_POOL_MAX_SIZE:20}
+  sql:
+    init:
+      mode: ${SQL_INIT_MODE:always}
   kafka:
     bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:localhost:9092}
     producer:
@@ -41,9 +52,27 @@ app:
     key-prefix: ${WS_PRESENCE_KEY_PREFIX:ws:presence:user:}
   active-context:
     key-prefix: ${WS_ACTIVE_CONTEXT_KEY_PREFIX:ws:context:user:}
-  user-service:
-    base-url: ${USER_SERVICE_BASE_URL:http://localhost:8082}
-    contact-path: ${USER_SERVICE_CONTACT_PATH:/users/{userId}/contact}
+  directory:
+    user-key-prefix: ${DIRECTORY_USER_KEY_PREFIX:directory:user:}
+    group-key-prefix: ${DIRECTORY_GROUP_KEY_PREFIX:directory:group:}
+  notifications:
+    defaults:
+      preview: ${NOTIFICATION_DEFAULT_PREVIEW:Nouveau message}
+      sender-name: ${NOTIFICATION_DEFAULT_SENDER_NAME:Quelqu'un}
+      group-name: ${NOTIFICATION_DEFAULT_GROUP_NAME:Groupe}
+      email-template-directory: ${NOTIFICATION_EMAIL_TEMPLATE_DIRECTORY:templates/email/}
+      headline-placeholder: "{{headline}}"
+      preview-placeholder: "{{preview}}"
+    private-message:
+      email-subject-base: ${NOTIFICATION_PRIVATE_EMAIL_SUBJECT:Nouveau message prive}
+      email-template-file: ${NOTIFICATION_PRIVATE_EMAIL_TEMPLATE:private_message.html}
+      in-app-pattern: "{sender} vous a envoye un message{previewSuffix}"
+      email-headline-pattern: "{sender} vous a envoye un nouveau message."
+    group-message:
+      email-subject-base: ${NOTIFICATION_GROUP_EMAIL_SUBJECT:Nouveau message de groupe}
+      email-template-file: ${NOTIFICATION_GROUP_EMAIL_TEMPLATE:group_message.html}
+      in-app-pattern: "{sender} a envoye un message dans {group}{previewSuffix}"
+      email-headline-pattern: "{sender} a envoye un nouveau message dans {group}."
   email:
     from: ${NOTIFICATION_EMAIL_FROM:no-reply@uconnect.cc}
     subject-prefix: ${NOTIFICATION_EMAIL_SUBJECT_PREFIX:[UConnect]}

@@ -9,10 +9,7 @@ import lombok.NoArgsConstructor;
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
-public class Notification {
+public class NotificationReadUpdateResponse {
 
-    private String notificationId;
-    private String targetId;
-    private String category;
-    private String content;
+    private int updatedCount;
 }

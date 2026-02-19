@@ -9,10 +9,7 @@ import lombok.NoArgsConstructor;
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
-public class Notification {
+public class ApiErrorResponse {
 
-    private String notificationId;
-    private String targetId;
-    private String category;
-    private String content;
+    private String message;
 }

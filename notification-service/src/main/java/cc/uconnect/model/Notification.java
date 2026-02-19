@@ -12,8 +12,11 @@ import lombok.NoArgsConstructor;
 public class Notification {
 
     private String notificationId;
-    private String targetUserId;
+    private String ownerUserId;
+    private String targetId;
     private String category;
     private String content;
-    private String referenceId;
+    private String status;
+    private Long createdAt;
+    private Long readAt;
 }

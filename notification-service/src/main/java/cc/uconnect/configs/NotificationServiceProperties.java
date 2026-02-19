@@ -11,30 +11,64 @@ public class NotificationServiceProperties {
 
     private PresenceProperties presence = new PresenceProperties();
     private ActiveContextProperties activeContext = new ActiveContextProperties();
-    private UserServiceProperties userService = new UserServiceProperties();
+    private DirectoryProperties directory = new DirectoryProperties();
+    private NotificationsProperties notifications = new NotificationsProperties();
     private EmailProperties email = new EmailProperties();
     private KafkaProperties kafka = new KafkaProperties();
 
     @Data
     public static class PresenceProperties {
-        private String keyPrefix = "ws:presence:user:";
+        private String keyPrefix;
     }
 
     @Data
     public static class ActiveContextProperties {
-        private String keyPrefix = "ws:context:user:";
+        private String keyPrefix;
     }
 
     @Data
-    public static class UserServiceProperties {
-        private String baseUrl = "http://localhost:8082";
-        private String contactPath = "/users/{userId}/contact";
+    public static class DirectoryProperties {
+        private String userKeyPrefix;
+        private String groupKeyPrefix;
+    }
+
+    @Data
+    public static class NotificationsProperties {
+        private DefaultsProperties defaults = new DefaultsProperties();
+        private PrivateMessageProperties privateMessage = new PrivateMessageProperties();
+        private GroupMessageProperties groupMessage = new GroupMessageProperties();
+    }
+
+    @Data
+    public static class DefaultsProperties {
+        private String preview;
+        private String senderName;
+        private String groupName;
+        private String emailTemplateDirectory;
+        private String headlinePlaceholder;
+        private String previewPlaceholder;
+    }
+
+    @Data
+    public static class PrivateMessageProperties {
+        private String emailSubjectBase;
+        private String emailTemplateFile;
+        private String inAppPattern;
+        private String emailHeadlinePattern;
+    }
+
+    @Data
+    public static class GroupMessageProperties {
+        private String emailSubjectBase;
+        private String emailTemplateFile;
+        private String inAppPattern;
+        private String emailHeadlinePattern;
     }
 
     @Data
     public static class EmailProperties {
-        private String from = "no-reply@uconnect.cc";
-        private String subjectPrefix = "[UConnect]";
+        private String from;
+        private String subjectPrefix;
     }
 
     @Data
@@ -44,7 +78,7 @@ public class NotificationServiceProperties {
 
     @Data
     public static class TopicsProperties {
-        private String messagesPersisted = "newmessage";
-        private String inAppNotifications = "inapp.notification";
+        private String messagesPersisted;
+        private String inAppNotifications;
     }
 }

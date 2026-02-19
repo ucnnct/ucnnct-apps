@@ -5,14 +5,16 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
+import java.util.List;
+
 @Data
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
-public class Notification {
+public class NotificationPageResponse {
 
-    private String notificationId;
-    private String targetId;
-    private String category;
-    private String content;
+    private List<Notification> notifications;
+    private int limit;
+    private boolean hasMore;
+    private String nextCursor;
 }
