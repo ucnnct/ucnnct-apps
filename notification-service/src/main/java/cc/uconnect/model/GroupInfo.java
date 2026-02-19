@@ -11,9 +11,8 @@ import lombok.NoArgsConstructor;
 @NoArgsConstructor
 @AllArgsConstructor
 @JsonIgnoreProperties(ignoreUnknown = true)
-public class UserContact {
+public class GroupInfo {
 
-    private String userId;
-    private String email;
-    private String displayName;
+    private String groupId;
+    private String name;
 }

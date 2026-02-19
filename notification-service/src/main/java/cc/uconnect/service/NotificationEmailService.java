@@ -1,13 +1,14 @@
 package cc.uconnect.service;
 
 import cc.uconnect.configs.NotificationServiceProperties;
-import cc.uconnect.model.Message;
 import cc.uconnect.model.UserContact;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.log4j.Log4j2;
-import org.springframework.mail.SimpleMailMessage;
 import org.springframework.mail.javamail.JavaMailSender;
+import org.springframework.mail.javamail.MimeMessageHelper;
 import org.springframework.stereotype.Service;
+import jakarta.mail.internet.MimeMessage;
+import jakarta.mail.MessagingException;
 import reactor.core.publisher.Mono;
 import reactor.core.scheduler.Schedulers;
 
@@ -18,23 +19,24 @@ public class NotificationEmailService {
 
     private final JavaMailSender mailSender;
     private final NotificationServiceProperties properties;
-    private final NotificationContentService contentService;
 
-    public Mono<Void> sendOfflineMessageNotification(UserContact userContact, Message message, String conversationReference) {
+    public Mono<Void> sendOfflineMessageNotification(UserContact userContact, String subject, String htmlBody) {
         if (userContact == null || userContact.getEmail() == null || userContact.getEmail().isBlank()) {
             return Mono.fromRunnable(() -> log.warn("Cannot send notification email: email is missing"));
         }
 
         return Mono.fromRunnable(() -> {
-                    String subject = contentService.buildEmailSubject(properties.getEmail().getSubjectPrefix(), message);
-                    String body = contentService.buildEmailBody(message, conversationReference);
-
-                    SimpleMailMessage mail = new SimpleMailMessage();
-                    mail.setFrom(properties.getEmail().getFrom());
-                    mail.setTo(userContact.getEmail());
-                    mail.setSubject(subject);
-                    mail.setText(body);
-                    mailSender.send(mail);
+                    try {
+                        MimeMessage mail = mailSender.createMimeMessage();
+                        MimeMessageHelper helper = new MimeMessageHelper(mail, "UTF-8");
+                        helper.setFrom(properties.getEmail().getFrom());
+                        helper.setTo(userContact.getEmail());
+                        helper.setSubject(subject);
+                        helper.setText(htmlBody, true);
+                        mailSender.send(mail);
+                    } catch (MessagingException ex) {
+                        throw new IllegalStateException("Failed to build email mime message", ex);
+                    }
                 })
                 .subscribeOn(Schedulers.boundedElastic())
                 .doOnSuccess(ignored -> log.debug("Notification email sent userId={} email={}",
