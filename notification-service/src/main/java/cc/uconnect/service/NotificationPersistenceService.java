@@ -26,16 +26,16 @@ public class NotificationPersistenceService {
         if (notification == null) {
             return Mono.error(new IllegalArgumentException("notification is required"));
         }
-        if (notification.getTargetUserId() == null || notification.getTargetUserId().isBlank()) {
-            return Mono.error(new IllegalArgumentException("targetUserId is required"));
+        if (notification.getTargetId() == null || notification.getTargetId().isBlank()) {
+            return Mono.error(new IllegalArgumentException("targetId is required"));
         }
 
         NotificationEntity entity = toEntity(notification, decisionType, message);
         return notificationRepository.save(entity)
                 .doOnSuccess(saved -> log.debug(
-                        "Notification persisted notificationId={} targetUserId={} messageId={} decision={}",
+                        "Notification persisted notificationId={} targetId={} messageId={} decision={}",
                         saved.getNotificationId(),
-                        saved.getTargetUserId(),
+                        saved.getTargetId(),
                         saved.getMessageId(),
                         saved.getDecisionType()))
                 .map(this::toNotification);
@@ -53,10 +53,9 @@ public class NotificationPersistenceService {
                 .notificationId(notificationId)
                 .messageId(message == null ? null : message.getMessageId())
                 .senderId(message == null ? null : message.getSenderId())
-                .targetUserId(notification.getTargetUserId())
+                .targetId(notification.getTargetId())
                 .category(notification.getCategory())
                 .content(notification.getContent())
-                .referenceId(notification.getReferenceId())
                 .decisionType(decisionType == null ? null : decisionType.name())
                 .createdAt(Instant.now())
                 .build();
@@ -65,10 +64,9 @@ public class NotificationPersistenceService {
     private Notification toNotification(NotificationEntity entity) {
         return Notification.builder()
                 .notificationId(entity.getNotificationId())
-                .targetUserId(entity.getTargetUserId())
+                .targetId(entity.getTargetId())
                 .category(entity.getCategory())
                 .content(entity.getContent())
-                .referenceId(entity.getReferenceId())
                 .build();
     }
 }

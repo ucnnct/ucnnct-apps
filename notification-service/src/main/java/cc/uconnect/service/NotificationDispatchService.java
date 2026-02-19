@@ -46,13 +46,11 @@ public class NotificationDispatchService {
             return Mono.empty();
         }
 
-        String conversationReference = decisionService.resolveConversationReference(message);
         return contextResolver.resolve(message)
                 .flatMapMany(context -> Flux.fromIterable(targetUserIds)
                         .concatMap(targetUserId -> dispatchToTarget(
                                 message,
                                 targetUserId,
-                                conversationReference,
                                 context,
                                 messageBuilder)))
                 .then();
@@ -60,7 +58,6 @@ public class NotificationDispatchService {
 
     private Mono<Void> dispatchToTarget(Message message,
                                         String targetUserId,
-                                        String conversationReference,
                                         NotificationMessageContext context,
                                         NotificationMessageBuilder messageBuilder) {
         return presenceContextService.getPresenceSnapshot(targetUserId)
@@ -68,8 +65,8 @@ public class NotificationDispatchService {
                     NotificationDecisionType decision = decisionService.decide(message, snapshot);
                     return switch (decision) {
                         case SKIP -> skipNotification(targetUserId, message, snapshot);
-                        case IN_APP -> sendInAppNotification(targetUserId, message, conversationReference, context, messageBuilder);
-                        case EMAIL -> sendEmailNotification(targetUserId, message, conversationReference, context, messageBuilder);
+                        case IN_APP -> sendInAppNotification(targetUserId, message, context, messageBuilder);
+                        case EMAIL -> sendEmailNotification(targetUserId, message, context, messageBuilder);
                     };
                 });
     }
@@ -85,28 +82,24 @@ public class NotificationDispatchService {
 
     private Mono<Void> sendInAppNotification(String targetUserId,
                                              Message message,
-                                             String conversationReference,
                                              NotificationMessageContext context,
                                              NotificationMessageBuilder messageBuilder) {
         Notification notification = buildNotificationForDispatch(
                 targetUserId,
                 message,
-                conversationReference,
                 context,
                 messageBuilder);
         return notificationPersistenceService.persist(notification, NotificationDecisionType.IN_APP, message)
-                .flatMap(notificationKafkaPublisher::publishInAppNotification);
+                .flatMap(savedNotification -> notificationKafkaPublisher.publishInAppNotification(targetUserId, savedNotification));
     }
 
     private Mono<Void> sendEmailNotification(String targetUserId,
                                              Message message,
-                                             String conversationReference,
                                              NotificationMessageContext context,
                                              NotificationMessageBuilder messageBuilder) {
         Notification notification = buildNotificationForDispatch(
                 targetUserId,
                 message,
-                conversationReference,
                 context,
                 messageBuilder);
         String subject = messageBuilder.buildEmailSubject(properties.getEmail().getSubjectPrefix());
@@ -127,14 +120,12 @@ public class NotificationDispatchService {
 
     private Notification buildNotificationForDispatch(String targetUserId,
                                                       Message message,
-                                                      String conversationReference,
                                                       NotificationMessageContext context,
                                                       NotificationMessageBuilder messageBuilder) {
         return messageBuilder.buildInAppNotification(
                 targetUserId,
                 message,
-                context,
-                conversationReference);
+                context);
     }
 
     private boolean isValidPersistedMessage(Message message) {

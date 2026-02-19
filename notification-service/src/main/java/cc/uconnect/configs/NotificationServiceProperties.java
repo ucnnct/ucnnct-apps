@@ -51,7 +51,6 @@ public class NotificationServiceProperties {
 
     @Data
     public static class PrivateMessageProperties {
-        private String inAppCategory;
         private String emailSubjectBase;
         private String emailTemplateFile;
         private String inAppPattern;
@@ -60,7 +59,6 @@ public class NotificationServiceProperties {
 
     @Data
     public static class GroupMessageProperties {
-        private String inAppCategory;
         private String emailSubjectBase;
         private String emailTemplateFile;
         private String inAppPattern;

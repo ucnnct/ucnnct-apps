@@ -64,13 +64,11 @@ app:
       headline-placeholder: "{{headline}}"
       preview-placeholder: "{{preview}}"
     private-message:
-      in-app-category: ${NOTIFICATION_PRIVATE_INAPP_CATEGORY:PRIVATE_MESSAGE_IN_APP}
       email-subject-base: ${NOTIFICATION_PRIVATE_EMAIL_SUBJECT:Nouveau message prive}
       email-template-file: ${NOTIFICATION_PRIVATE_EMAIL_TEMPLATE:private_message.html}
       in-app-pattern: "{sender} vous a envoye un message{previewSuffix}"
       email-headline-pattern: "{sender} vous a envoye un nouveau message."
     group-message:
-      in-app-category: ${NOTIFICATION_GROUP_INAPP_CATEGORY:GROUP_MESSAGE_IN_APP}
       email-subject-base: ${NOTIFICATION_GROUP_EMAIL_SUBJECT:Nouveau message de groupe}
       email-template-file: ${NOTIFICATION_GROUP_EMAIL_TEMPLATE:group_message.html}
       in-app-pattern: "{sender} a envoye un message dans {group}{previewSuffix}"

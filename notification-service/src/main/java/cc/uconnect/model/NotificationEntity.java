@@ -27,17 +27,14 @@ public class NotificationEntity {
     @Column("sender_id")
     private String senderId;
 
-    @Column("target_user_id")
-    private String targetUserId;
+    @Column("target_id")
+    private String targetId;
 
     @Column("category")
     private String category;
 
     @Column("content")
     private String content;
-
-    @Column("reference_id")
-    private String referenceId;
 
     @Column("decision_type")
     private String decisionType;

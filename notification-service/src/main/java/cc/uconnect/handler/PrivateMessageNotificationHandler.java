@@ -1,6 +1,7 @@
 package cc.uconnect.handler;
 
 import cc.uconnect.configs.NotificationServiceProperties;
+import cc.uconnect.enums.NotificationCategory;
 import cc.uconnect.enums.NotificationEventType;
 import cc.uconnect.model.Message;
 import cc.uconnect.model.Notification;
@@ -24,8 +25,7 @@ public class PrivateMessageNotificationHandler extends AbstractMessageNotificati
     @Override
     public Notification buildInAppNotification(String targetUserId,
                                                Message message,
-                                               NotificationMessageContext context,
-                                               String conversationReference) {
+                                               NotificationMessageContext context) {
         String senderName = resolveSenderName(context);
         String preview = buildContentPreview(message);
         String previewSuffix = defaultPreview().equals(preview) ? "." : ": \"" + preview + "\"";
@@ -36,9 +36,8 @@ public class PrivateMessageNotificationHandler extends AbstractMessageNotificati
                 previewSuffix);
         return buildNotification(
                 targetUserId,
-                privateMessageProperties().getInAppCategory(),
-                content,
-                conversationReference);
+                NotificationCategory.PRIVATE_MESSAGE_IN_APP,
+                content);
     }
 
     @Override

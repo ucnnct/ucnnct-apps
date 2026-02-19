@@ -15,15 +15,16 @@ public class NotificationKafkaPublisher {
     private final KafkaJsonPublisher kafkaJsonPublisher;
     private final NotificationServiceProperties properties;
 
-    public Mono<Void> publishInAppNotification(Notification notification) {
+    public Mono<Void> publishInAppNotification(String recipientUserId, Notification notification) {
         String topic = properties.getKafka().getTopics().getInAppNotifications();
-        String key = notification.getTargetUserId();
+        String key = recipientUserId;
         return kafkaJsonPublisher.publish(topic, key, notification)
                 .doOnNext(sendResult -> log.debug(
-                        "In-app notification published topic={} key={} notificationId={} partition={} offset={}",
+                        "In-app notification published topic={} key={} notificationId={} targetId={} partition={} offset={}",
                         topic,
                         key,
                         notification.getNotificationId(),
+                        notification.getTargetId(),
                         sendResult.getRecordMetadata().partition(),
                         sendResult.getRecordMetadata().offset()))
                 .then();

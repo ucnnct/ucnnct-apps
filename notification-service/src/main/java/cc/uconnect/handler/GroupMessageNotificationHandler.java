@@ -1,6 +1,7 @@
 package cc.uconnect.handler;
 
 import cc.uconnect.configs.NotificationServiceProperties;
+import cc.uconnect.enums.NotificationCategory;
 import cc.uconnect.enums.NotificationEventType;
 import cc.uconnect.model.Message;
 import cc.uconnect.model.Notification;
@@ -24,22 +25,23 @@ public class GroupMessageNotificationHandler extends AbstractMessageNotification
     @Override
     public Notification buildInAppNotification(String targetUserId,
                                                Message message,
-                                               NotificationMessageContext context,
-                                               String conversationReference) {
+                                               NotificationMessageContext context) {
         String senderName = resolveSenderName(context);
         String groupName = resolveGroupName(context);
         String preview = buildContentPreview(message);
         String previewSuffix = defaultPreview().equals(preview) ? "." : ": \"" + preview + "\"";
+        String targetId = message != null && message.getGroupId() != null && !message.getGroupId().isBlank()
+                ? message.getGroupId()
+                : targetUserId;
         String content = resolveInAppContent(
                 groupMessageProperties().getInAppPattern(),
                 senderName,
                 groupName,
                 previewSuffix);
         return buildNotification(
-                targetUserId,
-                groupMessageProperties().getInAppCategory(),
-                content,
-                conversationReference);
+                targetId,
+                NotificationCategory.GROUP_MESSAGE_IN_APP,
+                content);
     }
 
     @Override

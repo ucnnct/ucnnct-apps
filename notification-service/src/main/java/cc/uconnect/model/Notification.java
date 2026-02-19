@@ -12,8 +12,7 @@ import lombok.NoArgsConstructor;
 public class Notification {
 
     private String notificationId;
-    private String targetUserId;
+    private String targetId;
     private String category;
     private String content;
-    private String referenceId;
 }

@@ -8,8 +8,7 @@ public interface NotificationMessageBuilder {
 
     Notification buildInAppNotification(String targetUserId,
                                         Message message,
-                                        NotificationMessageContext context,
-                                        String conversationReference);
+                                        NotificationMessageContext context);
 
     String buildEmailSubject(String subjectPrefix);
 

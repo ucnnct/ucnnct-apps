@@ -1,6 +1,7 @@
 package cc.uconnect.handler;
 
 import cc.uconnect.configs.NotificationServiceProperties;
+import cc.uconnect.enums.NotificationCategory;
 import cc.uconnect.interfaces.NotificationEventHandler;
 import cc.uconnect.interfaces.NotificationMessageBuilder;
 import cc.uconnect.model.Message;
@@ -28,16 +29,14 @@ public abstract class AbstractMessageNotificationHandler implements Notification
         return notificationDispatchService.dispatchForPersistedMessage(message, this);
     }
 
-    protected Notification buildNotification(String targetUserId,
-                                             String category,
-                                             String content,
-                                             String conversationReference) {
+    protected Notification buildNotification(String targetId,
+                                             NotificationCategory category,
+                                             String content) {
         return Notification.builder()
                 .notificationId(UUID.randomUUID().toString())
-                .targetUserId(targetUserId)
-                .category(category)
+                .targetId(targetId)
+                .category(category == null ? null : category.name())
                 .content(content)
-                .referenceId(conversationReference)
                 .build();
     }
 
