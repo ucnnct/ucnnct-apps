@@ -52,6 +52,24 @@ public class WsMessagePayloadDecoder {
                 });
     }
 
+    public Mono<Message> decodeFileMessagePayload(JsonNode payload) {
+        return decodePayload(payload)
+                .map(message -> {
+                    if (message.getObjectKey() == null || message.getObjectKey().isBlank()) {
+                        throw new IllegalArgumentException("objectKey is required");
+                    }
+
+                    boolean hasGroupTarget = message.getGroupId() != null && !message.getGroupId().isBlank();
+                    boolean hasPrivateTarget = hasSingleReceiver(message);
+                    if (!hasGroupTarget && !hasPrivateTarget) {
+                        throw new IllegalArgumentException(
+                                "File message target is required (groupId or exactly one receiversId)");
+                    }
+
+                    return message;
+                });
+    }
+
     private Mono<Message> decodePayload(JsonNode payload) {
         return Mono.fromCallable(() -> {
                     if (payload == null || payload.isNull()) {
@@ -70,5 +88,9 @@ public class WsMessagePayloadDecoder {
             return MessageType.GROUP;
         }
         return MessageType.PRIVATE;
+    }
+
+    private boolean hasSingleReceiver(Message message) {
+        return message.getReceiversId() != null && message.getReceiversId().size() == 1;
     }
 }

@@ -6,6 +6,7 @@ import java.util.Optional;
 public enum WsInboundActionType {
     SEND_PRIVATE_MESSAGE,
     SEND_GROUP_MESSAGE,
+    SEND_FILE_MESSAGE,
     MESSAGE_RECEIVED,
     MESSAGE_READ,
     UPDATE_ACTIVE_CONTEXT;

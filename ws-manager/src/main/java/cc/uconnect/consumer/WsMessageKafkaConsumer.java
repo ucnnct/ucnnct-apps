@@ -79,15 +79,18 @@ public class WsMessageKafkaConsumer {
             targetUserIds = List.of(targetUserIds.get(0));
         }
 
-        WsOutboundActionType actionType = resolveOutboundAction(message.getType());
+        WsOutboundActionType actionType = resolveOutboundAction(message);
         return Flux.fromIterable(targetUserIds)
                 .concatMap(targetUserId -> userPacketRoutingService.routeToUser(targetUserId, actionType, message))
                 .then(sendSentAckToSender(message))
                 .then();
     }
 
-    private WsOutboundActionType resolveOutboundAction(MessageType messageType) {
-        if (messageType == MessageType.GROUP) {
+    private WsOutboundActionType resolveOutboundAction(Message message) {
+        if (isFileMessage(message)) {
+            return WsOutboundActionType.FILE_MESSAGE;
+        }
+        if (message.getType() == MessageType.GROUP) {
             return WsOutboundActionType.GROUP_MESSAGE;
         }
         return WsOutboundActionType.PRIVATE_MESSAGE;
@@ -98,14 +101,21 @@ public class WsMessageKafkaConsumer {
             log.debug("Skip sender ack because senderId is missing messageId={}", message.getMessageId());
             return Mono.empty();
         }
-        WsOutboundActionType ackActionType = resolveSentAckAction(message.getType());
+        WsOutboundActionType ackActionType = resolveSentAckAction(message);
         return userPacketRoutingService.routeToUser(message.getSenderId(), ackActionType, message);
     }
 
-    private WsOutboundActionType resolveSentAckAction(MessageType messageType) {
-        if (messageType == MessageType.GROUP) {
+    private WsOutboundActionType resolveSentAckAction(Message message) {
+        if (isFileMessage(message)) {
+            return WsOutboundActionType.FILE_MESSAGE_SENT_ACK;
+        }
+        if (message.getType() == MessageType.GROUP) {
             return WsOutboundActionType.GROUP_MESSAGE_SENT_ACK;
         }
         return WsOutboundActionType.MESSAGE_SENT_ACK;
+    }
+
+    private boolean isFileMessage(Message message) {
+        return message.getObjectKey() != null && !message.getObjectKey().isBlank();
     }
 }
