@@ -89,7 +89,7 @@ public class NotificationDispatchService {
                 message,
                 context,
                 messageBuilder);
-        return notificationPersistenceService.persist(notification, NotificationDecisionType.IN_APP, message)
+        return notificationPersistenceService.persist(notification, NotificationDecisionType.IN_APP, message, targetUserId)
                 .flatMap(savedNotification -> notificationKafkaPublisher.publishInAppNotification(targetUserId, savedNotification));
     }
 
@@ -104,7 +104,7 @@ public class NotificationDispatchService {
                 messageBuilder);
         String subject = messageBuilder.buildEmailSubject(properties.getEmail().getSubjectPrefix());
         String htmlBody = messageBuilder.getEmailHtmlBody(message, context);
-        return notificationPersistenceService.persist(notification, NotificationDecisionType.EMAIL, message)
+        return notificationPersistenceService.persist(notification, NotificationDecisionType.EMAIL, message, targetUserId)
                 .then(directoryService.findUserContact(targetUserId)
                         .switchIfEmpty(Mono.defer(() -> {
                             log.warn("Skip email notification because no contact found userId={} messageId={}",

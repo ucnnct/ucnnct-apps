@@ -27,6 +27,9 @@ public class NotificationEntity {
     @Column("sender_id")
     private String senderId;
 
+    @Column("owner_user_id")
+    private String ownerUserId;
+
     @Column("target_id")
     private String targetId;
 
@@ -39,6 +42,12 @@ public class NotificationEntity {
     @Column("decision_type")
     private String decisionType;
 
+    @Column("status")
+    private String status;
+
     @Column("created_at")
     private Instant createdAt;
+
+    @Column("read_at")
+    private Instant readAt;
 }
