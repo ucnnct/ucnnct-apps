@@ -29,8 +29,7 @@ public class RedisPresenceContextService {
                 .get(contextKey)
                 .flatMap(this::decodeContext)
                 .defaultIfEmpty(UserActiveContext.empty());
-
-                
+      
         return Mono.zip(instanceMono, contextMono)
                 .map(tuple -> buildPresenceSnapshot(userId, tuple));
     }
