@@ -78,5 +78,5 @@ app:
     subject-prefix: ${NOTIFICATION_EMAIL_SUBJECT_PREFIX:[UConnect]}
   kafka:
     topics:
-      messages-persisted: ${WS_KAFKA_TOPIC_MESSAGES:newmessage}
+      messages-persisted: ${WS_KAFKA_TOPIC_MESSAGES:message.persisted}
       in-app-notifications: ${WS_KAFKA_TOPIC_INAPP_NOTIFICATIONS:inapp.notification}

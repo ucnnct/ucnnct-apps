@@ -23,7 +23,7 @@ public class WsMessageKafkaConsumer {
     private final WsUserPacketRoutingService userPacketRoutingService;
 
     @KafkaListener(
-            topics = "${app.kafka.topics.messages:newmessage}",
+            topics = "${app.kafka.topics.messages:message.persisted}",
             groupId = "${spring.kafka.consumer.group-id:ws-manager-message-delivery}"
     )
     public void onPersistedMessage(String rawPayload) {

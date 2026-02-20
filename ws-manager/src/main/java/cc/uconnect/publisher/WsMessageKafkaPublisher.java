@@ -17,10 +17,10 @@ public class WsMessageKafkaPublisher {
 
     private final WsKafkaPublisher kafkaPublisher;
 
-    @Value("${app.kafka.topics.group-resolve:groupmessage}")
+    @Value("${app.kafka.topics.group-resolve:group.message}")
     private String groupResolveTopic;
 
-    @Value("${app.kafka.topics.chat-messages:chatmessage}")
+    @Value("${app.kafka.topics.chat-messages:message.send}")
     private String chatMessagesTopic;
 
     @Value("${app.kafka.topics.message-status-updates:message.status.update}")
