@@ -1,6 +1,11 @@
 spring:
   application:
     name: group-service
+  data:
+    redis:
+      host: ${REDIS_HOST:localhost}
+      port: ${REDIS_PORT:6379}
+      password: ${REDIS_PASSWORD:}
   datasource:
     url: jdbc:postgresql://${DB_HOST:localhost}:${DB_PORT:5432}/${DB_NAME:groupdb}
     username: ${DB_USER:groupservice}
@@ -35,6 +40,8 @@ server:
   port: 8085
 
 app:
+  directory:
+    group-key-prefix: ${DIRECTORY_GROUP_KEY_PREFIX:directory:group:}
   kafka:
     topics:
       group-resolve: ${WS_KAFKA_TOPIC_GROUP_RESOLVE:group.message}

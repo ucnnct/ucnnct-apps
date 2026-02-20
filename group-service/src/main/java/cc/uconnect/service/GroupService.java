@@ -26,6 +26,7 @@ public class GroupService {
 
     private final GroupRepository groupRepository;
     private final GroupMemberRepository groupMemberRepository;
+    private final GroupDirectoryCacheService groupDirectoryCacheService;
 
     @Transactional
     public GroupResponse createGroup(CreateGroupRequest req, String ownerId) {
@@ -41,6 +42,7 @@ public class GroupService {
         owner.setId(new GroupMemberId(group.getId(), ownerId));
         owner.setRole(MemberRole.OWNER);
         groupMemberRepository.save(owner);
+        groupDirectoryCacheService.cacheGroup(group.getId(), group.getName());
 
         log.info("Group created groupId={} name='{}' type={} ownerId={}", group.getId(), group.getName(), group.getType(), ownerId);
         return toResponse(group);
@@ -60,7 +62,9 @@ public class GroupService {
         if (req.getDescription() != null) group.setDescription(req.getDescription());
         if (req.getType() != null) group.setType(req.getType());
 
-        GroupResponse response = toResponse(groupRepository.save(group));
+        Group saved = groupRepository.save(group);
+        groupDirectoryCacheService.cacheGroup(saved.getId(), saved.getName());
+        GroupResponse response = toResponse(saved);
         log.info("Group updated groupId={} by userId={}", id, currentUserId);
         return response;
     }
@@ -71,6 +75,7 @@ public class GroupService {
         assertOwner(group, currentUserId);
         groupMemberRepository.deleteAll(groupMemberRepository.findByIdGroupId(id));
         groupRepository.delete(group);
+        groupDirectoryCacheService.evictGroup(id);
         log.info("Group deleted groupId={} by ownerId={}", id, currentUserId);
     }
 

@@ -3,7 +3,9 @@ package cc.uconnect.kafka.consumer;
 import cc.uconnect.kafka.event.GroupResolveEvent;
 import cc.uconnect.kafka.event.GroupResolvedEvent;
 import cc.uconnect.kafka.producer.GroupKafkaProducer;
+import cc.uconnect.repository.GroupRepository;
 import cc.uconnect.repository.GroupMemberRepository;
+import cc.uconnect.service.GroupDirectoryCacheService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.kafka.annotation.KafkaListener;
@@ -20,6 +22,8 @@ public class GroupKafkaConsumer {
     private static final String GROUP_TYPE = "GROUP";
 
     private final GroupMemberRepository groupMemberRepository;
+    private final GroupRepository groupRepository;
+    private final GroupDirectoryCacheService groupDirectoryCacheService;
     private final GroupKafkaProducer producer;
 
     @KafkaListener(topics = {"${app.kafka.topics.group-resolve:group.message}", "${app.kafka.topics.group-resolve-legacy:group.resolve}"}, groupId = "group-service",
@@ -37,6 +41,9 @@ public class GroupKafkaConsumer {
 
         try {
             UUID groupId = UUID.fromString(event.getGroupId());
+            groupRepository.findById(groupId)
+                    .ifPresent(group -> groupDirectoryCacheService.cacheGroup(group.getId(), group.getName()));
+
             List<String> receiversId = groupMemberRepository.findByIdGroupId(groupId)
                     .stream()
                     .map(m -> m.getId().getUserId())

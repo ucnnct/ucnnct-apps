@@ -35,6 +35,7 @@ public class MessageService {
 
     private final MessageRepository messageRepository;
     private final ConversationService conversationService;
+    private final UserDirectoryCacheService userDirectoryCacheService;
 
     public Message sendMessage(SendMessageRequest req, String senderId) {
         String conversationId;
@@ -75,6 +76,7 @@ public class MessageService {
         message.setUpdatedAt(Instant.now());
 
         message = messageRepository.save(message);
+        refreshDirectoryUserCache(message);
         log.debug("Message sent (REST) messageId={} conversationId={} senderId={}",
                 message.getId(),
                 conversationId,
@@ -167,6 +169,7 @@ public class MessageService {
         message.setUpdatedAt(Instant.now());
 
         message = messageRepository.save(message);
+        refreshDirectoryUserCache(message);
 
         Conversation.LastMessage lastMsg = new Conversation.LastMessage();
         lastMsg.setId(message.getId());
@@ -397,6 +400,21 @@ public class MessageService {
                     log.warn("Message not found messageId={}", id);
                     return new ResponseStatusException(HttpStatus.NOT_FOUND, "Message not found");
                 });
+    }
+
+    private void refreshDirectoryUserCache(Message message) {
+        if (message == null) {
+            return;
+        }
+
+        List<String> userIds = new ArrayList<>();
+        if (message.getSenderId() != null && !message.getSenderId().isBlank()) {
+            userIds.add(message.getSenderId());
+        }
+        if (message.getReceiversId() != null && !message.getReceiversId().isEmpty()) {
+            userIds.addAll(message.getReceiversId());
+        }
+        userDirectoryCacheService.cacheUsersIfAbsent(userIds);
     }
 
     private record KafkaMessageContext(

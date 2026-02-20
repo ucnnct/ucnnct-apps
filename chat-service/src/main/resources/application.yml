@@ -4,6 +4,10 @@ spring:
   data:
     mongodb:
       uri: ${MONGODB_URI:mongodb://localhost:27017/chatdb}
+    redis:
+      host: ${REDIS_HOST:localhost}
+      port: ${REDIS_PORT:6379}
+      password: ${REDIS_PASSWORD:}
   kafka:
     bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:localhost:9092}
     consumer:
@@ -25,6 +29,8 @@ server:
   port: 8084
 
 app:
+  directory:
+    user-key-prefix: ${DIRECTORY_USER_KEY_PREFIX:directory:user:}
   kafka:
     topics:
       chat-messages: ${WS_KAFKA_TOPIC_CHAT_MESSAGES:message.send}
