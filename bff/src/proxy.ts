@@ -9,8 +9,8 @@ export function setupProxy(app: Express) {
     "/api/friends/**": process.env.USER_SERVICE_URL || "http://localhost:8082",
     "/api/projects/**": process.env.USER_SERVICE_URL || "http://localhost:8082",
     "/api/media/**": process.env.MEDIA_SERVICE_URL || "http://localhost:8083",
-    // "/api/groups/**": process.env.GROUP_SERVICE_URL || "http://localhost:8085",
-    // "/api/chat/**": process.env.CHAT_SERVICE_URL || "http://localhost:8084",
+    "/api/groups/**": process.env.GROUP_SERVICE_URL || "http://localhost:8085",
+    "/api/chat/**": process.env.CHAT_SERVICE_URL || "http://localhost:8084",
   };
 
   for (const [path, target] of Object.entries(services)) {

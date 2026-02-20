@@ -15,7 +15,7 @@ const MAX_PAYLOAD_BYTES = Number(process.env.WS_MAX_PAYLOAD_BYTES || 262144);
 const MAX_BUFFERED_MESSAGES = Number(process.env.WS_MAX_BUFFERED_MESSAGES || 100);
 
 const allowedOrigins = new Set(
-  (process.env.WS_ALLOWED_ORIGINS || "http://localhost:5173,http://127.0.0.1:5173")
+  (process.env.WS_ALLOWED_ORIGINS || "http://localhost:5173,http://127.0.0.1:5173,https://localhost:5443,https://127.0.0.1:5443")
     .split(",")
     .map((origin) => origin.trim())
     .filter(Boolean),

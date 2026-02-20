@@ -7,6 +7,9 @@ import cc.uconnect.service.WsSessionPacketSender;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.log4j.Log4j2;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.oauth2.jwt.Jwt;
+import org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationToken;
 import org.springframework.stereotype.Component;
 import org.springframework.util.MultiValueMap;
 import org.springframework.web.reactive.socket.CloseStatus;
@@ -20,6 +23,7 @@ import reactor.core.publisher.Sinks;
 import reactor.core.scheduler.Schedulers;
 
 import java.net.URI;
+import java.security.Principal;
 import java.util.concurrent.ArrayBlockingQueue;
 
 @Component
@@ -37,11 +41,29 @@ public class ChatWebSocketHandler implements WebSocketHandler {
     @Override
     public Mono<Void> handle(WebSocketSession session) {
         String sessionId = session.getId();
-        String userId = resolveUserId(session);
-        if (userId == null) {
-            log.warn("WebSocket rejected: userId is required at connection. sessionId={}", sessionId);
-            return session.close(CloseStatus.POLICY_VIOLATION);
-        }
+        return session.getHandshakeInfo().getPrincipal()
+                .flatMap(principal -> {
+                    String userId = resolveAuthenticatedUserId(principal);
+                    if (userId == null) {
+                        log.warn("WebSocket rejected: authenticated userId is missing. sessionId={}", sessionId);
+                        return session.close(CloseStatus.POLICY_VIOLATION);
+                    }
+                    if (!isRequestedUserConsistent(session, userId)) {
+                        log.warn("WebSocket rejected: requested userId does not match authenticated subject. sessionId={} authenticatedUserId={} requestedUserId={}",
+                                sessionId,
+                                userId,
+                                resolveRequestedUserId(session));
+                        return session.close(CloseStatus.POLICY_VIOLATION);
+                    }
+                    return handleAuthenticatedSession(session, sessionId, userId);
+                })
+                .switchIfEmpty(Mono.defer(() -> {
+                    log.warn("WebSocket rejected: unauthenticated connection. sessionId={}", sessionId);
+                    return session.close(CloseStatus.POLICY_VIOLATION);
+                }));
+    }
+
+    private Mono<Void> handleAuthenticatedSession(WebSocketSession session, String sessionId, String userId) {
         log.info("New WebSocket connection: sessionId={} userId={}", sessionId, userId);
 
         Sinks.Many<String> outboundSink = Sinks.many()
@@ -98,7 +120,7 @@ public class ChatWebSocketHandler implements WebSocketHandler {
                 });
     }
 
-    private String resolveUserId(WebSocketSession session) {
+    private String resolveRequestedUserId(WebSocketSession session) {
         URI uri = session.getHandshakeInfo().getUri();
         MultiValueMap<String, String> queryParams = UriComponentsBuilder.fromUri(uri).build().getQueryParams();
 
@@ -112,5 +134,35 @@ public class ChatWebSocketHandler implements WebSocketHandler {
             return fromHeader;
         }
         return null;
+    }
+
+    private String resolveAuthenticatedUserId(Principal principal) {
+        if (principal instanceof JwtAuthenticationToken jwtAuthenticationToken) {
+            Jwt token = jwtAuthenticationToken.getToken();
+            if (token != null && token.getSubject() != null && !token.getSubject().isBlank()) {
+                return token.getSubject();
+            }
+        }
+
+        if (principal instanceof Authentication authentication) {
+            String name = authentication.getName();
+            if (name != null && !name.isBlank()) {
+                return name;
+            }
+        }
+
+        if (principal != null && principal.getName() != null && !principal.getName().isBlank()) {
+            return principal.getName();
+        }
+
+        return null;
+    }
+
+    private boolean isRequestedUserConsistent(WebSocketSession session, String authenticatedUserId) {
+        String requestedUserId = resolveRequestedUserId(session);
+        if (requestedUserId == null || requestedUserId.isBlank()) {
+            return true;
+        }
+        return authenticatedUserId.equals(requestedUserId);
     }
 }
