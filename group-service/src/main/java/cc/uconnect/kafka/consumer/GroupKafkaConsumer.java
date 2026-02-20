@@ -11,35 +11,61 @@ import org.springframework.stereotype.Component;
 
 import java.util.List;
 import java.util.UUID;
-import java.util.stream.Collectors;
 
 @Component
 @RequiredArgsConstructor
 @Slf4j
 public class GroupKafkaConsumer {
 
+    private static final String GROUP_TYPE = "GROUP";
+
     private final GroupMemberRepository groupMemberRepository;
     private final GroupKafkaProducer producer;
 
-    @KafkaListener(topics = "group.resolve", groupId = "group-service",
+    @KafkaListener(topics = {"${app.kafka.topics.group-resolve:group.message}", "${app.kafka.topics.group-resolve-legacy:group.resolve}"}, groupId = "group-service",
                    containerFactory = "kafkaListenerContainerFactory")
     public void onGroupResolve(GroupResolveEvent event) {
-        log.debug("Received group.resolve groupId={} senderId={}", event.getGroupId(), event.getSenderId());
+        if (event == null || event.getGroupId() == null || event.getGroupId().isBlank()) {
+            log.warn("Ignoring group.resolve event: groupId is missing payload={}", event);
+            return;
+        }
+
+        log.debug("Received group.resolve groupId={} senderId={} messageId={}",
+                event.getGroupId(),
+                event.getSenderId(),
+                event.getMessageId());
+
         try {
             UUID groupId = UUID.fromString(event.getGroupId());
-            List<String> memberIds = groupMemberRepository.findByIdGroupId(groupId)
+            List<String> receiversId = groupMemberRepository.findByIdGroupId(groupId)
                     .stream()
                     .map(m -> m.getId().getUserId())
-                    .collect(Collectors.toList());
+                    .filter(userId -> userId != null && !userId.isBlank())
+                    .distinct()
+                    .toList();
 
-            if (memberIds.isEmpty()) {
+            if (receiversId.isEmpty()) {
                 log.warn("group.resolve returned empty member list for groupId={}", event.getGroupId());
+                return;
             }
 
-            GroupResolvedEvent resolved = new GroupResolvedEvent(event.getGroupId(), memberIds);
+            GroupResolvedEvent resolved = GroupResolvedEvent.builder()
+                    .messageId(event.getMessageId())
+                    .type(GROUP_TYPE)
+                    .senderId(event.getSenderId())
+                    .groupId(event.getGroupId())
+                    .receiversId(receiversId)
+                    .content(event.getContent())
+                    .objectKey(event.getObjectKey())
+                    .status(event.getStatus())
+                    .format(event.getFormat())
+                    .build();
             producer.publishGroupResolved(resolved);
 
-            log.debug("Published group.resolved groupId={} memberCount={}", event.getGroupId(), memberIds.size());
+            log.debug("Published group.resolved groupId={} receiverCount={} messageId={}",
+                    event.getGroupId(),
+                    receiversId.size(),
+                    event.getMessageId());
         } catch (IllegalArgumentException e) {
             log.warn("Invalid groupId format received in group.resolve groupId={}", event.getGroupId());
         } catch (Exception e) {

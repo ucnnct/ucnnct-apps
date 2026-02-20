@@ -1,4 +1,3 @@
-import { useState } from "react";
 import Layout from "../components/layout/Layout";
 import {
   Search,
@@ -11,6 +10,7 @@ import {
 import SectionHeader from "../components/common/SectionHeader";
 import { useAppSocket, useAppSocketAction } from "../realtime/AppSocketProvider";
 import type { WsMessagePayload } from "../realtime/wsProtocol";
+import { useMessagesStore } from "../stores/messagesStore";
 
 const CONVERSATIONS = [
   {
@@ -167,18 +167,22 @@ const CONVERSATIONS = [
 ];
 
 export default function Messages() {
-  const [selectedChat, setSelectedChat] = useState(CONVERSATIONS[0]);
-  const [hasWsActivity, setHasWsActivity] = useState(false);
+  const selectedChatId = useMessagesStore((state) => state.selectedChatId);
+  const hasWsActivity = useMessagesStore((state) => state.hasWsActivity);
+  const selectChat = useMessagesStore((state) => state.selectChat);
+  const markWsActivity = useMessagesStore((state) => state.markWsActivity);
   const { connected: isWsConnected } = useAppSocket();
+  const selectedChat =
+    CONVERSATIONS.find((chat) => chat.id === selectedChatId) || CONVERSATIONS[0];
 
   useAppSocketAction<WsMessagePayload>("PRIVATE_MESSAGE", () => {
-    setHasWsActivity(true);
+    markWsActivity();
   });
   useAppSocketAction<WsMessagePayload>("GROUP_MESSAGE", () => {
-    setHasWsActivity(true);
+    markWsActivity();
   });
   useAppSocketAction<WsMessagePayload>("FILE_MESSAGE", () => {
-    setHasWsActivity(true);
+    markWsActivity();
   });
 
   return (
@@ -206,7 +210,7 @@ export default function Messages() {
             {CONVERSATIONS.map((chat) => (
               <div
                 key={chat.id}
-                onClick={() => setSelectedChat(chat)}
+                onClick={() => selectChat(chat.id)}
                 className={`p-4 flex gap-3 cursor-pointer border-l-2 transition-all ${
                   selectedChat.id === chat.id
                     ? "bg-primary-50/30 border-primary-500"

@@ -1,16 +1,22 @@
-import { useState, useRef, useEffect } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Bell, Menu, X, Search, LogOut, Loader2 } from "lucide-react";
 import { useAuth } from "../../auth/AuthProvider";
-import { userApi, type UserProfile } from "../../api/users";
 import { Link } from "react-router-dom";
+import { useUserSearchStore } from "../../stores/userSearchStore";
 
 export default function Navbar() {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const { user, logout } = useAuth();
-  const [query, setQuery] = useState("");
-  const [results, setResults] = useState<UserProfile[]>([]);
-  const [searching, setSearching] = useState(false);
-  const [showResults, setShowResults] = useState(false);
+
+  const query = useUserSearchStore((state) => state.query);
+  const results = useUserSearchStore((state) => state.results);
+  const searching = useUserSearchStore((state) => state.searching);
+  const showResults = useUserSearchStore((state) => state.showResults);
+  const setQuery = useUserSearchStore((state) => state.setQuery);
+  const setShowResults = useUserSearchStore((state) => state.setShowResults);
+  const clear = useUserSearchStore((state) => state.clear);
+  const search = useUserSearchStore((state) => state.search);
+
   const searchRef = useRef<HTMLDivElement>(null);
   const debounceRef = useRef<ReturnType<typeof setTimeout>>(undefined);
 
@@ -22,24 +28,30 @@ export default function Navbar() {
         setShowResults(false);
       }
     };
+
     document.addEventListener("mousedown", handleClickOutside);
-    return () => document.removeEventListener("mousedown", handleClickOutside);
-  }, []);
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+      if (debounceRef.current) {
+        clearTimeout(debounceRef.current);
+      }
+    };
+  }, [setShowResults]);
 
   const handleSearch = (value: string) => {
     setQuery(value);
-    if (debounceRef.current) clearTimeout(debounceRef.current);
+    if (debounceRef.current) {
+      clearTimeout(debounceRef.current);
+    }
+
     if (!value.trim()) {
-      setResults([]);
-      setShowResults(false);
+      clear();
       return;
     }
-    setSearching(true);
+
     setShowResults(true);
     debounceRef.current = setTimeout(() => {
-      userApi.search(value.trim()).then((users) => {
-        setResults(users.slice(0, 8));
-      }).catch(() => setResults([])).finally(() => setSearching(false));
+      void search(value);
     }, 300);
   };
 
@@ -48,11 +60,7 @@ export default function Navbar() {
       <div className="max-w-[1250px] mx-auto px-8 h-full flex items-center justify-between">
         <div className="flex items-center gap-3 cursor-pointer group w-[240px]">
           <div className="w-8 h-8 flex items-center justify-center transition-transform group-hover:scale-105">
-            <img
-              src="/uconnect.svg"
-              alt="U-Connect"
-              className="w-full h-full object-contain"
-            />
+            <img src="/uconnect.svg" alt="U-Connect" className="w-full h-full object-contain" />
           </div>
           <span className="font-display font-bold text-xl tracking-tight text-primary-900">
             U-Connect
@@ -79,33 +87,36 @@ export default function Navbar() {
                     <Loader2 className="w-4 h-4 animate-spin text-secondary-300" />
                   </div>
                 ) : results.length === 0 ? (
-                  <p className="text-[11px] font-normal text-secondary-400 p-4 text-center">
-                    Aucun résultat
-                  </p>
+                  <p className="text-[11px] font-normal text-secondary-400 p-4 text-center">Aucun resultat</p>
                 ) : (
                   results.map((u) => {
                     const fullName = `${u.firstName} ${u.lastName}`.trim();
-                    const handle = u.username.includes("@") ? u.firstName || u.email.split("@")[0] : u.username;
+                    const handle = u.username.includes("@")
+                      ? u.firstName || u.email.split("@")[0]
+                      : u.username;
+
                     return (
                       <Link
                         key={u.keycloakId}
                         to={`/profile/${u.keycloakId}`}
-                        onClick={() => { setShowResults(false); setQuery(""); }}
+                        onClick={() => {
+                          setShowResults(false);
+                          clear();
+                        }}
                         className="flex items-center gap-3 px-4 py-3 hover:bg-secondary-50 transition-colors"
                       >
                         <div className="w-8 h-8 avatar-sharp shrink-0">
                           <img
-                            src={u.avatarUrl || `https://api.dicebear.com/7.x/avataaars/svg?seed=${encodeURIComponent(fullName)}`}
+                            src={
+                              u.avatarUrl ||
+                              `https://api.dicebear.com/7.x/avataaars/svg?seed=${encodeURIComponent(fullName)}`
+                            }
                             alt={fullName}
                           />
                         </div>
                         <div className="min-w-0">
-                          <p className="text-sm font-semibold text-primary-900 truncate">
-                            {fullName}
-                          </p>
-                          <p className="text-[11px] font-normal text-secondary-400">
-                            @{handle}
-                          </p>
+                          <p className="text-sm font-semibold text-primary-900 truncate">{fullName}</p>
+                          <p className="text-[11px] font-normal text-secondary-400">@{handle}</p>
                         </div>
                       </Link>
                     );
@@ -125,7 +136,10 @@ export default function Navbar() {
           <div className="flex items-center gap-3 cursor-pointer group">
             <div className="h-8 w-8 avatar-sharp group-hover:border-primary-500 transition-all">
               <img
-                src={user?.avatarUrl || `https://api.dicebear.com/7.x/avataaars/svg?seed=${encodeURIComponent(user?.fullName ?? "User")}`}
+                src={
+                  user?.avatarUrl ||
+                  `https://api.dicebear.com/7.x/avataaars/svg?seed=${encodeURIComponent(user?.fullName ?? "User")}`
+                }
                 alt="User"
               />
             </div>
@@ -136,7 +150,7 @@ export default function Navbar() {
 
           <button
             onClick={logout}
-            title="Se déconnecter"
+            title="Se deconnecter"
             className="p-1 text-secondary-400 hover:text-red-500 transition-colors"
           >
             <LogOut size={20} />
