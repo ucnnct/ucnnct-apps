@@ -19,7 +19,7 @@ public class WsGroupResolvedKafkaConsumer {
     private final WsMessageKafkaPublisher messageKafkaPublisher;
 
     @KafkaListener(
-            topics = "${app.kafka.topics.group-resolved:groupmessage.resolved}",
+            topics = "${app.kafka.topics.group-resolved:group.resolved}",
             groupId = "${spring.kafka.consumer.group-id:ws-manager-message-delivery}"
     )
     public void onGroupResolvedMessage(String rawPayload) {
