@@ -37,10 +37,8 @@ public class MediaService {
 
     public UploadResponse upload(MultipartFile file, String folder, String ownerId) {
         String contentType = file.getContentType();
-        if (contentType == null || !ALLOWED_TYPES.contains(contentType)) {
-            log.warn("Upload rejected — unsupported content type='{}' ownerId={}", contentType, ownerId);
-            throw new IllegalArgumentException("Type de fichier non supporté : " + contentType);
-        }
+        validateMimeType(contentType);
+        validateSize(file.getSize());
 
         String filename = file.getOriginalFilename();
         if (filename == null || filename.isBlank()) {
