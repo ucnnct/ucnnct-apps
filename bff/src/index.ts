@@ -3,7 +3,9 @@ import session from "express-session";
 import pinoHttp from "pino-http";
 import { setupAuth, getOidcStatus } from "./auth";
 import { setupProxy } from "./proxy";
+import { createServer } from "http";
 import logger, { pinoInstance } from "./logger";
+import { setupWsRelay } from "./wsRelay";
 
 const app = express();
 
@@ -11,7 +13,9 @@ app.set("trust proxy", true);
 
 app.use(pinoHttp({ logger: pinoInstance }));
 
-app.use(session({
+// Dev: in-memory session store (single instance).
+// Prod: use shared Redis session store or signed stateless WS tickets.
+const sessionMiddleware = session({
   name: "uconnect.token.key",
   secret: process.env.SESSION_SECRET || "dev-secret",
   resave: false,
@@ -23,7 +27,9 @@ app.use(session({
     sameSite: "lax",
     maxAge: 3600_000,
   },
-}));
+});
+
+app.use(sessionMiddleware);
 
 app.get("/actuator/health", (_req, res) => {
   const oidcStatus = getOidcStatus();
@@ -33,5 +39,7 @@ app.get("/actuator/health", (_req, res) => {
 (async () => {
   setupAuth(app);
   setupProxy(app);
-  app.listen(3001, () => logger.info("[BFF] Ready on port 3001"));
+  const server = createServer(app);
+  setupWsRelay(server, sessionMiddleware);
+  server.listen(3001, () => logger.info("[BFF] Ready on port 3001"));
 })();

@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Layout from "../components/layout/Layout";
 import {
   Search,
@@ -9,6 +9,7 @@ import {
   Paperclip,
 } from "lucide-react";
 import SectionHeader from "../components/common/SectionHeader";
+import { connectChatSocket } from "../realtime/chatSocket";
 
 const CONVERSATIONS = [
   {
@@ -166,6 +167,19 @@ const CONVERSATIONS = [
 
 export default function Messages() {
   const [selectedChat, setSelectedChat] = useState(CONVERSATIONS[0]);
+  const [isWsConnected, setIsWsConnected] = useState(false);
+
+  useEffect(() => {
+    const socket = connectChatSocket({
+      onOpen: () => setIsWsConnected(true),
+      onClose: () => setIsWsConnected(false),
+      onError: () => setIsWsConnected(false),
+    });
+
+    return () => {
+      socket.close();
+    };
+  }, []);
 
   return (
     <Layout hideSidebarRight>
@@ -251,7 +265,7 @@ export default function Messages() {
                   {selectedChat.fullName}
                 </p>
                 <p className="text-[11px] font-normal text-secondary-400">
-                  {selectedChat.isGroup ? selectedChat.handle : "En ligne"}
+                  {selectedChat.isGroup ? selectedChat.handle : (isWsConnected ? "En ligne (WS)" : "Hors ligne (WS)")}
                 </p>
               </div>
             </div>

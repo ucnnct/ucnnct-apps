@@ -169,6 +169,16 @@ services:
     networks:
       - uconnect-network
 
+  redis:
+    image: redis:7-alpine
+    container_name: uconnect-redis
+    restart: unless-stopped
+    command: redis-server --appendonly yes
+    volumes:
+      - redis_data:/data
+    networks:
+      - uconnect-network
+
   # --- BACKEND SERVICES ---
   user-service:
     build: ./user-service
@@ -244,6 +254,21 @@ services:
     networks:
       - uconnect-network
 
+  ws-manager:
+    build: ./ws-manager
+    container_name: uconnect-ws-manager
+    restart: unless-stopped
+    environment:
+      SPRING_PROFILES_ACTIVE: local
+      KAFKA_BOOTSTRAP_SERVERS: kafka:9092
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+    depends_on:
+      - kafka
+      - redis
+    networks:
+      - uconnect-network
+
   bff:
     build: ./bff
     container_name: uconnect-bff
@@ -252,6 +277,8 @@ services:
       KEYCLOAK_ISSUER_URI: http://keycloak:8080/realms/ucnnct
       KEYCLOAK_EXTERNAL_URI: http://localhost:${KEYCLOAK_PORT}/realms/ucnnct
       BFF_CLIENT_SECRET: ${KEYCLOAK_CLIENT_SECRET}
+      WS_MANAGER_URL: ws://ws-manager:8080/ws/chat
+      WS_ALLOWED_ORIGINS: http://localhost:${APP_PORT},http://127.0.0.1:${APP_PORT}
       USER_SERVICE_URL: http://user-service:8082
       MEDIA_SERVICE_URL: http://media-service:8083
       # GROUP_SERVICE_URL: http://group-service:8085
@@ -261,13 +288,14 @@ services:
       SESSION_SECRET: ${SESSION_SECRET}
     labels:
       - "traefik.enable=true"
-      - "traefik.http.routers.bff.rule=PathPrefix(`/api`) || PathPrefix(`/bff`) || PathPrefix(`/login/oauth2`)"
+      - "traefik.http.routers.bff.rule=PathPrefix(`/api`) || PathPrefix(`/bff`) || PathPrefix(`/login/oauth2`) || PathPrefix(`/ws`)"
       - "traefik.http.routers.bff.entrypoints=web"
       - "traefik.http.services.bff.loadbalancer.server.port=3001"
     depends_on:
       - user-service
       - media-service
       - keycloak
+      - ws-manager
     networks:
       - uconnect-network
 
@@ -292,6 +320,7 @@ volumes:
   minio_data:
   group_data:
   mongo_data:
+  redis_data:
 
 networks:
   uconnect-network:
