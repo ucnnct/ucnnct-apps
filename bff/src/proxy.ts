@@ -83,6 +83,25 @@ export function setupProxy(app: Express) {
     }
     next();
   });
+  app.use("/api/notifications/me", createProxyMiddleware({
+    target: notificationServiceTarget,
+    changeOrigin: true,
+    pathRewrite: (path, req: Request) => {
+      const userId = encodeURIComponent((req as any).session?.userinfo?.sub as string);
+      return path.replace(/^\/api\/notifications\/me/, `/api/notifications/users/${userId}`);
+    },
+    on: {
+      proxyReq: applyProxyHeaders,
+    },
+  }));
+
+  // Historical routes from bff-old restored
+  const servicePatterns: Record<string, string> = {
+    "/api/users/**": userServiceTarget,
+    "/api/friends/**": userServiceTarget,
+    "/api/projects/**": userServiceTarget,
+    "/api/media/**": mediaServiceTarget,
+  };
 
   for (const [pathPattern, target] of Object.entries(servicePatterns)) {
     const basePath = pathPattern.replace("/**", "");
@@ -93,8 +112,8 @@ export function setupProxy(app: Express) {
       pathFilter: (pathname) => {
         if (pathPattern === "/api/media/**") {
           return pathname.startsWith("/api/media")
-                  && !pathname.startsWith("/api/media/uploads")
-                  && !pathname.startsWith("/api/media/downloads");
+            && !pathname.startsWith("/api/media/uploads")
+            && !pathname.startsWith("/api/media/downloads");
         }
         const wildcardPrefix = pathPattern.replace("/**", "");
         return pathname.startsWith(wildcardPrefix);
