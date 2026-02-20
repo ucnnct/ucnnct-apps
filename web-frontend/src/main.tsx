@@ -3,6 +3,7 @@ import ReactDOM from "react-dom/client";
 import App from "./App";
 import { AuthProvider } from "./auth/AuthProvider";
 import { AppSocketProvider } from "./realtime/AppSocketProvider";
+import { MessagesSocketBridge } from "./realtime/MessagesSocketBridge";
 import "./index.css";
 import "./App.css";
 
@@ -10,6 +11,7 @@ ReactDOM.createRoot(document.getElementById("root")!).render(
   <React.StrictMode>
     <AuthProvider>
       <AppSocketProvider>
+        <MessagesSocketBridge />
         <App />
       </AppSocketProvider>
     </AuthProvider>
