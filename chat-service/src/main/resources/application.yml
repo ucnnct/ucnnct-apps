@@ -10,9 +10,7 @@ spring:
       group-id: chat-service
       auto-offset-reset: earliest
       key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
-      value-deserializer: org.springframework.kafka.support.serializer.JsonDeserializer
-      properties:
-        spring.json.trusted.packages: "cc.uconnect.kafka.event"
+      value-deserializer: org.apache.kafka.common.serialization.StringDeserializer
     producer:
       key-serializer: org.apache.kafka.common.serialization.StringSerializer
       value-serializer: org.springframework.kafka.support.serializer.JsonSerializer
@@ -25,3 +23,12 @@ spring:
 
 server:
   port: 8084
+
+app:
+  kafka:
+    topics:
+      chat-messages: ${WS_KAFKA_TOPIC_CHAT_MESSAGES:message.send}
+      messages-persisted: ${WS_KAFKA_TOPIC_MESSAGES:message.persisted}
+      message-status-updates: ${WS_KAFKA_TOPIC_MESSAGE_STATUS_UPDATES:message.status.update}
+      message-read-legacy: ${CHAT_LEGACY_MESSAGE_READ_TOPIC:message.read}
+      message-read-confirmed: ${CHAT_MESSAGE_READ_CONFIRMED_TOPIC:message.read.confirmed}

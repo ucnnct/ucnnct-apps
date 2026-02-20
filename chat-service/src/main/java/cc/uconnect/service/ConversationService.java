@@ -8,9 +8,12 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
 import java.time.Instant;
+import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 @Service
 @RequiredArgsConstructor
@@ -31,7 +34,8 @@ public class ConversationService {
             Conversation conv = new Conversation();
             conv.setId(conversationId);
             conv.setType(MessageType.PEER);
-            conv.setParticipants(List.of(userA, userB));
+            List<String> participants = List.of(userA, userB);
+            conv.setParticipants(participants);
             conv.setUnreadCounts(new HashMap<>(Map.of(userA, 0, userB, 0)));
             conv.setCreatedAt(Instant.now());
             conv.setUpdatedAt(Instant.now());
@@ -46,23 +50,88 @@ public class ConversationService {
             Conversation conv = new Conversation();
             conv.setId(conversationId);
             conv.setType(MessageType.GROUP);
-            conv.setParticipants(List.of(senderId));
-            conv.setUnreadCounts(new HashMap<>());
+            conv.setParticipants(new ArrayList<>(List.of(senderId)));
+            conv.setUnreadCounts(new HashMap<>(Map.of(senderId, 0)));
             conv.setCreatedAt(Instant.now());
             conv.setUpdatedAt(Instant.now());
             return conversationRepository.save(conv);
         });
     }
 
+    // Called by Kafka flow - creates or enriches a conversation with known participants.
+    public Conversation getOrCreateConversationForKafka(String conversationId, MessageType type, List<String> participants) {
+        List<String> normalizedParticipants = normalizeParticipants(participants);
+        return conversationRepository.findById(conversationId)
+                .map(existing -> {
+                    boolean changed = false;
+
+                    if (existing.getType() == null) {
+                        existing.setType(type);
+                        changed = true;
+                    }
+
+                    if (existing.getParticipants() == null) {
+                        existing.setParticipants(new ArrayList<>());
+                        changed = true;
+                    }
+
+                    Set<String> mergedParticipants = new LinkedHashSet<>(existing.getParticipants());
+                    mergedParticipants.addAll(normalizedParticipants);
+                    List<String> updatedParticipants = new ArrayList<>(mergedParticipants);
+                    if (!updatedParticipants.equals(existing.getParticipants())) {
+                        existing.setParticipants(updatedParticipants);
+                        changed = true;
+                    }
+
+                    if (existing.getUnreadCounts() == null) {
+                        existing.setUnreadCounts(new HashMap<>());
+                        changed = true;
+                    }
+                    for (String participant : updatedParticipants) {
+                        if (existing.getUnreadCounts().putIfAbsent(participant, 0) == null) {
+                            changed = true;
+                        }
+                    }
+
+                    if (changed) {
+                        existing.setUpdatedAt(Instant.now());
+                        return conversationRepository.save(existing);
+                    }
+                    return existing;
+                })
+                .orElseGet(() -> {
+                    log.info("Conversation created from Kafka flow conversationId={} type={}", conversationId, type);
+                    Conversation conv = new Conversation();
+                    conv.setId(conversationId);
+                    conv.setType(type);
+                    conv.setParticipants(new ArrayList<>(normalizedParticipants));
+                    conv.setUnreadCounts(new HashMap<>());
+                    for (String participant : normalizedParticipants) {
+                        conv.getUnreadCounts().put(participant, 0);
+                    }
+                    conv.setCreatedAt(Instant.now());
+                    conv.setUpdatedAt(Instant.now());
+                    return conversationRepository.save(conv);
+                });
+    }
+
     public void updateLastMessage(String conversationId, Conversation.LastMessage lastMessage, String senderId) {
         conversationRepository.findById(conversationId).ifPresent(conv -> {
             conv.setLastMessage(lastMessage);
             conv.setUpdatedAt(Instant.now());
-            if (conv.getUnreadCounts() != null) {
-                conv.getParticipants().stream()
-                        .filter(p -> !p.equals(senderId))
-                        .forEach(p -> conv.getUnreadCounts().merge(p, 1, Integer::sum));
+
+            List<String> participants = conv.getParticipants() != null ? conv.getParticipants() : new ArrayList<>();
+            if (conv.getUnreadCounts() == null) {
+                conv.setUnreadCounts(new HashMap<>());
             }
+            for (String participant : participants) {
+                conv.getUnreadCounts().putIfAbsent(participant, 0);
+            }
+
+            participants.stream()
+                    .filter(participant -> !participant.equals(senderId))
+                    .forEach(participant -> conv.getUnreadCounts().merge(participant, 1, Integer::sum));
+
             conversationRepository.save(conv);
             log.debug("Last message updated conversationId={} messageId={}", conversationId, lastMessage.getId());
         });
@@ -70,39 +139,44 @@ public class ConversationService {
 
     public void markRead(String conversationId, String userId) {
         conversationRepository.findById(conversationId).ifPresent(conv -> {
-            if (conv.getUnreadCounts() != null) {
-                conv.getUnreadCounts().put(userId, 0);
+            if (conv.getUnreadCounts() == null) {
+                conv.setUnreadCounts(new HashMap<>());
             }
+            conv.getUnreadCounts().put(userId, 0);
             conversationRepository.save(conv);
             log.debug("Conversation marked read conversationId={} userId={}", conversationId, userId);
         });
     }
 
-    // Appelé depuis Kafka — crée la conversation si elle n'existe pas encore
+    // Legacy helper kept for compatibility with older code paths.
     public void getOrCreateConversationById(String conversationId, String senderId, String targetId) {
-        if (conversationRepository.existsById(conversationId)) {
-            return;
+        MessageType type = conversationId.startsWith("peer:") ? MessageType.PEER : MessageType.GROUP;
+        List<String> participants = new ArrayList<>();
+        if (senderId != null && !senderId.isBlank()) {
+            participants.add(senderId);
         }
-        log.info("Conversation created from Kafka flow conversationId={}", conversationId);
-        Conversation conv = new Conversation();
-        conv.setId(conversationId);
-        conv.setCreatedAt(Instant.now());
-        conv.setUpdatedAt(Instant.now());
-        if (conversationId.startsWith("peer:")) {
-            conv.setType(MessageType.PEER);
-            conv.setParticipants(List.of(senderId, targetId));
-            conv.setUnreadCounts(new HashMap<>(Map.of(senderId, 0, targetId, 0)));
-        } else {
-            conv.setType(MessageType.GROUP);
-            conv.setParticipants(List.of(senderId));
-            conv.setUnreadCounts(new HashMap<>());
+        if (targetId != null && !targetId.isBlank()) {
+            participants.add(targetId);
         }
-        conversationRepository.save(conv);
+        getOrCreateConversationForKafka(conversationId, type, participants);
     }
 
     public static String buildPeerConversationId(String userA, String userB) {
         String min = userA.compareTo(userB) <= 0 ? userA : userB;
         String max = userA.compareTo(userB) <= 0 ? userB : userA;
         return "peer:" + min + "_" + max;
+    }
+
+    private List<String> normalizeParticipants(List<String> participants) {
+        if (participants == null || participants.isEmpty()) {
+            return new ArrayList<>();
+        }
+        Set<String> normalized = new LinkedHashSet<>();
+        for (String participant : participants) {
+            if (participant != null && !participant.isBlank()) {
+                normalized.add(participant);
+            }
+        }
+        return new ArrayList<>(normalized);
     }
 }
