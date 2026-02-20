@@ -277,7 +277,7 @@ services:
       KEYCLOAK_ISSUER_URI: http://keycloak:8080/realms/ucnnct
       KEYCLOAK_EXTERNAL_URI: http://localhost:${KEYCLOAK_PORT}/realms/ucnnct
       BFF_CLIENT_SECRET: ${KEYCLOAK_CLIENT_SECRET}
-      WS_MANAGER_URL: ws://ws-manager:8080/ws/chat
+      WS_MANAGER_URL: ws://ws-manager:8080/ws/uconnect
       WS_ALLOWED_ORIGINS: http://localhost:${APP_PORT},http://127.0.0.1:${APP_PORT}
       USER_SERVICE_URL: http://user-service:8082
       MEDIA_SERVICE_URL: http://media-service:8083

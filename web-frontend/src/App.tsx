@@ -5,6 +5,7 @@ import Messages from "./pages/Messages";
 import Profile from "./pages/Profile";
 import EditProfile from "./pages/EditProfile";
 import Cercles from "./pages/Cercles";
+import { RouteContextReporter } from "./realtime/RouteContextReporter";
 
 export default function App() {
   const { initialized, authenticated, login } = useAuth();
@@ -38,6 +39,7 @@ export default function App() {
 
   return (
     <BrowserRouter>
+      <RouteContextReporter />
       <Routes>
         <Route path="/" element={<Home />} />
         <Route path="/messages" element={<Messages />} />

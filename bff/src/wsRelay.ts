@@ -9,8 +9,8 @@ type SessionRequest = IncomingMessage & {
   session?: Session & Partial<SessionData>;
 };
 
-const CLIENT_WS_PATH = process.env.WS_CLIENT_PATH || "/ws/chat";
-const WS_MANAGER_URL = process.env.WS_MANAGER_URL || "ws://ws-manager:8080/ws/chat";
+const CLIENT_WS_PATH = process.env.WS_CLIENT_PATH || "/ws/uconnect";
+const WS_MANAGER_URL = process.env.WS_MANAGER_URL || "ws://ws-manager:8080/ws/uconnect";
 const MAX_PAYLOAD_BYTES = Number(process.env.WS_MAX_PAYLOAD_BYTES || 262144);
 const MAX_BUFFERED_MESSAGES = Number(process.env.WS_MAX_BUFFERED_MESSAGES || 100);
 

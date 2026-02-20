@@ -13,8 +13,7 @@ app.set("trust proxy", true);
 
 app.use(pinoHttp({ logger: pinoInstance }));
 
-// Dev: in-memory session store (single instance).
-// Prod: use shared Redis session store or signed stateless WS tickets.
+
 const sessionMiddleware = session({
   name: "uconnect.token.key",
   secret: process.env.SESSION_SECRET || "dev-secret",

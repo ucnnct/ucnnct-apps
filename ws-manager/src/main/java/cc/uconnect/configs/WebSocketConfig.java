@@ -21,10 +21,10 @@ public class WebSocketConfig {
     @Bean
     public HandlerMapping webSocketMapping(ChatWebSocketHandler handler) {
 
-        logger.info("Initializing WebSocket mapping for /ws/chat");
+        logger.info("Initializing WebSocket mapping for /ws/uconnect");
 
         Map<String, WebSocketHandler> map = new HashMap<>();
-        map.put("/ws/chat", handler);
+        map.put("/ws/uconnect", handler);
 
         SimpleUrlHandlerMapping mapping = new SimpleUrlHandlerMapping();
         mapping.setUrlMap(map);

@@ -1,18 +1,20 @@
-export type ChatSocketHandlers = {
-  onOpen?: () => void;
-  onClose?: () => void;
-  onError?: () => void;
-  onMessage?: (payload: string) => void;
+export const APP_WS_PATH = "/ws/uconnect";
+
+export type AppSocketHandlers = {
+  onOpen?: (event: Event) => void;
+  onClose?: (event: CloseEvent) => void;
+  onError?: (event: Event) => void;
+  onMessage?: (payload: string, event: MessageEvent) => void;
 };
 
 function resolveWsUrl(): string {
   const apiBaseUrl = window.__ENV__?.API_BASE_URL || "";
   const base = new URL(apiBaseUrl || window.location.origin, window.location.origin);
   const protocol = base.protocol === "https:" ? "wss" : "ws";
-  return `${protocol}://${base.host}/ws/chat`;
+  return `${protocol}://${base.host}${APP_WS_PATH}`;
 }
 
-export function connectChatSocket(handlers: ChatSocketHandlers = {}): WebSocket {
+export function connectAppSocket(handlers: AppSocketHandlers = {}): WebSocket {
   const socket = new WebSocket(resolveWsUrl());
 
   if (handlers.onOpen) {
@@ -29,7 +31,7 @@ export function connectChatSocket(handlers: ChatSocketHandlers = {}): WebSocket 
 
   if (handlers.onMessage) {
     socket.addEventListener("message", (event) => {
-      handlers.onMessage?.(String(event.data));
+      handlers.onMessage?.(String(event.data), event);
     });
   }
 

@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import Layout from "../components/layout/Layout";
 import {
   Search,
@@ -9,7 +9,8 @@ import {
   Paperclip,
 } from "lucide-react";
 import SectionHeader from "../components/common/SectionHeader";
-import { connectChatSocket } from "../realtime/chatSocket";
+import { useAppSocket, useAppSocketAction } from "../realtime/AppSocketProvider";
+import type { WsMessagePayload } from "../realtime/wsProtocol";
 
 const CONVERSATIONS = [
   {
@@ -167,19 +168,18 @@ const CONVERSATIONS = [
 
 export default function Messages() {
   const [selectedChat, setSelectedChat] = useState(CONVERSATIONS[0]);
-  const [isWsConnected, setIsWsConnected] = useState(false);
+  const [hasWsActivity, setHasWsActivity] = useState(false);
+  const { connected: isWsConnected } = useAppSocket();
 
-  useEffect(() => {
-    const socket = connectChatSocket({
-      onOpen: () => setIsWsConnected(true),
-      onClose: () => setIsWsConnected(false),
-      onError: () => setIsWsConnected(false),
-    });
-
-    return () => {
-      socket.close();
-    };
-  }, []);
+  useAppSocketAction<WsMessagePayload>("PRIVATE_MESSAGE", () => {
+    setHasWsActivity(true);
+  });
+  useAppSocketAction<WsMessagePayload>("GROUP_MESSAGE", () => {
+    setHasWsActivity(true);
+  });
+  useAppSocketAction<WsMessagePayload>("FILE_MESSAGE", () => {
+    setHasWsActivity(true);
+  });
 
   return (
     <Layout hideSidebarRight>
@@ -265,7 +265,13 @@ export default function Messages() {
                   {selectedChat.fullName}
                 </p>
                 <p className="text-[11px] font-normal text-secondary-400">
-                  {selectedChat.isGroup ? selectedChat.handle : (isWsConnected ? "En ligne (WS)" : "Hors ligne (WS)")}
+                  {selectedChat.isGroup
+                    ? selectedChat.handle
+                    : isWsConnected
+                      ? hasWsActivity
+                        ? "En ligne (WS) - activite"
+                        : "En ligne (WS)"
+                      : "Hors ligne (WS)"}
                 </p>
               </div>
             </div>

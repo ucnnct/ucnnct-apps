@@ -92,8 +92,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   return (
     <AuthContext.Provider value={{
       ...state,
-      login: () => { window.location.href = "/bff/login"; },
-      logout: () => { window.location.href = "/bff/logout"; },
+      login: () => {
+        window.location.href = "/bff/login";
+      },
+      logout: () => {
+        setState({ initialized: true, authenticated: false, user: null });
+        window.location.href = "/bff/logout";
+      },
       updateUser,
     }}>
       {children}
