@@ -7,7 +7,5 @@ RUN mvn -q -DskipTests package
 FROM eclipse-temurin:17-jre
 WORKDIR /app
 COPY --from=build /app/target/*.jar app.jar
-ARG HELLO_MESSAGE=hello
-ENV HELLO_MESSAGE=$HELLO_MESSAGE
 EXPOSE 8080
 ENTRYPOINT ["java", "-jar", "app.jar"]

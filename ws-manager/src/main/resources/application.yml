@@ -1,7 +1,49 @@
 spring:
   application:
     name: ws-manager
+  main:
+    web-application-type: reactive
+  data:
+    redis:
+      host: ${REDIS_HOST:localhost}
+      port: ${REDIS_PORT:6379}
+      password: ${REDIS_PASSWORD:}
+  kafka:
+    bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:localhost:9092}
+    producer:
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+      value-serializer: org.apache.kafka.common.serialization.StringSerializer
+    consumer:
+      group-id: ${KAFKA_CONSUMER_GROUP_ID:ws-manager-message-delivery}
+      key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+      value-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+      auto-offset-reset: earliest
 
 server:
   port: 8080
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health
+
+app:
+  instance:
+    id: ${WS_INSTANCE_ID:}
+  presence:
+    key-prefix: ${WS_PRESENCE_KEY_PREFIX:ws:presence:user:}
+  active-context:
+    key-prefix: ${WS_ACTIVE_CONTEXT_KEY_PREFIX:ws:context:user:}
+  redis:
+    pubsub:
+      channel-prefix: ${WS_REDIS_CHANNEL_PREFIX:ws:instance:}
+  kafka:
+    topics:
+      group-resolve: ${WS_KAFKA_TOPIC_GROUP_RESOLVE:group.message}
+      group-resolved: ${WS_KAFKA_TOPIC_GROUP_RESOLVED:group.resolved}
+      chat-messages: ${WS_KAFKA_TOPIC_CHAT_MESSAGES:message.send}
+      message-status-updates: ${WS_KAFKA_TOPIC_MESSAGE_STATUS_UPDATES:message.status.update}
+      messages: ${WS_KAFKA_TOPIC_MESSAGES:message.persisted}
+      in-app-notifications: ${WS_KAFKA_TOPIC_INAPP_NOTIFICATIONS:inapp.notification}
 
