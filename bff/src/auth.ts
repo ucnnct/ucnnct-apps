@@ -1,5 +1,7 @@
-import { Issuer, generators } from "openid-client";
-import type { Express } from "express";
+import { Issuer, generators, type Client, TokenSet } from "openid-client";
+import type { Express, Request } from "express";
+
+let oidcClient: Client | undefined;
 
 export async function setupAuth(app: Express) {
   const internalIssuerUri = process.env.KEYCLOAK_ISSUER_URI || "http://localhost:8081/realms/ucnnct";
@@ -23,6 +25,7 @@ export async function setupAuth(app: Express) {
     redirect_uris: [process.env.REDIRECT_URI || "http://localhost/login/oauth2/code/keycloak"],
     response_types: ["code"],
   });
+  oidcClient = client;
 
   // Login — redirige le navigateur vers Keycloak
   app.get("/bff/login", (req, res) => {
@@ -72,4 +75,26 @@ export async function setupAuth(app: Express) {
       }
     });
   });
+}
+
+export async function refreshAccessTokenIfNeeded(req: Request): Promise<string | undefined> {
+  if (!oidcClient) {
+    return req.session?.tokenSet?.access_token;
+  }
+  if (!req.session?.tokenSet) {
+    return undefined;
+  }
+
+  let tokenSet = new TokenSet(req.session.tokenSet);
+  if (tokenSet.expired()) {
+    try {
+      tokenSet = await oidcClient.refresh(tokenSet);
+      req.session.tokenSet = tokenSet;
+      req.session.userinfo = tokenSet.claims();
+      return tokenSet.access_token;
+    } catch {
+      return undefined;
+    }
+  }
+  return tokenSet.access_token;
 }
