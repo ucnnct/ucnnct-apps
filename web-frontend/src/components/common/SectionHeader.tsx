@@ -10,7 +10,7 @@ export default function SectionHeader({ label }: SectionHeaderProps) {
   return (
     <div className="flex items-center px-4 mb-4">
       <div className="flex-1 border-t border-secondary-100"></div>
-      <span className="px-4 text-[10px] font-black text-secondary-300 uppercase tracking-[0.3em]">
+      <span className="px-4 text-[11px] font-medium text-secondary-300 uppercase tracking-widest">
         {label}
       </span>
       <div className="flex-1 border-t border-secondary-100"></div>

@@ -1,9 +1,9 @@
-@import url("https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Poppins:wght@400;500;600;700;800;900&display=swap");
+@import url("https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Poppins:wght@400;500;600;700&display=swap");
 
 @import "tailwindcss";
 
 @theme {
-  --font-display: "Poppins", "Inter", sans-serif;
+  --font-display: "Poppins", sans-serif;
   --font-body: "Inter", sans-serif;
 
   --color-primary: #2e89d5;
@@ -18,18 +18,18 @@
   --color-primary-800: #174978;
   --color-primary-900: #173e63;
   
-  /* bg-secondary will now use this value (secondary-200 equivalent) */
-  --color-secondary: #e4e4e7; 
-  --color-secondary-50: #fafafa;
-  --color-secondary-100: #f4f4f5;
-  --color-secondary-200: #e4e4e7;
-  --color-secondary-300: #d4d4d8;
-  --color-secondary-400: #a1a1aa;
-  --color-secondary-500: #71717a; 
-  --color-secondary-600: #52525b;
-  --color-secondary-700: #3f3f46;
-  --color-secondary-800: #27272a;
-  --color-secondary-900: #09090b;
+  /* Slate grays — blueish tint that harmonizes with primary blue */
+  --color-secondary: #e2e8f0;
+  --color-secondary-50: #f8fafc;
+  --color-secondary-100: #f1f5f9;
+  --color-secondary-200: #e2e8f0;
+  --color-secondary-300: #cbd5e1;
+  --color-secondary-400: #94a3b8;
+  --color-secondary-500: #64748b;
+  --color-secondary-600: #475569;
+  --color-secondary-700: #334155;
+  --color-secondary-800: #1e293b;
+  --color-secondary-900: #0f172a;
 
   --color-accent-500: #f59e0b;
   --color-accent-700: #b45309;
@@ -49,23 +49,23 @@
 }
 
 @utility btn-primary {
-  @apply bg-primary-500 hover:bg-primary-600 text-white font-black uppercase tracking-widest py-3 px-6 rounded-sm transition-all active:scale-[0.98] flex items-center justify-center gap-2;
+  @apply bg-primary-500 hover:bg-primary-600 text-white font-medium uppercase tracking-wide py-3 px-6 rounded-sm transition-all active:scale-[0.98] flex items-center justify-center gap-2;
 }
 
 @utility input-sharp {
-  @apply bg-secondary-100 border border-secondary-200 focus:bg-white focus:border-primary-500 focus:ring-0 rounded-sm py-2 px-4 text-[10px] font-black tracking-widest uppercase transition-all outline-none;
+  @apply bg-secondary-100 border border-secondary-200 focus:bg-white focus:border-primary-500 focus:ring-0 rounded-sm py-2 px-4 text-xs font-normal tracking-normal transition-all outline-none;
 }
 
 @utility nav-link {
-  @apply flex items-center gap-4 px-8 py-3 transition-all relative border-l-2 font-bold tracking-tight text-sm uppercase;
+  @apply flex items-center gap-4 px-8 py-3 transition-all relative rounded-sm font-medium tracking-normal text-sm mx-3;
 }
 
 @utility nav-link-active {
-  @apply text-primary-500 border-primary-500;
+  @apply text-primary-500 bg-primary-50;
 }
 
 @utility nav-link-inactive {
-  @apply text-secondary-700 border-transparent hover:text-primary-900 hover:bg-secondary-100;
+  @apply text-secondary-700 hover:text-primary-900 hover:bg-secondary-100;
 }
 
 @utility avatar-sharp {

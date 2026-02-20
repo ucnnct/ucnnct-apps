@@ -1,30 +1,37 @@
 import express from "express";
 import session from "express-session";
-import { setupAuth } from "./auth";
+import pinoHttp from "pino-http";
+import { setupAuth, getOidcStatus } from "./auth";
 import { setupProxy } from "./proxy";
+import logger, { pinoInstance } from "./logger";
 
 const app = express();
 
-// Fait confiance au reverse proxy (Traefik / Ingress) pour les cookies de session
-app.set("trust proxy", 1);
+app.set("trust proxy", true);
+
+app.use(pinoHttp({ logger: pinoInstance }));
 
 app.use(session({
   name: "uconnect.token.key",
   secret: process.env.SESSION_SECRET || "dev-secret",
   resave: false,
   saveUninitialized: false,
+  proxy: true,
   cookie: {
     httpOnly: true,
-    secure: process.env.NODE_ENV === "production",
+    secure: "auto",
     sameSite: "lax",
     maxAge: 3600_000,
   },
 }));
 
-app.get("/actuator/health", (_req, res) => res.json({ status: "UP" }));
+app.get("/actuator/health", (_req, res) => {
+  const oidcStatus = getOidcStatus();
+  res.status(oidcStatus === "UP" ? 200 : 503).json({ status: oidcStatus });
+});
 
 (async () => {
-  await setupAuth(app);
+  setupAuth(app);
   setupProxy(app);
-  app.listen(3001, () => console.log("BFF listening on :3001"));
+  app.listen(3001, () => logger.info("[BFF] Ready on port 3001"));
 })();

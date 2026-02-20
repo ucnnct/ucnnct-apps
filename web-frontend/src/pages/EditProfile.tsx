@@ -13,9 +13,11 @@ import {
 } from "lucide-react";
 import { userApi, type UserProfile, type UpdateProfileData } from "../api/users";
 import { mediaApi } from "../api/media";
+import { useAuth } from "../auth/AuthProvider";
 
 export default function EditProfile() {
   const navigate = useNavigate();
+  const { updateUser } = useAuth();
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -57,6 +59,7 @@ export default function EditProfile() {
   const handleSave = async () => {
     setSaving(true);
     await userApi.updateMe(editData);
+    updateUser({ avatarUrl: editData.avatarUrl ?? null });
     setSaving(false);
     navigate("/profile");
   };
@@ -90,21 +93,21 @@ export default function EditProfile() {
             >
               <ArrowLeft size={20} />
             </button>
-            <h1 className="text-lg font-black text-primary-900 uppercase tracking-tight font-display">
+            <h1 className="text-lg font-bold text-primary-900 font-display">
               Modifier le profil
             </h1>
           </div>
           <div className="flex gap-3">
             <button
               onClick={() => navigate("/profile")}
-              className="px-6 py-2 border border-secondary-200 hover:bg-secondary-50 text-secondary-500 font-black text-[10px] uppercase tracking-widest rounded-sm transition-all"
+              className="px-6 py-2 border border-secondary-200 hover:bg-secondary-50 text-secondary-500 font-medium text-xs uppercase tracking-wide rounded-sm transition-all"
             >
               ANNULER
             </button>
             <button
               onClick={handleSave}
               disabled={saving}
-              className="px-6 py-2 bg-primary-500 hover:bg-primary-600 text-white font-black text-[10px] uppercase tracking-widest rounded-sm transition-all active:scale-95 disabled:opacity-50 flex items-center gap-2"
+              className="px-6 py-2 bg-primary-500 hover:bg-primary-600 text-white font-medium text-xs uppercase tracking-wide rounded-sm transition-all active:scale-95 disabled:opacity-50 flex items-center gap-2"
             >
               {saving && <Loader2 size={12} className="animate-spin" />}
               ENREGISTRER
@@ -145,20 +148,20 @@ export default function EditProfile() {
                   />
                 </button>
                 <div className="space-y-1">
-                  <p className="text-xs font-black text-primary-900 uppercase tracking-tight">
+                  <p className="text-sm font-semibold text-primary-900">
                     {fullName}
                   </p>
-                  <p className="text-[9px] font-bold text-secondary-400 uppercase tracking-widest">
-                    @{handle.toUpperCase()}
+                  <p className="text-[11px] font-normal text-secondary-400">
+                    @{handle}
                   </p>
-                  <p className="text-[9px] font-bold text-secondary-300 uppercase tracking-widest">
+                  <p className="text-[11px] font-normal text-secondary-300">
                     {profile.email}
                   </p>
                 </div>
               </div>
               <ReadOnlyField label="Nom complet" value={fullName} />
               <ReadOnlyField label="Email" value={profile.email} />
-              <p className="text-[8px] font-bold text-secondary-300 uppercase tracking-widest mt-3">
+              <p className="text-[11px] font-normal text-secondary-300 mt-3">
                 Ces informations sont gérées par Keycloak
               </p>
             </Section>
@@ -232,7 +235,7 @@ function Section({
     <div className="bg-white border border-secondary-100 rounded-sm overflow-hidden">
       <div className="px-6 py-4 border-b border-secondary-100 flex items-center gap-3">
         <span className="text-secondary-400">{icon}</span>
-        <h2 className="text-[10px] font-black text-primary-900 uppercase tracking-[0.2em]">
+        <h2 className="text-[11px] font-medium text-primary-900 uppercase tracking-widest">
           {title}
         </h2>
       </div>
@@ -246,10 +249,10 @@ function Section({
 function ReadOnlyField({ label, value }: { label: string; value: string }) {
   return (
     <div>
-      <label className="text-[10px] font-black text-secondary-400 uppercase tracking-widest mb-1.5 block">
+      <label className="text-[11px] font-medium text-secondary-400 mb-1.5 block">
         {label}
       </label>
-      <div className="w-full bg-secondary-50 border border-secondary-100 rounded-sm py-2.5 px-3 text-sm text-secondary-400">
+      <div className="w-full bg-secondary-50 border border-secondary-100 rounded-sm py-2.5 px-3 text-sm font-normal text-secondary-400">
         {value}
       </div>
     </div>
@@ -275,7 +278,7 @@ function EditField({
     "w-full bg-secondary-50 border border-secondary-100 focus:bg-white focus:border-primary-500 focus:ring-0 rounded-sm py-2.5 text-sm text-primary-900 transition-all placeholder:text-secondary-300 placeholder:text-xs";
   return (
     <div>
-      <label className="text-[10px] font-black text-secondary-400 uppercase tracking-widest mb-1.5 block">
+      <label className="text-[11px] font-medium text-secondary-400 mb-1.5 block">
         {label}
       </label>
       {multiline ? (

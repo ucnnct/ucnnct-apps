@@ -172,7 +172,7 @@ export default function Messages() {
       <div className="flex h-full bg-white overflow-hidden font-body">
         <div className="w-[350px] border-r border-secondary-100 flex flex-col h-full bg-white shrink-0">
           <div className="p-6 border-b border-secondary-100">
-            <h1 className="text-xl font-black text-primary-900 uppercase tracking-tight mb-4 font-display">
+            <h1 className="text-xl font-bold text-primary-900 mb-4 font-display">
               Messages
             </h1>
             <div className="relative group">
@@ -182,8 +182,8 @@ export default function Messages() {
               />
               <input
                 type="text"
-                placeholder="RECHERCHER..."
-                className="w-full bg-secondary-50 border border-secondary-100 focus:bg-white focus:border-primary-500 focus:ring-0 rounded-sm py-2 pl-10 pr-4 text-[10px] font-black tracking-widest uppercase transition-all"
+                placeholder="Rechercher..."
+                className="w-full bg-secondary-50 border border-secondary-100 focus:bg-white focus:border-primary-500 focus:ring-0 rounded-sm py-2 pl-10 pr-4 text-xs font-normal tracking-normal transition-all"
               />
             </div>
           </div>
@@ -213,16 +213,16 @@ export default function Messages() {
                 <div className="flex-1 min-w-0">
                   <div className="flex justify-between items-start mb-0.5">
                     <p
-                      className={`text-[11px] font-black uppercase tracking-tight truncate ${chat.unread ? "text-primary-900" : "text-secondary-700"}`}
+                      className={`text-sm font-semibold truncate ${chat.unread ? "text-primary-900" : "text-secondary-700"}`}
                     >
                       {chat.fullName}
                     </p>
-                    <span className="text-[9px] font-bold text-secondary-400 uppercase tracking-tighter">
+                    <span className="text-[11px] font-normal text-secondary-400">
                       {chat.time}
                     </span>
                   </div>
                   <p
-                    className={`text-sm truncate leading-snug ${chat.unread ? "font-bold text-primary-900" : "text-secondary-500"}`}
+                    className={`text-sm truncate leading-snug ${chat.unread ? "font-semibold text-primary-900" : "font-normal text-secondary-500"}`}
                   >
                     {chat.lastMessage}
                   </p>
@@ -247,10 +247,10 @@ export default function Messages() {
                 )}
               </div>
               <div>
-                <p className="text-xs font-black text-primary-900 uppercase tracking-tight">
+                <p className="text-sm font-semibold text-primary-900">
                   {selectedChat.fullName}
                 </p>
-                <p className="text-[9px] font-bold text-secondary-400 uppercase tracking-widest">
+                <p className="text-[11px] font-normal text-secondary-400">
                   {selectedChat.isGroup ? selectedChat.handle : "En ligne"}
                 </p>
               </div>
@@ -290,8 +290,8 @@ export default function Messages() {
                 </button>
               </div>
               <textarea
-                placeholder="VOTRE MESSAGE..."
-                className="flex-1 bg-transparent border-none focus:ring-0 text-sm text-primary-900 placeholder:text-secondary-300 resize-none h-10 py-2 uppercase font-black tracking-widest"
+                placeholder="Votre message..."
+                className="flex-1 bg-transparent border-none focus:ring-0 text-sm text-primary-900 placeholder:text-secondary-300 resize-none h-10 py-2 font-normal"
               />
               <button className="mb-1 p-2 bg-primary-500 hover:bg-primary-600 text-white rounded-sm transition-all group">
                 <Send
@@ -350,7 +350,7 @@ function MessageBubble({
         className={`max-w-[70%] group flex flex-col ${isOwn ? "items-end" : "items-start"}`}
       >
         {!isOwn && (
-          <p className="text-[9px] font-black text-secondary-400 uppercase tracking-tight mb-1 ml-1">
+          <p className="text-[11px] font-semibold text-secondary-400 mb-1 ml-1">
             {sender}
           </p>
         )}
@@ -361,10 +361,10 @@ function MessageBubble({
               : "bg-white border-secondary-100 text-primary-900"
           }`}
         >
-          <p className="text-sm font-medium leading-relaxed">{text}</p>
+          <p className="text-sm font-normal leading-relaxed">{text}</p>
         </div>
         <p
-          className={`text-[8px] font-black text-secondary-300 uppercase tracking-widest mt-1`}
+          className={`text-[11px] font-normal text-secondary-300 mt-1`}
         >
           {time}
         </p>

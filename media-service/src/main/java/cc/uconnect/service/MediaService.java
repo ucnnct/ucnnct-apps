@@ -37,8 +37,10 @@ public class MediaService {
 
     public UploadResponse upload(MultipartFile file, String folder, String ownerId) {
         String contentType = file.getContentType();
-        validateMimeType(contentType);
-        validateSize(file.getSize());
+        if (contentType == null || !ALLOWED_TYPES.contains(contentType)) {
+            log.warn("Upload rejected — unsupported content type='{}' ownerId={}", contentType, ownerId);
+            throw new IllegalArgumentException("Type de fichier non supporté : " + contentType);
+        }
 
         String filename = file.getOriginalFilename();
         if (filename == null || filename.isBlank()) {
@@ -55,11 +57,12 @@ public class MediaService {
                     .contentType(contentType)
                     .build());
         } catch (Exception e) {
-            throw new RuntimeException("Error while uploading file to MinIO", e);
+            log.error("Upload to MinIO failed key={} ownerId={}", key, ownerId, e);
+            throw new RuntimeException("Erreur lors de l'upload vers MinIO", e);
         }
 
         String url = minioProperties.getPublicUrl() + "/" + minioProperties.getBucket() + "/" + key;
-        log.info("Uploaded file: {} -> {}", key, url);
+        log.info("File uploaded key={} ownerId={}", key, ownerId);
         return new UploadResponse(url, key);
     }
 
@@ -124,7 +127,8 @@ public class MediaService {
 
     public void delete(String key, String ownerId) {
         if (!key.contains(ownerId)) {
-            throw new SecurityException("Only owner can delete this object");
+            log.warn("Delete rejected — not owner key={} ownerId={}", key, ownerId);
+            throw new SecurityException("Vous ne pouvez supprimer que vos propres fichiers");
         }
 
         try {
@@ -132,9 +136,10 @@ public class MediaService {
                     .bucket(minioProperties.getBucket())
                     .object(key)
                     .build());
-            log.info("Deleted file: {}", key);
+            log.info("File deleted key={} ownerId={}", key, ownerId);
         } catch (Exception e) {
-            throw new RuntimeException("Error while deleting object from MinIO", e);
+            log.error("Delete from MinIO failed key={}", key, e);
+            throw new RuntimeException("Erreur lors de la suppression sur MinIO", e);
         }
     }
 
