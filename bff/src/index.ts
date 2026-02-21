@@ -12,6 +12,7 @@ const app = express();
 app.set("trust proxy", true);
 
 app.use(pinoHttp({ logger: pinoInstance }));
+app.use(express.urlencoded({ extended: false }));
 
 
 const sessionMiddleware = session({

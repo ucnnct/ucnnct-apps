@@ -8,6 +8,28 @@ let isOidcReady = false;
 const REDIRECT_URI = process.env.REDIRECT_URI || "http://localhost:5173/login/oauth2/code/keycloak";
 const LOGOUT_REDIRECT_URI = process.env.LOGOUT_REDIRECT_URI || "http://localhost:5173/";
 
+function rewriteBrowserEndpoint(
+  endpoint: string | undefined,
+  discoveredIssuerUri: string | undefined,
+  externalIssuerUri: string
+): string | undefined {
+  if (!endpoint) return endpoint;
+
+  if (discoveredIssuerUri && endpoint.startsWith(discoveredIssuerUri)) {
+    return `${externalIssuerUri}${endpoint.slice(discoveredIssuerUri.length)}`;
+  }
+
+  try {
+    const external = new URL(externalIssuerUri);
+    const parsed = new URL(endpoint);
+    parsed.protocol = external.protocol;
+    parsed.host = external.host;
+    return parsed.toString();
+  } catch {
+    return endpoint;
+  }
+}
+
 export async function setupAuth(app: Express) {
   const internalIssuerUri = process.env.KEYCLOAK_ISSUER_URI || "http://keycloak:8080/realms/ucnnct";
   const externalIssuerUri = process.env.KEYCLOAK_EXTERNAL_URI || "http://localhost:8882/realms/ucnnct";
@@ -16,12 +38,24 @@ export async function setupAuth(app: Express) {
     logger.info("[OIDC] Connecting to Keycloak: {}", internalIssuerUri);
     try {
       const discovered = await Issuer.discover(internalIssuerUri);
+      const discoveredIssuerUri = discovered.metadata.issuer as string | undefined;
+
+      const browserAuthorizationEndpoint = rewriteBrowserEndpoint(
+        discovered.metadata.authorization_endpoint,
+        discoveredIssuerUri,
+        externalIssuerUri
+      );
+      const browserEndSessionEndpoint = rewriteBrowserEndpoint(
+        discovered.metadata.end_session_endpoint as string | undefined,
+        discoveredIssuerUri,
+        externalIssuerUri
+      );
 
       const issuer = new Issuer({
         ...discovered.metadata,
         issuer: externalIssuerUri,
-        authorization_endpoint: discovered.metadata.authorization_endpoint?.replace(internalIssuerUri, externalIssuerUri),
-        end_session_endpoint: (discovered.metadata.end_session_endpoint as string | undefined)?.replace(internalIssuerUri, externalIssuerUri),
+        authorization_endpoint: browserAuthorizationEndpoint,
+        end_session_endpoint: browserEndSessionEndpoint,
       });
 
       oidcClient = new issuer.Client({
@@ -31,6 +65,11 @@ export async function setupAuth(app: Express) {
         response_types: ["code"],
       });
 
+      logger.info(
+        "[OIDC] discovered issuer={} authorization_endpoint={}",
+        discoveredIssuerUri ?? "n/a",
+        browserAuthorizationEndpoint ?? "n/a"
+      );
       logger.info("[OIDC] redirect_uri = {}", REDIRECT_URI);
       isOidcReady = true;
       logger.info("[OIDC] Keycloak ready");
@@ -44,21 +83,21 @@ export async function setupAuth(app: Express) {
 
   const ensureOidcReady = (req: Request, res: Response, next: NextFunction) => {
     if (!isOidcReady || !oidcClient) {
-      if (req.accepts('html')) {
+      if (req.accepts("html")) {
         return res.status(503).send(`
           <html>
             <body style="display:flex;flex-direction:column;align-items:center;justify-content:center;height:100vh;font-family:sans-serif;text-align:center;">
               <img src="/uconnect.svg" style="width:80px;margin-bottom:20px" onerror="this.style.display='none'">
               <div style="width:30px;height:30px;border:3px solid #f3f3f3;border-top:3px solid #3498db;border-radius:50%;animation:spin 1s linear infinite;"></div>
-              <h2 style="margin:20px 0 10px 0;">U-Connect arrive...</h2>
-              <p style="color:#666;">Un petit instant, on prépare votre accès.</p>
+              <h2 style="margin:20px 0 10px 0;">U-Connect is starting...</h2>
+              <p style="color:#666;">Please wait while authentication is prepared.</p>
               <script>setTimeout(() => window.location.reload(), 3000);</script>
               <style>@keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }</style>
             </body>
           </html>
         `);
       }
-      return res.status(503).json({ error: "En cours de démarrage" });
+      return res.status(503).json({ error: "Starting" });
     }
     next();
   };
@@ -75,21 +114,26 @@ export async function setupAuth(app: Express) {
     });
   });
 
-  app.get("/login/oauth2/code/keycloak", ensureOidcReady, async (req, res) => {
+  app.all("/login/oauth2/code/keycloak", ensureOidcReady, async (req, res) => {
     try {
-      const params = oidcClient!.callbackParams(req);
-
-      // session perdue : on affiche une erreur plutôt que de rediriger en boucle
-      if (!req.session.nonce || !req.session.state) {
-        logger.warn("[OIDC] Session lost during callback (missing nonce/state) — check cookie secure/sameSite config");
-        return res.status(400).send("Session perdue. Veuillez réessayer : <a href='/bff/login'>Se connecter</a>");
+      if (req.method !== "GET" && req.method !== "POST") {
+        logger.warn("[OIDC] Unsupported callback method {}", req.method);
+        return res.status(405).send("Unsupported callback method");
       }
 
-      const tokenSet = await oidcClient!.callback(
-        REDIRECT_URI,
-        params,
-        { nonce: req.session.nonce, state: req.session.state }
-      );
+      const callbackInput = req.method === "GET" ? (req.originalUrl || req.url) : req;
+      const params = oidcClient!.callbackParams(callbackInput as any);
+
+      if (!req.session.nonce || !req.session.state) {
+        logger.warn("[OIDC] Session lost during callback (missing nonce/state)");
+        return res.status(400).send("Session lost. Retry: <a href='/bff/login'>Login</a>");
+      }
+
+      const tokenSet = await oidcClient!.callback(REDIRECT_URI, params, {
+        nonce: req.session.nonce,
+        state: req.session.state,
+      });
+
       req.session.tokenSet = tokenSet;
       req.session.userinfo = tokenSet.claims();
       delete (req.session as any).nonce;
@@ -98,13 +142,12 @@ export async function setupAuth(app: Express) {
       req.session.save(() => res.redirect("/"));
     } catch (err) {
       logger.error("[OIDC] Callback error", err as Error);
-      // pas de redirect vers /bff/login pour éviter une boucle infinie
-      res.status(500).send("Erreur d'authentification. <a href='/bff/login'>Réessayer</a>");
+      res.status(500).send("Authentication error. <a href='/bff/login'>Retry</a>");
     }
   });
 
   app.get("/bff/userinfo", (req, res) => {
-    if (!req.session.userinfo) return res.status(401).json({ error: "Non connecté" });
+    if (!req.session.userinfo) return res.status(401).json({ error: "Not authenticated" });
     res.json(req.session.userinfo);
   });
 
@@ -116,7 +159,7 @@ export async function setupAuth(app: Express) {
       if (idToken) {
         const logoutUrl = oidcClient!.endSessionUrl({
           id_token_hint: idToken,
-          post_logout_redirect_uri: LOGOUT_REDIRECT_URI
+          post_logout_redirect_uri: LOGOUT_REDIRECT_URI,
         });
         res.redirect(logoutUrl);
       } else {
@@ -139,7 +182,7 @@ export async function refreshAccessTokenIfNeeded(req: Request): Promise<string |
       logger.debug("[OIDC] Token refreshed sub={}", tokenSet.claims().sub);
       return tokenSet.access_token;
     } catch (err) {
-      logger.warn("[OIDC] Token refresh failed — user will need to re-authenticate");
+      logger.warn("[OIDC] Token refresh failed - user will need to re-authenticate");
       return undefined;
     }
   }
