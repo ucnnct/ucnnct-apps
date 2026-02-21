@@ -19,8 +19,11 @@ public class Message {
     private String conversationId;
     private MessageType type;
     private String senderId;
+    private String groupId;
+    private List<String> receiversId;
     private String targetId;
     private String content;
+    private String objectKey;
     private MessageFormat format = MessageFormat.TEXT;
     private List<String> attachments;
     private MessageStatus status = MessageStatus.SENT;

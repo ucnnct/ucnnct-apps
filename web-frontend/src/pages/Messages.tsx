@@ -1,374 +1,595 @@
-import { useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useSearchParams } from "react-router-dom";
+import { groupApi, type GroupMemberSummary } from "../api/groups";
+import { mediaApi } from "../api/media";
+import { userApi, type UserProfile } from "../api/users";
+import { useAuth } from "../auth/AuthProvider";
 import Layout from "../components/layout/Layout";
 import {
-  Search,
-  MoreHorizontal,
-  Send,
-  Image as ImageIcon,
-  Smile,
-  Paperclip,
-} from "lucide-react";
-import SectionHeader from "../components/common/SectionHeader";
+  ConversationHeader,
+  ConversationListPanel,
+  CreateGroupModal,
+  GroupMembersModal,
+  type GroupMemberViewItem,
+  MessageComposer,
+  MessagesTimeline,
+} from "../components/messages";
+import { toErrorMessage } from "../components/messages/utils";
+import { useAppSocket } from "../realtime/AppSocketProvider";
+import { useMessagesStore } from "../stores/messagesStore";
+import { useNetworkStore } from "../stores/networkStore";
 
-const CONVERSATIONS = [
-  {
-    id: 1,
-    fullName: "Njou Gaby",
-    handle: "@gaby_njou",
-    lastMessage: "On se voit à la bibliothèque pour le projet ?",
-    time: "12m",
-    unread: true,
-    isGroup: false,
-    messages: [
-      {
-        id: 1,
-        sender: "Njou Gaby",
-        text: "Salut Michel, tu as pu regarder les documents pour le projet ?",
-        isOwn: false,
-        time: "14:02",
-      },
-      {
-        id: 2,
-        sender: "Michel Eloka",
-        text: "Oui ! Je viens de finir l'analyse comparative.",
-        isOwn: true,
-        time: "14:05",
-      },
-      {
-        id: 3,
-        sender: "Njou Gaby",
-        text: "On se voit à la bibliothèque pour mettre tout ça en commun ?",
-        isOwn: false,
-        time: "14:06",
-      },
-    ],
-  },
-  {
-    id: 4,
-    fullName: "Projet Hackathon 2026",
-    handle: "Cercle • 5 membres",
-    lastMessage: "Hamza Damouh: J'ai push le front sur Git.",
-    time: "45m",
-    unread: true,
-    isGroup: true,
-    members: ["Njou Gaby", "Hamza Damouh", "Michel Eloka", "Sophie Martin"],
-    messages: [
-      {
-        id: 1,
-        sender: "Njou Gaby",
-        text: "Les gars, on en est où sur la base de données ?",
-        isOwn: false,
-        time: "15:20",
-      },
-      {
-        id: 2,
-        sender: "Hamza Damouh",
-        text: "Tout est clean, j'ai fini les modèles.",
-        isOwn: false,
-        time: "15:25",
-      },
-      {
-        id: 3,
-        sender: "Sophie Martin",
-        text: "Est-ce qu'on a prévu une démo en live ?",
-        isOwn: false,
-        time: "15:28",
-      },
-      {
-        id: 4,
-        sender: "Michel Eloka",
-        text: "Oui Sophie, je m'en occupe demain matin.",
-        isOwn: true,
-        time: "15:30",
-      },
-      {
-        id: 5,
-        sender: "Hamza Damouh",
-        text: "J'ai push le front sur Git.",
-        isOwn: false,
-        time: "15:45",
-      },
-    ],
-  },
-  {
-    id: 2,
-    fullName: "Hamza Damouh",
-    handle: "@hamza_dmh",
-    lastMessage: "Tu as fini l'exercice de maths ?",
-    time: "2h",
-    unread: false,
-    isGroup: false,
-    messages: [
-      {
-        id: 1,
-        sender: "Michel Eloka",
-        text: "Yo Hamza, tu t'en sors sur le chapitre 4 ?",
-        isOwn: true,
-        time: "10:15",
-      },
-      {
-        id: 2,
-        sender: "Hamza Damouh",
-        text: "C'est chaud, je bloque sur la dérivée seconde.",
-        isOwn: false,
-        time: "10:20",
-      },
-      {
-        id: 3,
-        sender: "Hamza Damouh",
-        text: "Tu as fini l'exercice de maths ?",
-        isOwn: false,
-        time: "10:21",
-      },
-    ],
-  },
-  {
-    id: 5,
-    fullName: "BDE - Organisation Soirée",
-    handle: "Cercle • 12 membres",
-    lastMessage: "Jean Dupont: On a loué la sono ?",
-    time: "3h",
-    unread: false,
-    isGroup: true,
-    members: ["Sophie Martin", "Michel Eloka", "Njou Gaby", "Jean Dupont"],
-    messages: [
-      {
-        id: 1,
-        sender: "Sophie Martin",
-        text: "Quelqu'un a contacté le traiteur ?",
-        isOwn: false,
-        time: "09:00",
-      },
-      {
-        id: 2,
-        sender: "Njou Gaby",
-        text: "Je les appelle à midi !",
-        isOwn: false,
-        time: "09:10",
-      },
-      {
-        id: 3,
-        sender: "Michel Eloka",
-        text: "Ok, tiens-nous au courant du devis.",
-        isOwn: true,
-        time: "09:15",
-      },
-      {
-        id: 4,
-        sender: "Jean Dupont",
-        text: "On a loué la sono ?",
-        isOwn: false,
-        time: "11:30",
-      },
-    ],
-  },
-];
+function resolveProfileDisplayName(profile: UserProfile, fallbackUserId: string): string {
+  const fullName = `${profile.firstName ?? ""} ${profile.lastName ?? ""}`.trim();
+  return fullName || profile.email || profile.username || fallbackUserId;
+}
+
+function resolveProfileHandle(profile: UserProfile): string {
+  const username = profile.username ?? "";
+  return username.includes("@") ? `@${profile.email.split("@")[0]}` : `@${username}`;
+}
+
+function toMemberViewItems(
+  members: GroupMemberSummary[],
+  profilesById: Record<string, UserProfile>,
+  presenceByUserId: Record<string, boolean>,
+): GroupMemberViewItem[] {
+  const items = members.map((member) => {
+    const profile = profilesById[member.userId];
+    return {
+      userId: member.userId,
+      role: member.role,
+      displayName: profile
+        ? resolveProfileDisplayName(profile, member.userId)
+        : `Utilisateur ${member.userId.slice(0, 8)}`,
+      handle: profile ? resolveProfileHandle(profile) : `@${member.userId.slice(0, 8)}`,
+      avatarUrl: profile?.avatarUrl ?? null,
+      online: Boolean(presenceByUserId[member.userId]),
+    };
+  });
+
+  const rank: Record<GroupMemberSummary["role"], number> = {
+    OWNER: 0,
+    ADMIN: 1,
+    MEMBER: 2,
+  };
+
+  return items.sort((left, right) => {
+    const roleOrder = rank[left.role] - rank[right.role];
+    if (roleOrder !== 0) {
+      return roleOrder;
+    }
+    return left.displayName.localeCompare(right.displayName, "fr");
+  });
+}
 
 export default function Messages() {
-  const [selectedChat, setSelectedChat] = useState(CONVERSATIONS[0]);
+  const [searchParams, setSearchParams] = useSearchParams();
+  const { user } = useAuth();
+  const { connected: isWsConnected, sendAction } = useAppSocket();
+
+  const [draft, setDraft] = useState("");
+  const [uploadingAttachment, setUploadingAttachment] = useState(false);
+  const [attachmentStatusLabel, setAttachmentStatusLabel] = useState<string | null>(null);
+  const [attachmentError, setAttachmentError] = useState<string | null>(null);
+  const [createGroupOpen, setCreateGroupOpen] = useState(false);
+  const [creatingGroup, setCreatingGroup] = useState(false);
+  const [createGroupError, setCreateGroupError] = useState<string | null>(null);
+  const [membersModalOpen, setMembersModalOpen] = useState(false);
+  const [membersModalLoading, setMembersModalLoading] = useState(false);
+  const [membersModalError, setMembersModalError] = useState<string | null>(null);
+  const [membersModalGroupId, setMembersModalGroupId] = useState<string | null>(null);
+  const [membersModalGroupName, setMembersModalGroupName] = useState("");
+  const [membersModalOwnerId, setMembersModalOwnerId] = useState<string | null>(null);
+  const [membersModalMembers, setMembersModalMembers] = useState<GroupMemberViewItem[]>([]);
+  const [removingMemberIds, setRemovingMemberIds] = useState<Set<string>>(new Set());
+
+  const readAckSentMessageIdsRef = useRef<Set<string>>(new Set());
+
+  const conversations = useMessagesStore((state) => state.conversations);
+  const selectedConversationId = useMessagesStore((state) => state.selectedConversationId);
+  const messagesByConversationId = useMessagesStore((state) => state.messagesByConversationId);
+  const presenceByUserId = useMessagesStore((state) => state.presenceByUserId);
+  const loadingConversations = useMessagesStore((state) => state.loadingConversations);
+  const loadingMessagesByConversationId = useMessagesStore(
+    (state) => state.loadingMessagesByConversationId,
+  );
+  const groupDirectory = useMessagesStore((state) => state.groupDirectory);
+  const error = useMessagesStore((state) => state.error);
+  const bootstrap = useMessagesStore((state) => state.bootstrap);
+  const ensurePeerConversation = useMessagesStore((state) => state.ensurePeerConversation);
+  const upsertGroupConversation = useMessagesStore((state) => state.upsertGroupConversation);
+  const removeGroupConversationParticipant = useMessagesStore(
+    (state) => state.removeGroupConversationParticipant,
+  );
+  const selectConversation = useMessagesStore((state) => state.selectConversation);
+  const reset = useMessagesStore((state) => state.reset);
+
+  const friends = useNetworkStore((state) => state.friends);
+  const loadNetwork = useNetworkStore((state) => state.load);
+
+  useEffect(() => {
+    if (!user) {
+      reset();
+      return;
+    }
+    void bootstrap(user);
+  }, [bootstrap, reset, user]);
+
+  useEffect(() => {
+    if (!user?.sub) {
+      readAckSentMessageIdsRef.current.clear();
+      return;
+    }
+    void loadNetwork(user.sub);
+  }, [loadNetwork, user?.sub]);
+
+  useEffect(() => {
+    if (!user?.sub || loadingConversations) {
+      return;
+    }
+
+    const requestedKind = searchParams.get("kind");
+    const requestedTarget = searchParams.get("target");
+    if (!requestedKind || !requestedTarget) {
+      return;
+    }
+
+    let cancelled = false;
+
+    const syncRequestedConversation = async () => {
+      let requestedConversationId: string | null = null;
+      if (requestedKind === "group") {
+        const groupConversationId = `group:${requestedTarget}`;
+        requestedConversationId = conversations.some(
+          (conversation) => conversation.id === groupConversationId,
+        )
+          ? groupConversationId
+          : null;
+      } else if (requestedKind === "peer") {
+        requestedConversationId = await ensurePeerConversation(user, requestedTarget);
+      }
+
+      if (!requestedConversationId || cancelled) {
+        return;
+      }
+
+      if (selectedConversationId !== requestedConversationId) {
+        await selectConversation(requestedConversationId, user.sub);
+      }
+
+      if (cancelled) {
+        return;
+      }
+
+      const nextParams = new URLSearchParams(searchParams);
+      nextParams.delete("kind");
+      nextParams.delete("target");
+      setSearchParams(nextParams, { replace: true });
+    };
+
+    void syncRequestedConversation();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [
+    conversations,
+    ensurePeerConversation,
+    loadingConversations,
+    searchParams,
+    selectedConversationId,
+    selectConversation,
+    setSearchParams,
+    user,
+  ]);
+
+  const selectedConversation = useMemo(() => {
+    if (conversations.length === 0) {
+      return null;
+    }
+    return (
+      conversations.find((conversation) => conversation.id === selectedConversationId) ??
+      conversations[0]
+    );
+  }, [conversations, selectedConversationId]);
+
+  const selectedMessages = selectedConversation
+    ? messagesByConversationId[selectedConversation.id] ?? []
+    : [];
+  const isLoadingMessages = selectedConversation
+    ? Boolean(loadingMessagesByConversationId[selectedConversation.id])
+    : false;
+
+  const selectedPeerOnline =
+    selectedConversation?.kind === "peer" && selectedConversation.peerUserId
+      ? Boolean(presenceByUserId[selectedConversation.peerUserId])
+      : false;
+
+  const selectedGroupOnlineCount =
+    selectedConversation?.kind === "group"
+      ? selectedConversation.participantIds.filter(
+          (participantId) => participantId !== user?.sub && Boolean(presenceByUserId[participantId]),
+        ).length
+      : 0;
+
+  const canRemoveGroupMembers = Boolean(
+    user?.sub &&
+      (membersModalOwnerId
+        ? membersModalOwnerId === user.sub
+        : selectedConversation?.kind === "group" &&
+          selectedConversation.groupId &&
+          groupDirectory[selectedConversation.groupId]?.ownerId === user.sub),
+  );
+
+  useEffect(() => {
+    if (!membersModalOpen) {
+      return;
+    }
+    setMembersModalMembers((previous) =>
+      previous.map((member) => ({
+        ...member,
+        online: Boolean(presenceByUserId[member.userId]),
+      })),
+    );
+  }, [membersModalOpen, presenceByUserId]);
+
+  useEffect(() => {
+    if (!user?.sub || !isWsConnected || !selectedConversation) {
+      return;
+    }
+
+    const type = selectedConversation.kind === "group" ? "GROUP" : "PRIVATE";
+    const groupId =
+      selectedConversation.kind === "group" && selectedConversation.groupId
+        ? selectedConversation.groupId
+        : undefined;
+
+    for (const message of selectedMessages) {
+      if (
+        message.isOwn ||
+        message.status === "READ" ||
+        readAckSentMessageIdsRef.current.has(message.id)
+      ) {
+        continue;
+      }
+
+      const readAckSent = sendAction("MESSAGE_READ", {
+        messageId: message.id,
+        senderId: message.senderId,
+        type,
+        groupId,
+      });
+
+      if (readAckSent) {
+        readAckSentMessageIdsRef.current.add(message.id);
+      }
+    }
+  }, [isWsConnected, selectedConversation, selectedMessages, sendAction, user?.sub]);
+
+  const handleConversationSelect = (conversationId: string) => {
+    if (!user?.sub) {
+      return;
+    }
+    void selectConversation(conversationId, user.sub);
+  };
+
+  const handleSendMessage = () => {
+    if (!selectedConversation) {
+      return;
+    }
+
+    const content = draft.trim();
+    if (!content) {
+      return;
+    }
+
+    let sent = false;
+    if (selectedConversation.kind === "group" && selectedConversation.groupId) {
+      sent = sendAction("SEND_GROUP_MESSAGE", {
+        groupId: selectedConversation.groupId,
+        content,
+      });
+    } else if (selectedConversation.kind === "peer" && selectedConversation.peerUserId) {
+      sent = sendAction("SEND_PRIVATE_MESSAGE", {
+        receiversId: [selectedConversation.peerUserId],
+        content,
+      });
+    }
+
+    if (sent) {
+      setDraft("");
+    }
+  };
+
+  const sendAttachmentMessage = useCallback(
+    async (file: File) => {
+      if (!selectedConversation) {
+        return;
+      }
+      if (!isWsConnected) {
+        setAttachmentError("WebSocket deconnecte. Reconnecte-toi puis reessaye.");
+        return;
+      }
+
+      setUploadingAttachment(true);
+      setAttachmentStatusLabel("Preparation du fichier...");
+      setAttachmentError(null);
+
+      let objectKey: string | null = null;
+
+      try {
+        setAttachmentStatusLabel("Upload du fichier en cours...");
+        const uploadResponse = await mediaApi.upload(file, "chat");
+        objectKey = uploadResponse.key;
+
+        const payload = {
+          objectKey: uploadResponse.key,
+          content: file.name,
+        };
+
+        let sent = false;
+        setAttachmentStatusLabel("Envoi du message en cours...");
+        if (selectedConversation.kind === "group" && selectedConversation.groupId) {
+          sent = sendAction("SEND_FILE_MESSAGE", {
+            ...payload,
+            groupId: selectedConversation.groupId,
+          });
+        } else if (selectedConversation.kind === "peer" && selectedConversation.peerUserId) {
+          sent = sendAction("SEND_FILE_MESSAGE", {
+            ...payload,
+            receiversId: [selectedConversation.peerUserId],
+          });
+        }
+
+        if (!sent) {
+          throw new Error("Envoi WS impossible. Le fichier n'a pas ete envoye.");
+        }
+      } catch (uploadError) {
+        if (objectKey) {
+          void mediaApi.delete(objectKey).catch(() => undefined);
+        }
+        setAttachmentError(toErrorMessage(uploadError, "Impossible d'envoyer le fichier."));
+      } finally {
+        setUploadingAttachment(false);
+        setAttachmentStatusLabel(null);
+      }
+    },
+    [isWsConnected, selectedConversation, sendAction],
+  );
+
+  const handleCreateGroup = async (payload: {
+    name: string;
+    description: string | null;
+    friendIds: string[];
+  }) => {
+    if (!user?.sub) {
+      return;
+    }
+
+    setCreatingGroup(true);
+    setCreateGroupError(null);
+
+    try {
+      const createdGroup = await groupApi.create({
+        name: payload.name,
+        description: payload.description,
+        type: "PRIVATE",
+      });
+
+      const addResults = await Promise.allSettled(
+        payload.friendIds.map((friendId) =>
+          groupApi.addMember(createdGroup.id, { userId: friendId, role: "MEMBER" }),
+        ),
+      );
+
+      const successfulMemberIds = payload.friendIds.filter(
+        (_friendId, index) => addResults[index].status === "fulfilled",
+      );
+
+      const [canonicalGroup, canonicalMembers] = await Promise.all([
+        groupApi.getById(createdGroup.id).catch(() => ({
+          ...createdGroup,
+          memberCount: Math.max(createdGroup.memberCount, 1 + successfulMemberIds.length),
+        })),
+        groupApi
+          .getMembers(createdGroup.id)
+          .catch(() =>
+            [user.sub, ...successfulMemberIds].map((memberUserId) => ({
+              groupId: createdGroup.id,
+              userId: memberUserId,
+              role: memberUserId === user.sub ? "OWNER" : "MEMBER",
+              joinedAt: new Date().toISOString(),
+            })),
+          ),
+      ]);
+
+      const canonicalParticipantIds = Array.from(
+        new Set(
+          canonicalMembers
+            .map((member) => member.userId)
+            .filter(
+              (memberId): memberId is string =>
+                typeof memberId === "string" && memberId.trim().length > 0,
+            ),
+        ),
+      );
+
+      const groupConversationId = upsertGroupConversation(
+        canonicalGroup,
+        user.sub,
+        canonicalParticipantIds,
+      );
+
+      if (groupConversationId) {
+        await selectConversation(groupConversationId, user.sub);
+      }
+
+      setCreateGroupOpen(false);
+    } catch (createError) {
+      setCreateGroupError(toErrorMessage(createError, "Impossible de creer le groupe."));
+    } finally {
+      setCreatingGroup(false);
+    }
+  };
+
+  const openGroupMembers = useCallback(async () => {
+    if (!user?.sub || !selectedConversation?.groupId) {
+      return;
+    }
+
+    const groupId = selectedConversation.groupId;
+    setMembersModalOpen(true);
+    setMembersModalGroupId(groupId);
+    setMembersModalGroupName(selectedConversation.title);
+    setMembersModalLoading(true);
+    setMembersModalError(null);
+    setRemovingMemberIds(new Set());
+
+    try {
+      const [groupDetails, members] = await Promise.all([
+        groupApi.getById(groupId),
+        groupApi.getMembers(groupId),
+      ]);
+
+      const profileResults = await Promise.allSettled(
+        members.map((member) => userApi.getById(member.userId)),
+      );
+      const profilesById: Record<string, UserProfile> = {};
+      for (const profileResult of profileResults) {
+        if (profileResult.status !== "fulfilled") {
+          continue;
+        }
+        profilesById[profileResult.value.keycloakId] = profileResult.value;
+      }
+
+      setMembersModalOwnerId(groupDetails.ownerId);
+      setMembersModalGroupName(groupDetails.name || selectedConversation.title);
+      setMembersModalMembers(toMemberViewItems(members, profilesById, presenceByUserId));
+    } catch (membersError) {
+      setMembersModalError(
+        toErrorMessage(membersError, "Impossible de charger les membres du groupe."),
+      );
+    } finally {
+      setMembersModalLoading(false);
+    }
+  }, [presenceByUserId, selectedConversation, user?.sub]);
+
+  const handleRemoveGroupMember = useCallback(
+    async (memberUserId: string) => {
+      if (!membersModalGroupId || !user?.sub || !canRemoveGroupMembers) {
+        return;
+      }
+
+      setRemovingMemberIds((previous) => {
+        const next = new Set(previous);
+        next.add(memberUserId);
+        return next;
+      });
+
+      try {
+        await groupApi.removeMember(membersModalGroupId, memberUserId);
+        removeGroupConversationParticipant(membersModalGroupId, memberUserId);
+        setMembersModalMembers((previous) =>
+          previous.filter((member) => member.userId !== memberUserId),
+        );
+      } catch (removeError) {
+        setMembersModalError(
+          toErrorMessage(removeError, "Impossible de retirer ce membre du groupe."),
+        );
+      } finally {
+        setRemovingMemberIds((previous) => {
+          const next = new Set(previous);
+          next.delete(memberUserId);
+          return next;
+        });
+      }
+    },
+    [canRemoveGroupMembers, membersModalGroupId, removeGroupConversationParticipant, user?.sub],
+  );
 
   return (
     <Layout hideSidebarRight>
       <div className="flex h-full bg-white overflow-hidden font-body">
-        <div className="w-[350px] border-r border-secondary-100 flex flex-col h-full bg-white shrink-0">
-          <div className="p-6 border-b border-secondary-100">
-            <h1 className="text-xl font-bold text-primary-900 mb-4 font-display">
-              Messages
-            </h1>
-            <div className="relative group">
-              <Search
-                className="absolute left-3 top-1/2 -translate-y-1/2 text-secondary-300 group-focus-within:text-primary-500 transition-colors"
-                size={16}
-              />
-              <input
-                type="text"
-                placeholder="Rechercher..."
-                className="w-full bg-secondary-50 border border-secondary-100 focus:bg-white focus:border-primary-500 focus:ring-0 rounded-sm py-2 pl-10 pr-4 text-xs font-normal tracking-normal transition-all"
-              />
-            </div>
-          </div>
-
-          <div className="flex-1 overflow-y-auto no-scrollbar">
-            {CONVERSATIONS.map((chat) => (
-              <div
-                key={chat.id}
-                onClick={() => setSelectedChat(chat)}
-                className={`p-4 flex gap-3 cursor-pointer border-l-2 transition-all ${
-                  selectedChat.id === chat.id
-                    ? "bg-primary-50/30 border-primary-500"
-                    : "border-transparent hover:bg-secondary-50"
-                }`}
-              >
-                <div className="w-12 h-12 bg-secondary-100 border border-secondary-200 rounded-sm overflow-hidden shrink-0 flex items-center justify-center">
-                  {chat.isGroup ? (
-                    <GroupAvatar members={chat.members || []} />
-                  ) : (
-                    <img
-                      src={`https://api.dicebear.com/7.x/avataaars/svg?seed=${chat.fullName}`}
-                      alt={chat.fullName}
-                      className="w-full h-full object-cover"
-                    />
-                  )}
-                </div>
-                <div className="flex-1 min-w-0">
-                  <div className="flex justify-between items-start mb-0.5">
-                    <p
-                      className={`text-sm font-semibold truncate ${chat.unread ? "text-primary-900" : "text-secondary-700"}`}
-                    >
-                      {chat.fullName}
-                    </p>
-                    <span className="text-[11px] font-normal text-secondary-400">
-                      {chat.time}
-                    </span>
-                  </div>
-                  <p
-                    className={`text-sm truncate leading-snug ${chat.unread ? "font-semibold text-primary-900" : "font-normal text-secondary-500"}`}
-                  >
-                    {chat.lastMessage}
-                  </p>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
+        <ConversationListPanel
+          conversations={conversations}
+          presenceByUserId={presenceByUserId}
+          activeUserId={user?.sub ?? null}
+          selectedConversationId={selectedConversation?.id ?? null}
+          loadingConversations={loadingConversations}
+          onSelectConversation={handleConversationSelect}
+          onRequestCreateGroup={() => {
+            setCreateGroupError(null);
+            setCreateGroupOpen(true);
+          }}
+        />
 
         <div className="flex-1 flex flex-col h-full bg-white">
-          <div className="h-[73px] px-6 border-b border-secondary-100 flex items-center justify-between bg-white/95 backdrop-blur-sm sticky top-0 z-10 font-display">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 bg-secondary-100 border border-secondary-200 rounded-sm overflow-hidden shrink-0 flex items-center justify-center">
-                {selectedChat.isGroup ? (
-                  <GroupAvatar members={selectedChat.members || []} />
-                ) : (
-                  <img
-                    src={`https://api.dicebear.com/7.x/avataaars/svg?seed=${selectedChat.fullName}`}
-                    alt={selectedChat.fullName}
-                    className="w-full h-full object-cover"
-                  />
-                )}
-              </div>
-              <div>
-                <p className="text-sm font-semibold text-primary-900">
-                  {selectedChat.fullName}
-                </p>
-                <p className="text-[11px] font-normal text-secondary-400">
-                  {selectedChat.isGroup ? selectedChat.handle : "En ligne"}
-                </p>
-              </div>
+          {!selectedConversation ? (
+            <div className="flex-1 flex items-center justify-center text-sm text-secondary-400">
+              Selectionne une conversation pour commencer.
             </div>
-            <button className="text-secondary-400 hover:text-primary-500 transition-colors">
-              <MoreHorizontal size={20} />
-            </button>
-          </div>
-
-          <div className="flex-1 overflow-y-auto p-6 space-y-6 no-scrollbar bg-secondary-50/10">
-            <SectionHeader label="Discussion" />
-
-            <div className="flex flex-col gap-6">
-              {selectedChat.messages.map((msg) => (
-                <MessageBubble
-                  key={msg.id}
-                  sender={msg.sender}
-                  text={msg.text}
-                  isOwn={msg.isOwn}
-                  time={msg.time}
-                />
-              ))}
-            </div>
-          </div>
-
-          <div className="p-6 border-t border-secondary-100 bg-white">
-            <div className="flex items-end gap-2 bg-secondary-50 border border-secondary-100 focus-within:bg-white focus-within:border-primary-500 transition-all rounded-sm p-2">
-              <div className="flex gap-1 mb-1">
-                <button className="p-2 text-secondary-400 hover:text-primary-500 transition-colors">
-                  <ImageIcon size={18} />
-                </button>
-                <button className="p-2 text-secondary-400 hover:text-primary-500 transition-colors">
-                  <Paperclip size={18} />
-                </button>
-                <button className="p-2 text-secondary-400 hover:text-primary-500 transition-colors">
-                  <Smile size={18} />
-                </button>
-              </div>
-              <textarea
-                placeholder="Votre message..."
-                className="flex-1 bg-transparent border-none focus:ring-0 text-sm text-primary-900 placeholder:text-secondary-300 resize-none h-10 py-2 font-normal"
+          ) : (
+            <>
+              <ConversationHeader
+                conversation={selectedConversation}
+                isPeerOnline={selectedPeerOnline}
+                groupOnlineCount={selectedGroupOnlineCount}
+                onRequestOpenGroupMembers={() => void openGroupMembers()}
               />
-              <button className="mb-1 p-2 bg-primary-500 hover:bg-primary-600 text-white rounded-sm transition-all group">
-                <Send
-                  size={18}
-                  className="group-hover:translate-x-0.5 group-hover:-translate-y-0.5 transition-transform"
-                />
-              </button>
-            </div>
-          </div>
+              <MessagesTimeline
+                messages={selectedMessages}
+                isLoadingMessages={isLoadingMessages}
+                error={error}
+              />
+              <MessageComposer
+                draft={draft}
+                isWsConnected={isWsConnected}
+                uploadingAttachment={uploadingAttachment}
+                attachmentStatusLabel={attachmentStatusLabel}
+                attachmentError={attachmentError}
+                onDraftChange={setDraft}
+                onSendMessage={handleSendMessage}
+                onAttachmentSelected={sendAttachmentMessage}
+              />
+            </>
+          )}
         </div>
       </div>
+
+      <CreateGroupModal
+        open={createGroupOpen}
+        friends={friends}
+        submitting={creatingGroup}
+        error={createGroupError}
+        onClose={() => {
+          if (!creatingGroup) {
+            setCreateGroupOpen(false);
+            setCreateGroupError(null);
+          }
+        }}
+        onSubmit={handleCreateGroup}
+      />
+
+      <GroupMembersModal
+        open={membersModalOpen}
+        groupName={membersModalGroupName}
+        members={membersModalMembers}
+        loading={membersModalLoading}
+        error={membersModalError}
+        canRemoveMembers={canRemoveGroupMembers}
+        currentUserId={user?.sub ?? null}
+        removingUserIds={removingMemberIds}
+        onRemoveMember={handleRemoveGroupMember}
+        onClose={() => {
+          setMembersModalOpen(false);
+          setMembersModalError(null);
+          setMembersModalMembers([]);
+          setMembersModalGroupId(null);
+          setMembersModalOwnerId(null);
+          setRemovingMemberIds(new Set());
+        }}
+      />
     </Layout>
-  );
-}
-
-function GroupAvatar({ members }: { members: string[] }) {
-  return (
-    <div className="w-full h-full grid grid-cols-2 grid-rows-2">
-      {members.slice(0, 4).map((name, i) => (
-        <div key={i} className="overflow-hidden border-[0.5px] border-white/20">
-          <img
-            src={`https://api.dicebear.com/7.x/avataaars/svg?seed=${name}`}
-            alt="member"
-            className="w-full h-full object-cover"
-          />
-        </div>
-      ))}
-    </div>
-  );
-}
-
-function MessageBubble({
-  text,
-  sender,
-  isOwn,
-  time,
-}: {
-  text: string;
-  sender: string;
-  isOwn: boolean;
-  time: string;
-}) {
-  return (
-    <div
-      className={`flex ${isOwn ? "justify-end" : "justify-start"} items-end gap-3`}
-    >
-      {!isOwn && (
-        <div className="w-8 h-8 bg-secondary-100 border border-secondary-200 rounded-sm overflow-hidden shrink-0">
-          <img
-            src={`https://api.dicebear.com/7.x/avataaars/svg?seed=${sender}`}
-            alt={sender}
-          />
-        </div>
-      )}
-      <div
-        className={`max-w-[70%] group flex flex-col ${isOwn ? "items-end" : "items-start"}`}
-      >
-        {!isOwn && (
-          <p className="text-[11px] font-semibold text-secondary-400 mb-1 ml-1">
-            {sender}
-          </p>
-        )}
-        <div
-          className={`p-3 rounded-sm border transition-all ${
-            isOwn
-              ? "bg-primary-500 border-primary-600 text-white"
-              : "bg-white border-secondary-100 text-primary-900"
-          }`}
-        >
-          <p className="text-sm font-normal leading-relaxed">{text}</p>
-        </div>
-        <p
-          className={`text-[11px] font-normal text-secondary-300 mt-1`}
-        >
-          {time}
-        </p>
-      </div>
-    </div>
   );
 }

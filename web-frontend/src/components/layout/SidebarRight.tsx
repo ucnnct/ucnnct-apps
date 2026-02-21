@@ -1,38 +1,31 @@
-import { useEffect, useState } from "react";
+import { useEffect, type ReactNode } from "react";
 import { UserPlus, Check, Clock, CalendarDays, BookOpen, Loader2 } from "lucide-react";
 import SectionHeader from "../common/SectionHeader";
 import { useAuth } from "../../auth/AuthProvider";
-import { userApi, type UserProfile } from "../../api/users";
-import { friendApi } from "../../api/friends";
+import { useNetworkStore } from "../../stores/networkStore";
 
 export default function SidebarRight() {
   const { user: authUser } = useAuth();
-  const [suggestions, setSuggestions] = useState<UserProfile[]>([]);
-  const [sentIds, setSentIds] = useState<Set<string>>(new Set());
-  const [loadingSuggestions, setLoadingSuggestions] = useState(true);
+
+  const suggestions = useNetworkStore((state) => state.suggestions);
+  const sentIds = useNetworkStore((state) => state.sentIds);
+  const loadingSuggestions = useNetworkStore((state) => state.loading);
+  const load = useNetworkStore((state) => state.load);
+  const sendRequest = useNetworkStore((state) => state.sendRequest);
 
   useEffect(() => {
-    if (!authUser) return;
-    Promise.all([
-      userApi.getAll(),
-      friendApi.getMyFriends(),
-      friendApi.getSentRequests(),
-      friendApi.getPendingRequests(),
-    ]).then(([allUsers, friends, sent, pending]) => {
-      const friendIds = new Set(friends.map((f) => f.keycloakId));
-      const sentKeycloakIds = new Set(sent.map((s) => s.receiver.keycloakId));
-      const pendingIds = new Set(pending.map((p) => p.requester.keycloakId));
-      const excludeIds = new Set([authUser.sub, ...friendIds, ...sentKeycloakIds, ...pendingIds]);
-      setSuggestions(allUsers.filter((u) => !excludeIds.has(u.keycloakId)).slice(0, 5));
-      setSentIds(sentKeycloakIds);
-    }).catch(() => {}).finally(() => setLoadingSuggestions(false));
-  }, [authUser]);
+    if (!authUser?.sub) {
+      return;
+    }
+    void load(authUser.sub);
+  }, [authUser?.sub, load]);
 
   const handleAddFriend = async (keycloakId: string) => {
     try {
-      await friendApi.sendRequest(keycloakId);
-      setSentIds((prev) => new Set([...prev, keycloakId]));
-    } catch { /* ignore */ }
+      await sendRequest(keycloakId);
+    } catch {
+      // ignore
+    }
   };
 
   return (
@@ -41,16 +34,10 @@ export default function SidebarRight() {
         <div className="bg-primary-50 border border-primary-100 p-4 rounded-sm">
           <div className="flex items-center gap-2 mb-2 text-primary-600">
             <Clock size={12} strokeWidth={3} />
-            <span className="text-[11px] font-medium uppercase tracking-widest">
-              Prochain cours
-            </span>
+            <span className="text-[11px] font-medium uppercase tracking-widest">Prochain cours</span>
           </div>
-          <p className="text-sm font-semibold text-primary-900">
-            Architecture Cloud
-          </p>
-          <p className="text-[11px] font-normal text-primary-500 mt-1 text-right">
-            15:00 Â· Salle D20
-          </p>
+          <p className="text-sm font-semibold text-primary-900">Architecture Cloud</p>
+          <p className="text-[11px] font-normal text-primary-500 mt-1 text-right">15:00 · Salle D20</p>
         </div>
 
         <div className="flex gap-3">
@@ -58,12 +45,8 @@ export default function SidebarRight() {
             <CalendarDays size={14} className="text-accent-500" />
           </div>
           <div>
-            <p className="text-sm font-semibold text-primary-900 leading-tight">
-              Hackathon U-Connect
-            </p>
-            <p className="text-[11px] font-normal text-secondary-400 mt-1">
-              Demain Â· 09:00
-            </p>
+            <p className="text-sm font-semibold text-primary-900 leading-tight">Hackathon U-Connect</p>
+            <p className="text-[11px] font-normal text-secondary-400 mt-1">Demain · 09:00</p>
           </div>
         </div>
 
@@ -72,12 +55,8 @@ export default function SidebarRight() {
             <BookOpen size={14} className="text-success-500" />
           </div>
           <div>
-            <p className="text-sm font-semibold text-primary-900 leading-tight">
-              Rendu Projet Maths
-            </p>
-            <p className="text-[11px] font-normal text-secondary-400 mt-1">
-              Vendredi Â· 23:59
-            </p>
+            <p className="text-sm font-semibold text-primary-900 leading-tight">Rendu Projet Maths</p>
+            <p className="text-[11px] font-normal text-secondary-400 mt-1">Vendredi · 23:59</p>
           </div>
         </div>
       </Panel>
@@ -87,14 +66,12 @@ export default function SidebarRight() {
           { tag: "#STAGE2026", desc: "1.2K posts" },
           { tag: "#CHATGPT", desc: "IA sur le campus" },
           { tag: "#MATHS_HELP", desc: "Entraide active" },
-        ].map((item, i) => (
-          <div key={i} className="group cursor-pointer">
+        ].map((item, index) => (
+          <div key={index} className="group cursor-pointer">
             <p className="text-sm font-semibold text-primary-900 group-hover:text-primary-500 transition-colors">
               {item.tag}
             </p>
-            <p className="text-[11px] font-normal text-secondary-400 mt-1">
-              {item.desc}
-            </p>
+            <p className="text-[11px] font-normal text-secondary-400 mt-1">{item.desc}</p>
           </div>
         ))}
       </Panel>
@@ -105,39 +82,39 @@ export default function SidebarRight() {
             <Loader2 className="w-4 h-4 animate-spin text-secondary-300" />
           </div>
         ) : suggestions.length === 0 ? (
-          <p className="text-[11px] font-normal text-secondary-400">
-            Aucune suggestion
-          </p>
+          <p className="text-[11px] font-normal text-secondary-400">Aucune suggestion</p>
         ) : (
-          suggestions.map((u) => {
-            const fullName = `${u.firstName} ${u.lastName}`.trim();
-            const handle = u.username.includes("@") ? u.firstName || u.email.split("@")[0] : u.username;
-            const alreadySent = sentIds.has(u.keycloakId);
+          suggestions.slice(0, 5).map((user) => {
+            const fullName = `${user.firstName} ${user.lastName}`.trim();
+            const handle = user.username.includes("@")
+              ? user.firstName || user.email.split("@")[0]
+              : user.username;
+            const alreadySent = sentIds.has(user.keycloakId);
+
             return (
               <div
-                key={u.keycloakId}
+                key={user.keycloakId}
                 className="flex items-center justify-between group cursor-pointer py-1 hover:bg-secondary transition-colors rounded-sm"
               >
                 <div className="flex items-center gap-3 min-w-0">
                   <div className="w-8 h-8 avatar-sharp shrink-0">
                     <img
-                      src={u.avatarUrl || `https://api.dicebear.com/7.x/avataaars/svg?seed=${encodeURIComponent(fullName)}`}
+                      src={
+                        user.avatarUrl ||
+                        `https://api.dicebear.com/7.x/avataaars/svg?seed=${encodeURIComponent(fullName)}`
+                      }
                       alt={fullName}
                     />
                   </div>
                   <div className="min-w-0">
-                    <p className="text-sm font-semibold text-primary-900 truncate">
-                      {fullName}
-                    </p>
-                    <p className="text-[11px] font-normal text-secondary-400">
-                      @{handle}
-                    </p>
+                    <p className="text-sm font-semibold text-primary-900 truncate">{fullName}</p>
+                    <p className="text-[11px] font-normal text-secondary-400">@{handle}</p>
                   </div>
                 </div>
                 <button
-                  onClick={() => !alreadySent && handleAddFriend(u.keycloakId)}
+                  onClick={() => !alreadySent && handleAddFriend(user.keycloakId)}
                   className={`shrink-0 transition-colors ${alreadySent ? "text-success-500" : "text-primary-500 hover:text-primary-700"}`}
-                  title={alreadySent ? "Demande envoyÃ©e" : "Ajouter en ami"}
+                  title={alreadySent ? "Demande envoyee" : "Ajouter en ami"}
                 >
                   {alreadySent ? <Check size={16} strokeWidth={3} /> : <UserPlus size={16} strokeWidth={3} />}
                 </button>
@@ -148,9 +125,7 @@ export default function SidebarRight() {
       </Panel>
 
       <footer className="mt-auto px-6 py-4 border-t border-secondary">
-        <p className="text-[11px] font-normal text-secondary-400 leading-relaxed">
-          Â© 2026 U-Connect
-        </p>
+        <p className="text-[11px] font-normal text-secondary-400 leading-relaxed">© 2026 U-Connect</p>
       </footer>
     </aside>
   );
@@ -161,7 +136,7 @@ const Panel = ({
   children,
 }: {
   title?: string;
-  children: React.ReactNode;
+  children: ReactNode;
 }) => {
   return (
     <div className="px-6">
@@ -170,3 +145,4 @@ const Panel = ({
     </div>
   );
 };
+

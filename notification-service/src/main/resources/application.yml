@@ -29,6 +29,12 @@ spring:
       key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
       value-deserializer: org.apache.kafka.common.serialization.StringDeserializer
       auto-offset-reset: earliest
+  security:
+    oauth2:
+      resourceserver:
+        jwt:
+          jwk-set-uri: ${KEYCLOAK_JWKSET_URI:http://localhost:8882/realms/ucnnct/protocol/openid-connect/certs}
+          issuer-uri: ${KEYCLOAK_ISSUER_URI:http://localhost:8882/realms/ucnnct}
   mail:
     host: ${SMTP_HOST:localhost}
     port: ${SMTP_PORT:1025}
@@ -60,6 +66,9 @@ app:
       preview: ${NOTIFICATION_DEFAULT_PREVIEW:Nouveau message}
       sender-name: ${NOTIFICATION_DEFAULT_SENDER_NAME:Quelqu'un}
       group-name: ${NOTIFICATION_DEFAULT_GROUP_NAME:Groupe}
+      app-url: ${NOTIFICATION_APP_URL:https://localhost:5443/}
+      cta-label: ${NOTIFICATION_EMAIL_CTA_LABEL:Ouvrir UConnect}
+      logo-cid: ${NOTIFICATION_EMAIL_LOGO_CID:uconnect-logo}
       email-template-directory: ${NOTIFICATION_EMAIL_TEMPLATE_DIRECTORY:templates/email/}
       headline-placeholder: "{{headline}}"
       preview-placeholder: "{{preview}}"
@@ -73,10 +82,42 @@ app:
       email-template-file: ${NOTIFICATION_GROUP_EMAIL_TEMPLATE:group_message.html}
       in-app-pattern: "{sender} a envoye un message dans {group}{previewSuffix}"
       email-headline-pattern: "{sender} a envoye un nouveau message dans {group}."
+    group-member-added:
+      email-subject-base: ${NOTIFICATION_GROUP_MEMBER_ADDED_EMAIL_SUBJECT:Ajout dans un groupe}
+      email-template-file: ${NOTIFICATION_GROUP_MEMBER_ADDED_EMAIL_TEMPLATE:group_member_added.html}
+      in-app-pattern: "{actor} vous a ajoute au groupe {group}."
+      email-headline-pattern: "{actor} vous a ajoute au groupe {group}."
+    group-deleted:
+      email-subject-base: ${NOTIFICATION_GROUP_DELETED_EMAIL_SUBJECT:Suppression de groupe}
+      email-template-file: ${NOTIFICATION_GROUP_DELETED_EMAIL_TEMPLATE:group_deleted.html}
+      in-app-pattern: "{actor} a supprime le groupe {group}."
+      email-headline-pattern: "{actor} a supprime le groupe {group}."
+    friend-request:
+      email-subject-base: ${NOTIFICATION_FRIEND_REQUEST_EMAIL_SUBJECT:Nouvelle demande d'ami}
+      email-template-file: ${NOTIFICATION_FRIEND_REQUEST_EMAIL_TEMPLATE:friend_request.html}
+      in-app-pattern: "{actor} vous a envoye une demande d'ami."
+      email-headline-pattern: "{actor} vous a envoye une demande d'ami."
+    friend-accepted:
+      email-subject-base: ${NOTIFICATION_FRIEND_ACCEPTED_EMAIL_SUBJECT:Demande d'ami acceptee}
+      email-template-file: ${NOTIFICATION_FRIEND_ACCEPTED_EMAIL_TEMPLATE:friend_accepted.html}
+      in-app-pattern: "{actor} a accepte votre demande d'ami."
+      email-headline-pattern: "{actor} a accepte votre demande d'ami."
+    friend-rejected:
+      email-subject-base: ${NOTIFICATION_FRIEND_REJECTED_EMAIL_SUBJECT:Demande d'ami refusee}
+      email-template-file: ${NOTIFICATION_FRIEND_REJECTED_EMAIL_TEMPLATE:friend_rejected.html}
+      in-app-pattern: "{actor} a refuse votre demande d'ami."
+      email-headline-pattern: "{actor} a refuse votre demande d'ami."
+    friend-removed:
+      email-subject-base: ${NOTIFICATION_FRIEND_REMOVED_EMAIL_SUBJECT:Amitie terminee}
+      email-template-file: ${NOTIFICATION_FRIEND_REMOVED_EMAIL_TEMPLATE:friend_removed.html}
+      in-app-pattern: "{actor} vous a retire de ses amis."
+      email-headline-pattern: "{actor} vous a retire de ses amis."
   email:
     from: ${NOTIFICATION_EMAIL_FROM:no-reply@uconnect.cc}
     subject-prefix: ${NOTIFICATION_EMAIL_SUBJECT_PREFIX:[UConnect]}
   kafka:
     topics:
       messages-persisted: ${WS_KAFKA_TOPIC_MESSAGES:message.persisted}
+      friend-events: ${WS_KAFKA_TOPIC_FRIEND_EVENTS:friend.event}
+      group-events: ${WS_KAFKA_TOPIC_GROUP_EVENTS:group.event}
       in-app-notifications: ${WS_KAFKA_TOPIC_INAPP_NOTIFICATIONS:inapp.notification}

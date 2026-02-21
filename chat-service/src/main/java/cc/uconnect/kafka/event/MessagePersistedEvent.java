@@ -1,16 +1,23 @@
 package cc.uconnect.kafka.event;
 
 import lombok.AllArgsConstructor;
+import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
+import java.util.List;
+
 @Data
+@Builder
 @NoArgsConstructor
 @AllArgsConstructor
 public class MessagePersistedEvent {
     private String messageId;
+    private String type;
     private String senderId;
-    private String targetId;
-    private String conversationId;
-    private long createdAt;
+    private String groupId;
+    private List<String> receiversId;
+    private String content;
+    private String objectKey;
+    private String status;
 }

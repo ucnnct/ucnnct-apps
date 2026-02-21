@@ -9,7 +9,8 @@ public enum WsInboundActionType {
     SEND_FILE_MESSAGE,
     MESSAGE_RECEIVED,
     MESSAGE_READ,
-    UPDATE_ACTIVE_CONTEXT;
+    UPDATE_ACTIVE_CONTEXT,
+    PRESENCE_SUBSCRIBE;
 
     public static Optional<WsInboundActionType> from(String rawValue) {
         if (rawValue == null || rawValue.isBlank()) {

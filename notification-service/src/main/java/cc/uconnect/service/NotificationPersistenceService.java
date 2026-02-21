@@ -5,9 +5,9 @@ import cc.uconnect.enums.NotificationStatus;
 import cc.uconnect.model.Message;
 import cc.uconnect.model.Notification;
 import cc.uconnect.model.NotificationEntity;
-import cc.uconnect.repository.NotificationRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.log4j.Log4j2;
+import org.springframework.data.r2dbc.core.R2dbcEntityTemplate;
 import org.springframework.stereotype.Service;
 import reactor.core.publisher.Mono;
 
@@ -19,7 +19,7 @@ import java.util.UUID;
 @RequiredArgsConstructor
 public class NotificationPersistenceService {
 
-    private final NotificationRepository notificationRepository;
+    private final R2dbcEntityTemplate entityTemplate;
 
     public Mono<Notification> persist(Notification notification,
                                       NotificationDecisionType decisionType,
@@ -36,7 +36,8 @@ public class NotificationPersistenceService {
         }
 
         NotificationEntity entity = toEntity(notification, decisionType, message, ownerUserId);
-        return notificationRepository.save(entity)
+        return entityTemplate.insert(NotificationEntity.class)
+                .using(entity)
                 .doOnSuccess(saved -> log.debug(
                         "Notification persisted notificationId={} ownerUserId={} targetId={} messageId={} decision={} status={}",
                         saved.getNotificationId(),

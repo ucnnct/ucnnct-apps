@@ -4,6 +4,7 @@ import {
   Bell,
   MessageSquare,
   Users,
+  UserPlus,
   Bookmark,
   User,
 } from "lucide-react";
@@ -56,6 +57,12 @@ export default function SidebarLeft() {
                 icon={<Users size={20} />}
                 label="Mes Cercles"
                 active={location.pathname === "/cercles"}
+              />
+              <SidebarLink
+                to="/friend-requests"
+                icon={<UserPlus size={20} />}
+                label="Demandes d'amis"
+                active={location.pathname === "/friend-requests"}
               />
               <SidebarLink
                 to="/ressources"

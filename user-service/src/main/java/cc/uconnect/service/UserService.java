@@ -17,6 +17,7 @@ import java.util.List;
 public class UserService {
 
     private final UserRepository userRepository;
+    private final UserDirectoryCacheService userDirectoryCacheService;
 
     public User getByKeycloakId(String keycloakId) {
         return userRepository.findById(keycloakId)
@@ -36,6 +37,7 @@ public class UserService {
         if (request.getFieldOfStudy() != null) user.setFieldOfStudy(request.getFieldOfStudy());
         if (request.getYearOfStudy() != null) user.setYearOfStudy(request.getYearOfStudy());
         User saved = userRepository.save(user);
+        userDirectoryCacheService.syncUser(saved);
         log.info("Profile updated userId={}", keycloakId);
         return saved;
     }

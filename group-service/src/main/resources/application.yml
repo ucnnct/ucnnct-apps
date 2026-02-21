@@ -1,6 +1,11 @@
 spring:
   application:
     name: group-service
+  data:
+    redis:
+      host: ${REDIS_HOST:localhost}
+      port: ${REDIS_PORT:6379}
+      password: ${REDIS_PASSWORD:}
   datasource:
     url: jdbc:postgresql://${DB_HOST:localhost}:${DB_PORT:5432}/${DB_NAME:groupdb}
     username: ${DB_USER:groupservice}
@@ -15,9 +20,12 @@ spring:
       group-id: group-service
       auto-offset-reset: earliest
       key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
-      value-deserializer: org.springframework.kafka.support.serializer.JsonDeserializer
+      value-deserializer: org.springframework.kafka.support.serializer.ErrorHandlingDeserializer
       properties:
+        spring.deserializer.value.delegate.class: org.springframework.kafka.support.serializer.JsonDeserializer
         spring.json.trusted.packages: "cc.uconnect.kafka.event"
+        spring.json.use.type.headers: false
+        spring.json.value.default.type: cc.uconnect.kafka.event.GroupResolveEvent
     producer:
       key-serializer: org.apache.kafka.common.serialization.StringSerializer
       value-serializer: org.springframework.kafka.support.serializer.JsonSerializer
@@ -30,3 +38,13 @@ spring:
 
 server:
   port: 8085
+
+app:
+  directory:
+    group-key-prefix: ${DIRECTORY_GROUP_KEY_PREFIX:directory:group:}
+  kafka:
+    topics:
+      group-events: ${WS_KAFKA_TOPIC_GROUP_EVENTS:group.event}
+      group-resolve: ${WS_KAFKA_TOPIC_GROUP_RESOLVE:group.message}
+      group-resolve-legacy: ${GROUP_LEGACY_RESOLVE_TOPIC:group.resolve}
+      group-resolved: ${WS_KAFKA_TOPIC_GROUP_RESOLVED:group.resolved}

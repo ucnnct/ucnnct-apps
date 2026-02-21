@@ -5,12 +5,20 @@ spring:
     url: jdbc:postgresql://${DB_HOST:localhost}:${DB_PORT:5432}/${DB_NAME:userdb}
     username: ${DB_USER:userservice}
     password: ${DB_PASSWORD:password}
+  data:
+    redis:
+      host: ${REDIS_HOST:localhost}
+      port: ${REDIS_PORT:6379}
+      password: ${REDIS_PASSWORD:}
   jpa:
     hibernate:
       ddl-auto: update
     open-in-view: false
   kafka:
     bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:localhost:9092}
+    producer:
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+      value-serializer: org.apache.kafka.common.serialization.StringSerializer
     consumer:
       group-id: user-service
       auto-offset-reset: earliest
@@ -26,3 +34,10 @@ spring:
 
 server:
   port: 8082
+
+app:
+  directory:
+    user-key-prefix: ${DIRECTORY_USER_KEY_PREFIX:directory:user:}
+  kafka:
+    topics:
+      friend-events: ${WS_KAFKA_TOPIC_FRIEND_EVENTS:friend.event}

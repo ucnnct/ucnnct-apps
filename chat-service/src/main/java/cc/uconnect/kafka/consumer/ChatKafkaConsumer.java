@@ -1,12 +1,13 @@
 package cc.uconnect.kafka.consumer;
 
 import cc.uconnect.kafka.event.MessagePersistedEvent;
-import cc.uconnect.kafka.event.MessageReadConfirmedEvent;
-import cc.uconnect.kafka.event.MessageReadEvent;
+import cc.uconnect.kafka.event.MessageStatusUpdateEvent;
 import cc.uconnect.kafka.event.SendMessageEvent;
 import cc.uconnect.kafka.producer.ChatKafkaProducer;
 import cc.uconnect.model.Message;
+import cc.uconnect.model.MessageType;
 import cc.uconnect.service.MessageService;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.kafka.annotation.KafkaListener;
@@ -17,48 +18,73 @@ import org.springframework.stereotype.Component;
 @Slf4j
 public class ChatKafkaConsumer {
 
+    private static final String OUTBOUND_TYPE_GROUP = "GROUP";
+    private static final String OUTBOUND_TYPE_PRIVATE = "PRIVATE";
+
+    private final ObjectMapper objectMapper;
     private final MessageService messageService;
     private final ChatKafkaProducer producer;
 
-    @KafkaListener(topics = "message.send", groupId = "chat-service",
-                   containerFactory = "kafkaListenerContainerFactory")
-    public void onMessageSend(SendMessageEvent event) {
-        log.debug("Received message.send conversationId={} senderId={}", event.getConversationId(), event.getSenderId());
+    @KafkaListener(
+            topics = "${app.kafka.topics.chat-messages:message.send}",
+            groupId = "${spring.kafka.consumer.group-id:chat-service}",
+            containerFactory = "kafkaListenerContainerFactory"
+    )
+    public void onMessageSend(String rawPayload) {
         try {
-            Message saved = messageService.persistFromKafka(event);
-            log.debug("Message persisted messageId={} conversationId={}", saved.getId(), saved.getConversationId());
+            SendMessageEvent event = objectMapper.readValue(rawPayload, SendMessageEvent.class);
+            log.debug("Received message.send messageId={} senderId={} type={} groupId={}",
+                    event.getMessageId(),
+                    event.getSenderId(),
+                    event.getType(),
+                    event.getGroupId());
 
-            MessagePersistedEvent persisted = new MessagePersistedEvent(
-                    saved.getId(),
-                    saved.getSenderId(),
-                    saved.getTargetId(),
-                    saved.getConversationId(),
-                    saved.getCreatedAt().toEpochMilli()
-            );
-            producer.publishMessagePersisted(persisted);
+            Message saved = messageService.persistFromKafka(event);
+            MessagePersistedEvent persistedEvent = toPersistedEvent(saved);
+            producer.publishMessagePersisted(persistedEvent);
         } catch (Exception e) {
-            log.error("Failed to persist message senderId={} conversationId={}", event.getSenderId(), event.getConversationId(), e);
+            log.error("Failed to persist message from Kafka payload={}", rawPayload, e);
         }
     }
 
-    @KafkaListener(topics = "message.read", groupId = "chat-service",
-                   containerFactory = "kafkaListenerContainerFactory")
-    public void onMessageRead(MessageReadEvent event) {
-        log.debug("Received message.read messageId={} readerId={}", event.getMessageId(), event.getReaderId());
+    @KafkaListener(
+            topics = {
+                    "${app.kafka.topics.message-status-updates:message.status.update}",
+                    "${app.kafka.topics.message-read-legacy:message.read}"
+            },
+            groupId = "${spring.kafka.consumer.group-id:chat-service}",
+            containerFactory = "kafkaListenerContainerFactory"
+    )
+    public void onMessageStatusUpdate(String rawPayload) {
         try {
-            Message updated = messageService.markReadFromKafka(event.getMessageId(), event.getReaderId());
-
-            MessageReadConfirmedEvent confirmed = new MessageReadConfirmedEvent(
-                    updated.getId(),
-                    event.getReaderId(),
-                    updated.getSenderId()
-            );
-            producer.publishMessageReadConfirmed(confirmed);
-            log.debug("Read confirmed messageId={} senderId={}", updated.getId(), updated.getSenderId());
-        } catch (org.springframework.web.server.ResponseStatusException e) {
-            log.warn("Cannot mark message as read messageId={} readerId={}: {}", event.getMessageId(), event.getReaderId(), e.getReason());
+            MessageStatusUpdateEvent event = objectMapper.readValue(rawPayload, MessageStatusUpdateEvent.class);
+            log.debug("Received message status update messageId={} status={} senderId={}",
+                    event.getMessageId(),
+                    event.getStatus(),
+                    event.getSenderId());
+            messageService.updateStatusFromKafka(event);
         } catch (Exception e) {
-            log.error("Failed to mark message read messageId={} readerId={}", event.getMessageId(), event.getReaderId(), e);
+            log.error("Failed to process message status update payload={}", rawPayload, e);
         }
+    }
+
+    private MessagePersistedEvent toPersistedEvent(Message message) {
+        return MessagePersistedEvent.builder()
+                .messageId(message.getId())
+                .type(resolveOutboundType(message))
+                .senderId(message.getSenderId())
+                .groupId(message.getGroupId())
+                .receiversId(message.getReceiversId())
+                .content(message.getContent())
+                .objectKey(message.getObjectKey())
+                .status(message.getStatus() == null ? null : message.getStatus().name())
+                .build();
+    }
+
+    private String resolveOutboundType(Message message) {
+        if (message.getType() == MessageType.GROUP || (message.getGroupId() != null && !message.getGroupId().isBlank())) {
+            return OUTBOUND_TYPE_GROUP;
+        }
+        return OUTBOUND_TYPE_PRIVATE;
     }
 }

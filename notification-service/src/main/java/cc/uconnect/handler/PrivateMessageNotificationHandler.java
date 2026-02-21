@@ -29,13 +29,16 @@ public class PrivateMessageNotificationHandler extends AbstractMessageNotificati
         String senderName = resolveSenderName(context);
         String preview = buildContentPreview(message);
         String previewSuffix = defaultPreview().equals(preview) ? "." : ": \"" + preview + "\"";
+        String targetId = message != null && message.getSenderId() != null && !message.getSenderId().isBlank()
+                ? message.getSenderId()
+                : targetUserId;
         String content = resolveInAppContent(
                 privateMessageProperties().getInAppPattern(),
                 senderName,
                 "",
                 previewSuffix);
         return buildNotification(
-                targetUserId,
+                targetId,
                 NotificationCategory.PRIVATE_MESSAGE_IN_APP,
                 content);
     }
