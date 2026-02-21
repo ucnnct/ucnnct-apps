@@ -30,6 +30,27 @@ function rewriteBrowserEndpoint(
   }
 }
 
+function normalizeIssuerParam(
+  callbackIssuer: string | undefined,
+  externalIssuerUri: string
+): string | undefined {
+  if (!callbackIssuer) return callbackIssuer;
+
+  try {
+    const callback = new URL(callbackIssuer);
+    const external = new URL(externalIssuerUri);
+    const sameHost = callback.host === external.host;
+    const samePath = callback.pathname === external.pathname;
+    if (sameHost && samePath && callback.protocol !== external.protocol) {
+      return externalIssuerUri;
+    }
+  } catch {
+    // Keep original value if parsing fails.
+  }
+
+  return callbackIssuer;
+}
+
 export async function setupAuth(app: Express) {
   const internalIssuerUri = process.env.KEYCLOAK_ISSUER_URI || "http://keycloak:8080/realms/ucnnct";
   const externalIssuerUri = process.env.KEYCLOAK_EXTERNAL_URI || "http://localhost:8882/realms/ucnnct";
@@ -122,7 +143,13 @@ export async function setupAuth(app: Express) {
       }
 
       const callbackInput = req.method === "GET" ? (req.originalUrl || req.url) : req;
-      const params = oidcClient!.callbackParams(callbackInput as any);
+      const params = oidcClient!.callbackParams(callbackInput as any) as Record<string, unknown>;
+      const callbackIssuer = typeof params.iss === "string" ? params.iss : undefined;
+      const normalizedIssuer = normalizeIssuerParam(callbackIssuer, externalIssuerUri);
+      if (callbackIssuer && normalizedIssuer && callbackIssuer !== normalizedIssuer) {
+        logger.warn("[OIDC] Rewriting callback iss from {} to {}", callbackIssuer, normalizedIssuer);
+        params.iss = normalizedIssuer;
+      }
 
       if (!req.session.nonce || !req.session.state) {
         logger.warn("[OIDC] Session lost during callback (missing nonce/state)");
