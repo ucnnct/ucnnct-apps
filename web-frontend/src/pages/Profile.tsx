@@ -15,6 +15,7 @@ import {
   Plus,
   UserPlus,
   UserMinus,
+  MessageCircle,
   Check,
   Loader2,
   X,
@@ -24,9 +25,9 @@ import {
 import SectionHeader from "../components/common/SectionHeader";
 import { useAuth } from "../auth/AuthProvider";
 import { userApi, type UserProfile } from "../api/users";
-import { friendApi } from "../api/friends";
 import { projectApi, type Project, type ProjectRequest } from "../api/projects";
 import { mediaApi } from "../api/media";
+import { useNetworkStore } from "../stores/networkStore";
 
 type FriendStatus = "none" | "friends" | "pending_sent" | "pending_received";
 
@@ -34,7 +35,6 @@ export default function Profile() {
   const { id } = useParams<{ id: string }>();
   const [activeTab, setActiveTab] = useState("posts");
   const [profile, setProfile] = useState<UserProfile | null>(null);
-  const [friendCount, setFriendCount] = useState(0);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [friendStatus, setFriendStatus] = useState<FriendStatus>("none");
@@ -46,8 +46,16 @@ export default function Profile() {
   const [uploadingProjectImage, setUploadingProjectImage] = useState(false);
   const [projectImagePreview, setProjectImagePreview] = useState<string | null>(null);
   const { user: authUser } = useAuth();
+  const friends = useNetworkStore((state) => state.friends);
+  const sentRequests = useNetworkStore((state) => state.sent);
+  const receivedRequests = useNetworkStore((state) => state.received);
+  const loadNetwork = useNetworkStore((state) => state.load);
+  const sendFriendRequest = useNetworkStore((state) => state.sendRequest);
+  const acceptFriendRequest = useNetworkStore((state) => state.acceptRequest);
+  const removeFriend = useNetworkStore((state) => state.removeFriend);
 
   const isOwnProfile = !id || id === authUser?.sub;
+  const friendCount = friends.length;
 
   useEffect(() => {
     setLoading(true);
@@ -56,10 +64,7 @@ export default function Profile() {
     if (isOwnProfile) {
       userApi.getMe().then((user) => {
         setProfile(user);
-        return Promise.all([
-          friendApi.getCount().then((c) => setFriendCount(c.count)).catch(() => {}),
-          projectApi.getMine().then(setProjects).catch(() => {}),
-        ]);
+        return projectApi.getMine().then(setProjects).catch(() => {});
       }).catch((err) => {
         console.error("Profile load error:", err);
         setError(err.message);
@@ -67,42 +72,54 @@ export default function Profile() {
     } else {
       userApi.getById(id!).then((user) => {
         setProfile(user);
-        return Promise.all([
-          friendApi.getMyFriends(),
-          friendApi.getSentRequests(),
-          friendApi.getPendingRequests(),
-          projectApi.getByUser(id!).then(setProjects).catch(() => {}),
-        ]).then(([friends, sent, pending]) => {
-          if (friends.some((f) => f.keycloakId === id)) {
-            setFriendStatus("friends");
-          } else if (sent.some((s) => s.receiver.keycloakId === id)) {
-            setFriendStatus("pending_sent");
-          } else if (pending.some((p) => p.requester.keycloakId === id)) {
-            setFriendStatus("pending_received");
-          } else {
-            setFriendStatus("none");
-          }
-        }).catch(() => {});
+        return projectApi.getByUser(id!).then(setProjects).catch(() => {});
       }).catch((err) => {
         console.error("Profile load error:", err);
         setError(err.message);
       }).finally(() => setLoading(false));
     }
-  }, [id]);
+  }, [id, isOwnProfile]);
+
+  useEffect(() => {
+    if (!authUser?.sub) {
+      return;
+    }
+    void loadNetwork(authUser.sub);
+  }, [authUser?.sub, loadNetwork]);
+
+  useEffect(() => {
+    if (isOwnProfile || !id || !authUser?.sub) {
+      return;
+    }
+
+    if (friends.some((friend) => friend.keycloakId === id)) {
+      setFriendStatus("friends");
+      return;
+    }
+
+    if (sentRequests.some((request) => request.receiver.keycloakId === id)) {
+      setFriendStatus("pending_sent");
+      return;
+    }
+
+    if (receivedRequests.some((request) => request.requester.keycloakId === id)) {
+      setFriendStatus("pending_received");
+      return;
+    }
+
+    setFriendStatus("none");
+  }, [authUser?.sub, friends, id, isOwnProfile, receivedRequests, sentRequests]);
 
   const handleFriendAction = async (action: "add" | "accept" | "remove") => {
-    if (!id) return;
+    if (!id || !authUser?.sub) return;
     setActionLoading(true);
     try {
       if (action === "add") {
-        await friendApi.sendRequest(id);
-        setFriendStatus("pending_sent");
+        await sendFriendRequest(id);
       } else if (action === "accept") {
-        await friendApi.accept(id);
-        setFriendStatus("friends");
+        await acceptFriendRequest(id, authUser.sub);
       } else {
-        await friendApi.remove(id);
-        setFriendStatus("none");
+        await removeFriend(id, authUser.sub);
       }
     } catch { /* ignore */ }
     setActionLoading(false);
@@ -268,14 +285,23 @@ export default function Profile() {
                     </button>
                   )}
                   {friendStatus === "friends" && (
-                    <button
-                      onClick={() => handleFriendAction("remove")}
-                      disabled={actionLoading}
-                      className="flex items-center gap-2 px-6 py-2 border border-red-200 text-red-500 hover:bg-red-50 font-medium text-xs uppercase tracking-wide rounded-sm transition-all active:scale-95 disabled:opacity-50"
-                    >
-                      <UserMinus size={14} strokeWidth={3} />
-                      RETIRER DES AMIS
-                    </button>
+                    <>
+                      <Link
+                        to={id ? `/messages?kind=peer&target=${encodeURIComponent(id)}` : "/messages"}
+                        className="flex items-center gap-2 px-6 py-2 border border-secondary-200 hover:bg-secondary-50 text-primary-900 font-medium text-xs uppercase tracking-wide rounded-sm transition-all active:scale-95"
+                      >
+                        <MessageCircle size={14} strokeWidth={3} />
+                        ENVOYER MESSAGE
+                      </Link>
+                      <button
+                        onClick={() => handleFriendAction("remove")}
+                        disabled={actionLoading}
+                        className="flex items-center gap-2 px-6 py-2 border border-red-200 text-red-500 hover:bg-red-50 font-medium text-xs uppercase tracking-wide rounded-sm transition-all active:scale-95 disabled:opacity-50"
+                      >
+                        <UserMinus size={14} strokeWidth={3} />
+                        RETIRER DES AMIS
+                      </button>
+                    </>
                   )}
                 </>
               )}
@@ -532,7 +558,14 @@ function InfoItem({
   );
 }
 
-function ProfileTab({ active, onClick, icon, label }: any) {
+interface ProfileTabProps {
+  active: boolean;
+  onClick: () => void;
+  icon: React.ReactNode;
+  label: string;
+}
+
+function ProfileTab({ active, onClick, icon, label }: ProfileTabProps) {
   return (
     <button
       onClick={onClick}

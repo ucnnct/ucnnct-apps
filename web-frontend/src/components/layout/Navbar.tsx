@@ -1,11 +1,28 @@
 import { useEffect, useRef, useState } from "react";
 import { Bell, Menu, X, Search, LogOut, Loader2 } from "lucide-react";
 import { useAuth } from "../../auth/AuthProvider";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { useUserSearchStore } from "../../stores/userSearchStore";
+import { useNotificationsStore } from "../../stores/notificationsStore";
+import { buildNotificationDestination } from "../../notifications/navigation";
+
+function formatNotificationDate(epochMillis: number | null): string {
+  if (!epochMillis) {
+    return "";
+  }
+  const date = new Date(epochMillis);
+  return new Intl.DateTimeFormat("fr-FR", {
+    day: "2-digit",
+    month: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+  }).format(date);
+}
 
 export default function Navbar() {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const [isNotificationsOpen, setIsNotificationsOpen] = useState(false);
+  const navigate = useNavigate();
   const { user, logout } = useAuth();
 
   const query = useUserSearchStore((state) => state.query);
@@ -16,8 +33,16 @@ export default function Navbar() {
   const setShowResults = useUserSearchStore((state) => state.setShowResults);
   const clear = useUserSearchStore((state) => state.clear);
   const search = useUserSearchStore((state) => state.search);
+  const notifications = useNotificationsStore((state) => state.items);
+  const unreadCount = useNotificationsStore((state) => state.unreadCount);
+  const notificationsLoading = useNotificationsStore((state) => state.loading);
+  const bootstrapNotifications = useNotificationsStore((state) => state.bootstrap);
+  const markNotificationAsRead = useNotificationsStore((state) => state.markAsRead);
+  const markAllNotificationsAsRead = useNotificationsStore((state) => state.markAllAsRead);
+  const resetNotifications = useNotificationsStore((state) => state.reset);
 
   const searchRef = useRef<HTMLDivElement>(null);
+  const notificationsRef = useRef<HTMLDivElement>(null);
   const debounceRef = useRef<ReturnType<typeof setTimeout>>(undefined);
 
   const displayName = user?.shortHandle ?? "User";
@@ -26,6 +51,9 @@ export default function Navbar() {
     const handleClickOutside = (e: MouseEvent) => {
       if (searchRef.current && !searchRef.current.contains(e.target as Node)) {
         setShowResults(false);
+      }
+      if (notificationsRef.current && !notificationsRef.current.contains(e.target as Node)) {
+        setIsNotificationsOpen(false);
       }
     };
 
@@ -37,6 +65,14 @@ export default function Navbar() {
       }
     };
   }, [setShowResults]);
+
+  useEffect(() => {
+    if (!user?.sub) {
+      resetNotifications();
+      return;
+    }
+    void bootstrapNotifications(user.sub);
+  }, [bootstrapNotifications, resetNotifications, user?.sub]);
 
   const handleSearch = (value: string) => {
     setQuery(value);
@@ -53,6 +89,18 @@ export default function Navbar() {
     debounceRef.current = setTimeout(() => {
       void search(value);
     }, 300);
+  };
+
+  const handleNotificationClick = async (
+    notificationId: string,
+    isRead: boolean,
+    destination: string,
+  ) => {
+    if (user?.sub && !isRead) {
+      await markNotificationAsRead(user.sub, notificationId);
+    }
+    setIsNotificationsOpen(false);
+    navigate(destination);
   };
 
   return (
@@ -128,10 +176,77 @@ export default function Navbar() {
         </div>
 
         <div className="flex items-center gap-6 justify-end w-[240px]">
-          <button className="relative p-1 text-secondary-400 hover:text-primary-500 transition-colors">
-            <Bell size={20} />
-            <span className="absolute -top-0.5 -right-0.5 w-2 h-2 bg-primary-500 rounded-full border-2 border-white"></span>
-          </button>
+          <div className="relative" ref={notificationsRef}>
+            <button
+              onClick={() => setIsNotificationsOpen((open) => !open)}
+              className="relative p-1 text-secondary-400 hover:text-primary-500 transition-colors"
+            >
+              <Bell size={20} />
+              {unreadCount > 0 && (
+                <span className="absolute -top-2 -right-2 min-w-4 h-4 px-1 rounded-full bg-primary-500 text-white text-[10px] leading-4 text-center border border-white">
+                  {unreadCount > 99 ? "99+" : unreadCount}
+                </span>
+              )}
+            </button>
+
+            {isNotificationsOpen && (
+              <div className="absolute right-0 mt-2 w-[360px] bg-white border border-secondary-100 rounded-sm shadow-lg z-50 overflow-hidden">
+                <div className="flex items-center justify-between px-4 py-3 border-b border-secondary-100">
+                  <p className="text-sm font-semibold text-primary-900">Notifications</p>
+                  <button
+                    disabled={!user?.sub || unreadCount === 0}
+                    onClick={() => user?.sub && void markAllNotificationsAsRead(user.sub)}
+                    className="text-[11px] text-primary-500 hover:text-primary-700 disabled:text-secondary-300 disabled:cursor-not-allowed"
+                  >
+                    Tout lire
+                  </button>
+                </div>
+
+                <div className="max-h-80 overflow-y-auto no-scrollbar">
+                  {notificationsLoading && notifications.length === 0 && (
+                    <p className="p-4 text-xs text-secondary-400">Chargement...</p>
+                  )}
+                  {!notificationsLoading && notifications.length === 0 && (
+                    <p className="p-4 text-xs text-secondary-400">Aucune notification</p>
+                  )}
+
+                  {notifications.slice(0, 8).map((item) => {
+                    const isRead =
+                      Boolean(item.readAt) || String(item.status).toUpperCase() === "READ";
+                    const destination = buildNotificationDestination(item, user?.sub ?? null);
+                    return (
+                      <button
+                        key={item.notificationId}
+                        onClick={() =>
+                          void handleNotificationClick(
+                            item.notificationId,
+                            isRead,
+                            destination,
+                          )
+                        }
+                        className={`w-full text-left px-4 py-3 border-b border-secondary-50 last:border-b-0 hover:bg-secondary-50 transition-colors ${
+                          isRead ? "bg-white" : "bg-primary-50/30"
+                        }`}
+                      >
+                        <p className="text-xs text-primary-900 break-words">{item.content}</p>
+                        <p className="text-[11px] text-secondary-400 mt-1">
+                          {item.category ?? "notification"} - {formatNotificationDate(item.createdAt)}
+                        </p>
+                      </button>
+                    );
+                  })}
+                </div>
+
+                <Link
+                  to="/notifications"
+                  onClick={() => setIsNotificationsOpen(false)}
+                  className="block text-center text-xs font-medium text-primary-500 hover:bg-secondary-50 px-4 py-3 border-t border-secondary-100"
+                >
+                  Voir toutes les notifications
+                </Link>
+              </div>
+            )}
+          </div>
 
           <div className="flex items-center gap-3 cursor-pointer group">
             <div className="h-8 w-8 avatar-sharp group-hover:border-primary-500 transition-all">

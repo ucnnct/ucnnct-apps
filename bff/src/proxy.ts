@@ -11,6 +11,8 @@ export function setupProxy(app: Express) {
     "/api/media/**": process.env.MEDIA_SERVICE_URL || "http://localhost:8083",
     "/api/groups/**": process.env.GROUP_SERVICE_URL || "http://localhost:8085",
     "/api/chat/**": process.env.CHAT_SERVICE_URL || "http://localhost:8084",
+    "/api/notifications/**":
+      process.env.NOTIFICATION_SERVICE_URL || "http://notification-service:8080",
   };
 
   for (const [path, target] of Object.entries(services)) {
@@ -31,6 +33,9 @@ export function setupProxy(app: Express) {
       changeOrigin: true,
       on: {
         proxyReq: (proxyReq, req) => {
+          // Downstream services are called server-to-server through the BFF.
+          // Forwarding browser Origin triggers unnecessary CORS rejections.
+          proxyReq.removeHeader("origin");
           const token = (req as any)._accessToken;
           if (token) {
             proxyReq.setHeader("Authorization", `Bearer ${token}`);

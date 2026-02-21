@@ -37,6 +37,12 @@ public class NotificationServiceProperties {
         private DefaultsProperties defaults = new DefaultsProperties();
         private PrivateMessageProperties privateMessage = new PrivateMessageProperties();
         private GroupMessageProperties groupMessage = new GroupMessageProperties();
+        private GroupMemberAddedProperties groupMemberAdded = new GroupMemberAddedProperties();
+        private GroupDeletedProperties groupDeleted = new GroupDeletedProperties();
+        private FriendRequestProperties friendRequest = new FriendRequestProperties();
+        private FriendAcceptedProperties friendAccepted = new FriendAcceptedProperties();
+        private FriendRejectedProperties friendRejected = new FriendRejectedProperties();
+        private FriendRemovedProperties friendRemoved = new FriendRemovedProperties();
     }
 
     @Data
@@ -44,6 +50,9 @@ public class NotificationServiceProperties {
         private String preview;
         private String senderName;
         private String groupName;
+        private String appUrl;
+        private String ctaLabel;
+        private String logoCid;
         private String emailTemplateDirectory;
         private String headlinePlaceholder;
         private String previewPlaceholder;
@@ -66,6 +75,54 @@ public class NotificationServiceProperties {
     }
 
     @Data
+    public static class GroupMemberAddedProperties {
+        private String emailSubjectBase;
+        private String emailTemplateFile;
+        private String inAppPattern;
+        private String emailHeadlinePattern;
+    }
+
+    @Data
+    public static class GroupDeletedProperties {
+        private String emailSubjectBase;
+        private String emailTemplateFile;
+        private String inAppPattern;
+        private String emailHeadlinePattern;
+    }
+
+    @Data
+    public static class FriendRequestProperties {
+        private String emailSubjectBase;
+        private String emailTemplateFile;
+        private String inAppPattern;
+        private String emailHeadlinePattern;
+    }
+
+    @Data
+    public static class FriendAcceptedProperties {
+        private String emailSubjectBase;
+        private String emailTemplateFile;
+        private String inAppPattern;
+        private String emailHeadlinePattern;
+    }
+
+    @Data
+    public static class FriendRejectedProperties {
+        private String emailSubjectBase;
+        private String emailTemplateFile;
+        private String inAppPattern;
+        private String emailHeadlinePattern;
+    }
+
+    @Data
+    public static class FriendRemovedProperties {
+        private String emailSubjectBase;
+        private String emailTemplateFile;
+        private String inAppPattern;
+        private String emailHeadlinePattern;
+    }
+
+    @Data
     public static class EmailProperties {
         private String from;
         private String subjectPrefix;
@@ -79,6 +136,8 @@ public class NotificationServiceProperties {
     @Data
     public static class TopicsProperties {
         private String messagesPersisted;
+        private String friendEvents;
+        private String groupEvents;
         private String inAppNotifications;
     }
 }

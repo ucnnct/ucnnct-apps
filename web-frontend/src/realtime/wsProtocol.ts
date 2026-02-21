@@ -5,6 +5,7 @@ export const WS_INBOUND_ACTIONS = [
   "MESSAGE_RECEIVED",
   "MESSAGE_READ",
   "UPDATE_ACTIVE_CONTEXT",
+  "PRESENCE_SUBSCRIBE",
 ] as const;
 
 export type WsInboundActionType = (typeof WS_INBOUND_ACTIONS)[number];
@@ -14,6 +15,7 @@ export const WS_OUTBOUND_ACTIONS = [
   "GROUP_MESSAGE",
   "FILE_MESSAGE",
   "NOTIFICATION",
+  "PRESENCE_UPDATE",
   "MESSAGE_SENT_ACK",
   "GROUP_MESSAGE_SENT_ACK",
   "FILE_MESSAGE_SENT_ACK",
@@ -61,6 +63,16 @@ export interface WsNotificationPayload {
 export interface WsUserActiveContextPayload {
   page: string;
   conversationId?: string;
+  updatedAt?: number;
+}
+
+export interface WsPresenceSubscribePayload {
+  userIds?: string[];
+}
+
+export interface WsPresenceUpdatePayload {
+  userId?: string;
+  online?: boolean;
   updatedAt?: number;
 }
 

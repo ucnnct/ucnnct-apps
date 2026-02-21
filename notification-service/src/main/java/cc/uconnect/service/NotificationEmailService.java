@@ -4,6 +4,7 @@ import cc.uconnect.configs.NotificationServiceProperties;
 import cc.uconnect.model.UserContact;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.log4j.Log4j2;
+import org.springframework.core.io.ClassPathResource;
 import org.springframework.mail.javamail.JavaMailSender;
 import org.springframework.mail.javamail.MimeMessageHelper;
 import org.springframework.stereotype.Service;
@@ -17,8 +18,11 @@ import reactor.core.scheduler.Schedulers;
 @RequiredArgsConstructor
 public class NotificationEmailService {
 
+    private static final String LOGO_RESOURCE_PATH = "uconnect-logo.png";
+
     private final JavaMailSender mailSender;
     private final NotificationServiceProperties properties;
+    private final NotificationEmailTemplateService notificationEmailTemplateService;
 
     public Mono<Void> sendOfflineMessageNotification(UserContact userContact, String subject, String htmlBody) {
         if (userContact == null || userContact.getEmail() == null || userContact.getEmail().isBlank()) {
@@ -28,11 +32,17 @@ public class NotificationEmailService {
         return Mono.fromRunnable(() -> {
                     try {
                         MimeMessage mail = mailSender.createMimeMessage();
-                        MimeMessageHelper helper = new MimeMessageHelper(mail, "UTF-8");
+                        MimeMessageHelper helper = new MimeMessageHelper(mail, true, "UTF-8");
                         helper.setFrom(properties.getEmail().getFrom());
                         helper.setTo(userContact.getEmail());
                         helper.setSubject(subject);
                         helper.setText(htmlBody, true);
+
+                        ClassPathResource logo = new ClassPathResource(LOGO_RESOURCE_PATH);
+                        if (logo.exists()) {
+                            helper.addInline(notificationEmailTemplateService.logoCid(), logo, "image/png");
+                        }
+
                         mailSender.send(mail);
                     } catch (MessagingException ex) {
                         throw new IllegalStateException("Failed to build email mime message", ex);

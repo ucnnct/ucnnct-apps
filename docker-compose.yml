@@ -124,6 +124,11 @@ services:
       - "traefik.enable=true"
       - "traefik.http.routers.minio-public.rule=PathPrefix(`/uconnect-media`)"
       - "traefik.http.routers.minio-public.entrypoints=web"
+      - "traefik.http.routers.minio-public.priority=200"
+      - "traefik.http.routers.minio-public-secure.rule=PathPrefix(`/uconnect-media`)"
+      - "traefik.http.routers.minio-public-secure.entrypoints=websecure"
+      - "traefik.http.routers.minio-public-secure.tls=true"
+      - "traefik.http.routers.minio-public-secure.priority=200"
       - "traefik.http.services.minio-public.loadbalancer.server.port=9000"
     volumes:
       - minio_data:/data
@@ -137,8 +142,10 @@ services:
       - minio
     entrypoint: >
       /bin/sh -c "
-      sleep 3;
-      mc alias set local http://minio:9000 ${MINIO_ROOT_USER} ${MINIO_ROOT_PASSWORD};
+      until mc alias set local http://minio:9000 ${MINIO_ROOT_USER} ${MINIO_ROOT_PASSWORD}; do
+        echo 'waiting for minio...';
+        sleep 2;
+      done;
       mc mb --ignore-existing local/uconnect-media;
       mc anonymous set download local/uconnect-media;
       exit 0;
@@ -157,6 +164,19 @@ services:
       POSTGRES_PASSWORD: ${GROUP_DB_PASSWORD}
     volumes:
       - group_data:/var/lib/postgresql/data
+    networks:
+      - uconnect-network
+
+  notification-db:
+    image: postgres:15
+    container_name: uconnect-notification-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: notificationdb
+      POSTGRES_USER: notificationservice
+      POSTGRES_PASSWORD: password
+    volumes:
+      - notification_data:/var/lib/postgresql/data
     networks:
       - uconnect-network
 
@@ -181,6 +201,19 @@ services:
     networks:
       - uconnect-network
 
+  smtp-relay:
+    image: boky/postfix:latest
+    container_name: uconnect-smtp-relay
+    restart: unless-stopped
+    environment:
+      RELAYHOST: ${SMTP_RELAYHOST}
+      RELAYHOST_USERNAME: ${SMTP_RELAYHOST_USERNAME}
+      RELAYHOST_PASSWORD: ${SMTP_RELAYHOST_PASSWORD}
+      ALLOWED_SENDER_DOMAINS: ${SMTP_ALLOWED_SENDER_DOMAINS}
+      POSTFIX_smtp_tls_security_level: ${SMTP_RELAY_TLS_SECURITY_LEVEL}
+    networks:
+      - uconnect-network
+
   # --- BACKEND SERVICES ---
   user-service:
     build: ./user-service
@@ -193,6 +226,9 @@ services:
       DB_USER: ${USER_DB_USER}
       DB_PASSWORD: ${USER_DB_PASSWORD}
       KAFKA_BOOTSTRAP_SERVERS: kafka:9092
+      WS_KAFKA_TOPIC_FRIEND_EVENTS: friend.event
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
       KEYCLOAK_ISSUER_URI: http://keycloak:8080/realms/ucnnct
       KEYCLOAK_JWKSET_URI: http://keycloak:8080/realms/ucnnct/protocol/openid-connect/certs
     depends_on:
@@ -211,7 +247,7 @@ services:
       MINIO_ACCESS_KEY: ${MINIO_ROOT_USER}
       MINIO_SECRET_KEY: ${MINIO_ROOT_PASSWORD}
       MINIO_BUCKET: uconnect-media
-      MINIO_PUBLIC_URL: http://localhost
+      MINIO_PUBLIC_URL: https://localhost:${APP_HTTPS_PORT}
       KEYCLOAK_ISSUER_URI: http://keycloak:8080/realms/ucnnct
       KEYCLOAK_JWKSET_URI: http://keycloak:8080/realms/ucnnct/protocol/openid-connect/certs
     depends_on:
@@ -231,6 +267,7 @@ services:
       DB_USER: ${GROUP_DB_USER}
       DB_PASSWORD: ${GROUP_DB_PASSWORD}
       KAFKA_BOOTSTRAP_SERVERS: kafka:9092
+      WS_KAFKA_TOPIC_GROUP_EVENTS: group.event
       REDIS_HOST: redis
       REDIS_PORT: 6379
       KEYCLOAK_ISSUER_URI: http://keycloak:8080/realms/ucnnct
@@ -277,6 +314,35 @@ services:
     networks:
       - uconnect-network
 
+  notification-service:
+    build: ./notification-service
+    container_name: uconnect-notification-service
+    restart: unless-stopped
+    environment:
+      POSTGRES_R2DBC_URL: r2dbc:postgresql://notification-db:5432/notificationdb
+      POSTGRES_USER: notificationservice
+      POSTGRES_PASSWORD: password
+      KAFKA_BOOTSTRAP_SERVERS: kafka:9092
+      WS_KAFKA_TOPIC_FRIEND_EVENTS: friend.event
+      WS_KAFKA_TOPIC_GROUP_EVENTS: group.event
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      KEYCLOAK_ISSUER_URI: http://keycloak:8080/realms/ucnnct
+      KEYCLOAK_JWKSET_URI: http://keycloak:8080/realms/ucnnct/protocol/openid-connect/certs
+      SMTP_HOST: smtp-relay
+      SMTP_PORT: 25
+      SMTP_AUTH: "false"
+      SMTP_STARTTLS: "false"
+      NOTIFICATION_EMAIL_FROM: ${NOTIFICATION_EMAIL_FROM}
+    depends_on:
+      - notification-db
+      - kafka
+      - redis
+      - smtp-relay
+      - keycloak
+    networks:
+      - uconnect-network
+
   bff:
     build: ./bff
     container_name: uconnect-bff
@@ -291,6 +357,7 @@ services:
       MEDIA_SERVICE_URL: http://media-service:8083
       GROUP_SERVICE_URL: http://group-service:8085
       CHAT_SERVICE_URL: http://chat-service:8084
+      NOTIFICATION_SERVICE_URL: http://notification-service:8080
       REDIRECT_URI: https://localhost:${APP_HTTPS_PORT}/login/oauth2/code/keycloak
       LOGOUT_REDIRECT_URI: https://localhost:${APP_HTTPS_PORT}/
       SESSION_SECRET: ${SESSION_SECRET}
@@ -307,6 +374,7 @@ services:
       - media-service
       - keycloak
       - ws-manager
+      - notification-service
     networks:
       - uconnect-network
 
@@ -334,6 +402,7 @@ volumes:
   user_data:
   minio_data:
   group_data:
+  notification_data:
   mongo_data:
   redis_data:
 

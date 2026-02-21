@@ -90,6 +90,13 @@ export const useNetworkStore = create<NetworkStoreState>((set, get) => ({
 
   sendRequest: async (keycloakId: string) => {
     await friendApi.sendRequest(keycloakId);
+
+    const authUserId = get().activeUserId;
+    if (authUserId) {
+      await get().load(authUserId, true);
+      return;
+    }
+
     set((state) => {
       const nextSentIds = new Set(state.sentIds);
       nextSentIds.add(keycloakId);

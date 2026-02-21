@@ -3,6 +3,7 @@ package cc.uconnect.handler;
 import cc.uconnect.model.WsPacket;
 import cc.uconnect.service.WsActionService;
 import cc.uconnect.service.WsPresenceRedisService;
+import cc.uconnect.service.WsPresenceSubscriptionService;
 import cc.uconnect.service.WsSessionPacketSender;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
@@ -37,6 +38,7 @@ public class ChatWebSocketHandler implements WebSocketHandler {
     private final WsSessionPacketSender packetSender;
     private final WsActionService actionService;
     private final WsPresenceRedisService presenceRedisService;
+    private final WsPresenceSubscriptionService presenceSubscriptionService;
 
     @Override
     public Mono<Void> handle(WebSocketSession session) {
@@ -84,6 +86,7 @@ public class ChatWebSocketHandler implements WebSocketHandler {
 
                 
         Mono<Void> registerPresence = presenceRedisService.saveUserInstance(userId)
+                .then(presenceSubscriptionService.notifySubscribers(userId, true))
                 .onErrorResume(ex -> {
                     log.error("Redis presence registration failed userId={} sessionId={}", userId, sessionId, ex);
                     return Mono.empty();
@@ -94,8 +97,10 @@ public class ChatWebSocketHandler implements WebSocketHandler {
                     packetSender.unregister(sessionId);
                     if (!packetSender.hasLocalUser(userId)) {
                         Mono.when(
-                                        presenceRedisService.deleteUserInstance(userId),
-                                        presenceRedisService.deleteUserActiveContext(userId))
+                                        presenceRedisService.deleteUserInstance(userId)
+                                                .then(presenceSubscriptionService.notifySubscribers(userId, false)),
+                                        presenceRedisService.deleteUserActiveContext(userId),
+                                        presenceSubscriptionService.clearSubscriptions(userId))
                                 .onErrorResume(ex -> {
                                     log.error("Redis cleanup failed userId={} sessionId={}", userId, sessionId, ex);
                                     return Mono.empty();

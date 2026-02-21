@@ -4,6 +4,8 @@ import App from "./App";
 import { AuthProvider } from "./auth/AuthProvider";
 import { AppSocketProvider } from "./realtime/AppSocketProvider";
 import { MessagesSocketBridge } from "./realtime/MessagesSocketBridge";
+import { NotificationsSocketBridge } from "./realtime/NotificationsSocketBridge";
+import { PresenceSocketBridge } from "./realtime/PresenceSocketBridge";
 import "./index.css";
 import "./App.css";
 
@@ -12,6 +14,8 @@ ReactDOM.createRoot(document.getElementById("root")!).render(
     <AuthProvider>
       <AppSocketProvider>
         <MessagesSocketBridge />
+        <NotificationsSocketBridge />
+        <PresenceSocketBridge />
         <App />
       </AppSocketProvider>
     </AuthProvider>

@@ -6,7 +6,16 @@ import { useMessagesStore } from "../stores/messagesStore";
 export function RouteContextReporter() {
   const location = useLocation();
   const { connected, sendAction } = useAppSocket();
+  const conversations = useMessagesStore((state) => state.conversations);
   const selectedConversationId = useMessagesStore((state) => state.selectedConversationId);
+
+  const selectedConversation =
+    conversations.find((conversation) => conversation.id === selectedConversationId) ?? null;
+  const conversationReference =
+    selectedConversation?.kind === "group"
+      ? selectedConversation.groupId ?? undefined
+      : selectedConversation?.peerUserId ?? undefined;
+  const isConversationPage = location.pathname.startsWith("/messages");
 
   useEffect(() => {
     if (!connected) {
@@ -14,12 +23,11 @@ export function RouteContextReporter() {
     }
 
     sendAction("UPDATE_ACTIVE_CONTEXT", {
-      page: location.pathname,
-      conversationId:
-        location.pathname.startsWith("/messages") ? selectedConversationId ?? undefined : undefined,
+      page: isConversationPage ? "CONVERSATION" : location.pathname,
+      conversationId: isConversationPage ? conversationReference : undefined,
       updatedAt: Date.now(),
     });
-  }, [connected, location.pathname, selectedConversationId, sendAction]);
+  }, [connected, conversationReference, isConversationPage, location.pathname, sendAction]);
 
   return null;
 }

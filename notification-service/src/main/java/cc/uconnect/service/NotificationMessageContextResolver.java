@@ -32,7 +32,7 @@ public class NotificationMessageContextResolver {
         }
 
         return directoryService.findUser(message.getSenderId())
-                .map(contact -> contact.getDisplayName())
+                .map(contact -> normalizeDisplayName(contact.getDisplayName(), message.getSenderId()))
                 .filter(name -> name != null && !name.isBlank())
                 .defaultIfEmpty(defaultSenderName());
     }
@@ -59,5 +59,20 @@ public class NotificationMessageContextResolver {
     private String defaultGroupName() {
         String value = properties.getNotifications().getDefaults().getGroupName();
         return value == null ? "" : value;
+    }
+
+    private String normalizeDisplayName(String displayName, String userId) {
+        if (displayName == null) {
+            return "";
+        }
+
+        String normalized = displayName.trim();
+        if (normalized.isBlank()) {
+            return "";
+        }
+        if (userId != null && !userId.isBlank() && normalized.equals(userId)) {
+            return "";
+        }
+        return normalized;
     }
 }

@@ -1,5 +1,6 @@
 package cc.uconnect.kafka.producer;
 
+import cc.uconnect.kafka.event.GroupEvent;
 import cc.uconnect.kafka.event.GroupResolvedEvent;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -11,6 +12,9 @@ import org.springframework.stereotype.Component;
 @RequiredArgsConstructor
 @Slf4j
 public class GroupKafkaProducer {
+
+    @Value("${app.kafka.topics.group-events:group.event}")
+    private String groupEventsTopic;
 
     @Value("${app.kafka.topics.group-resolved:group.resolved}")
     private String groupResolvedTopic;
@@ -25,5 +29,26 @@ public class GroupKafkaProducer {
                 receiversCount,
                 event.getMessageId());
         kafkaTemplate.send(groupResolvedTopic, event.getGroupId(), event);
+    }
+
+    public void publishGroupEvent(GroupEvent event) {
+        if (event == null || event.getEventType() == null) {
+            return;
+        }
+
+        if (event.getRecipientUserId() == null || event.getRecipientUserId().isBlank()) {
+            log.warn("Skip group event publish: recipientUserId is missing eventType={} eventId={}",
+                    event.getEventType(),
+                    event.getEventId());
+            return;
+        }
+
+        log.debug("Publishing group.event topic={} eventType={} eventId={} recipientUserId={} groupId={}",
+                groupEventsTopic,
+                event.getEventType(),
+                event.getEventId(),
+                event.getRecipientUserId(),
+                event.getGroupId());
+        kafkaTemplate.send(groupEventsTopic, event.getRecipientUserId(), event);
     }
 }

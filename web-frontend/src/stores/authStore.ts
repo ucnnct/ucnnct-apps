@@ -1,4 +1,5 @@
 import { create } from "zustand";
+import { useWsStore } from "./wsStore";
 
 export interface AuthUser {
   sub: string;
@@ -97,7 +98,9 @@ export const useAuthStore = create<AuthStoreState>((set, get) => ({
   },
 
   logout: () => {
-    set({ initialized: true, authenticated: false, user: null });
+    // Close websocket immediately so presence is cleared before logout redirect.
+    useWsStore.getState().disconnect("logout");
+    // Let the BFF terminate the server session first to avoid frontend redirect races.
     window.location.href = "/bff/logout";
   },
 

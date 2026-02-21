@@ -3,6 +3,7 @@ package cc.uconnect.consumer;
 import cc.uconnect.dto.KeycloakUserEvent;
 import cc.uconnect.model.User;
 import cc.uconnect.repository.UserRepository;
+import cc.uconnect.service.UserDirectoryCacheService;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -15,10 +16,14 @@ public class KeycloakEventConsumer {
     private static final Logger log = LoggerFactory.getLogger(KeycloakEventConsumer.class);
 
     private final UserRepository userRepository;
+    private final UserDirectoryCacheService userDirectoryCacheService;
     private final ObjectMapper objectMapper;
 
-    public KeycloakEventConsumer(UserRepository userRepository, ObjectMapper objectMapper) {
+    public KeycloakEventConsumer(UserRepository userRepository,
+                                 UserDirectoryCacheService userDirectoryCacheService,
+                                 ObjectMapper objectMapper) {
         this.userRepository = userRepository;
+        this.userDirectoryCacheService = userDirectoryCacheService;
         this.objectMapper = objectMapper;
     }
 
@@ -53,7 +58,8 @@ public class KeycloakEventConsumer {
                 event.getFirstName(),
                 event.getLastName()
         );
-        userRepository.save(user);
+        User saved = userRepository.save(user);
+        userDirectoryCacheService.syncUser(saved);
         log.info("User created: {} ({})", event.getUsername(), event.getUserId());
     }
 
@@ -64,7 +70,8 @@ public class KeycloakEventConsumer {
                     user.setEmail(event.getEmail());
                     user.setFirstName(event.getFirstName());
                     user.setLastName(event.getLastName());
-                    userRepository.save(user);
+                    User saved = userRepository.save(user);
+                    userDirectoryCacheService.syncUser(saved);
                     log.info("User updated: {} ({})", event.getUsername(), event.getUserId());
                 },
                 () -> {
@@ -77,6 +84,7 @@ public class KeycloakEventConsumer {
     private void handleDelete(KeycloakUserEvent event) {
         if (userRepository.existsById(event.getUserId())) {
             userRepository.deleteById(event.getUserId());
+            userDirectoryCacheService.deleteUser(event.getUserId());
             log.info("User deleted: {}", event.getUserId());
         } else {
             log.warn("User not found for deletion: {}", event.getUserId());
