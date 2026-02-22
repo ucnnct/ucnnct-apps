@@ -4,6 +4,7 @@ import logger from "./logger";
 
 let oidcClient: Client | undefined;
 let isOidcReady = false;
+let oidcValidationIssuerUri: string | undefined;
 
 const REDIRECT_URI = process.env.REDIRECT_URI || "http://localhost:5173/login/oauth2/code/keycloak";
 const LOGOUT_REDIRECT_URI = process.env.LOGOUT_REDIRECT_URI || "http://localhost:5173/";
@@ -60,6 +61,10 @@ export async function setupAuth(app: Express) {
     try {
       const discovered = await Issuer.discover(internalIssuerUri);
       const discoveredIssuerUri = discovered.metadata.issuer as string | undefined;
+      // Keep token/id_token validation aligned with Keycloak's real issuer value.
+      // Browser-facing redirects still use externalIssuerUri via rewritten endpoints.
+      const validationIssuerUri = discoveredIssuerUri ?? externalIssuerUri;
+      oidcValidationIssuerUri = validationIssuerUri;
 
       const browserAuthorizationEndpoint = rewriteBrowserEndpoint(
         discovered.metadata.authorization_endpoint,
@@ -74,7 +79,7 @@ export async function setupAuth(app: Express) {
 
       const issuer = new Issuer({
         ...discovered.metadata,
-        issuer: externalIssuerUri,
+        issuer: validationIssuerUri,
         authorization_endpoint: browserAuthorizationEndpoint,
         end_session_endpoint: browserEndSessionEndpoint,
       });
@@ -87,8 +92,9 @@ export async function setupAuth(app: Express) {
       });
 
       logger.info(
-        "[OIDC] discovered issuer={} authorization_endpoint={}",
+        "[OIDC] discovered issuer={} validation_issuer={} authorization_endpoint={}",
         discoveredIssuerUri ?? "n/a",
+        validationIssuerUri,
         browserAuthorizationEndpoint ?? "n/a"
       );
       logger.info("[OIDC] redirect_uri = {}", REDIRECT_URI);
@@ -145,7 +151,10 @@ export async function setupAuth(app: Express) {
       const callbackInput = req.method === "GET" ? (req.originalUrl || req.url) : req;
       const params = oidcClient!.callbackParams(callbackInput as any) as Record<string, unknown>;
       const callbackIssuer = typeof params.iss === "string" ? params.iss : undefined;
-      const normalizedIssuer = normalizeIssuerParam(callbackIssuer, externalIssuerUri);
+      const normalizedIssuer = normalizeIssuerParam(
+        callbackIssuer,
+        oidcValidationIssuerUri ?? externalIssuerUri
+      );
       if (callbackIssuer && normalizedIssuer && callbackIssuer !== normalizedIssuer) {
         logger.warn("[OIDC] Rewriting callback iss from {} to {}", callbackIssuer, normalizedIssuer);
         params.iss = normalizedIssuer;
