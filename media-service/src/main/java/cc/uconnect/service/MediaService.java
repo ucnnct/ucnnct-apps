@@ -16,10 +16,12 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
 
+import java.net.URI;
 import java.time.LocalDate;
 import java.time.ZoneOffset;
 import java.time.format.DateTimeFormatter;
 import java.util.List;
+import java.util.Locale;
 import java.util.UUID;
 import java.util.regex.Pattern;
 
@@ -116,8 +118,9 @@ public class MediaService {
                             .object(objectKey)
                             .expiry(expires)
                             .build());
+            String resolvedDownloadUrl = resolveDownloadUrl(presignedGetUrl, objectKey);
             log.debug("Prepared download URL for requesterUserId={} objectKey={}", requesterUserId, objectKey);
-            return new PrepareDownloadResponse(objectKey, presignedGetUrl, expires);
+            return new PrepareDownloadResponse(objectKey, resolvedDownloadUrl, expires);
         } catch (Exception ex) {
             throw new RuntimeException("Error while preparing download URL", ex);
         }
@@ -214,5 +217,79 @@ public class MediaService {
         }
 
         return normalized;
+    }
+
+    private String resolveDownloadUrl(String presignedGetUrl, String objectKey) {
+        String host = extractHost(presignedGetUrl);
+        if (host != null && isInternalHost(host)) {
+            String publicUrl = buildPublicObjectUrl(objectKey);
+            log.debug("Switching to public media URL because presigned host is internal host={} objectKey={}",
+                    host,
+                    objectKey);
+            return publicUrl;
+        }
+        return presignedGetUrl;
+    }
+
+    private String extractHost(String url) {
+        try {
+            URI uri = URI.create(url);
+            return uri.getHost();
+        } catch (Exception ex) {
+            return null;
+        }
+    }
+
+    private String buildPublicObjectUrl(String objectKey) {
+        String base = minioProperties.getPublicUrl() == null ? "" : minioProperties.getPublicUrl().trim();
+        while (base.endsWith("/")) {
+            base = base.substring(0, base.length() - 1);
+        }
+        return base + "/" + minioProperties.getBucket() + "/" + objectKey;
+    }
+
+    private boolean isInternalHost(String hostname) {
+        if (hostname == null || hostname.isBlank()) {
+            return true;
+        }
+
+        String normalized = hostname.trim().toLowerCase(Locale.ROOT);
+        if ("localhost".equals(normalized)
+                || "minio".equals(normalized)
+                || normalized.endsWith(".local")
+                || normalized.endsWith(".internal")
+                || normalized.endsWith(".svc")
+                || normalized.contains(".svc.cluster.local")) {
+            return true;
+        }
+
+        return isPrivateIpv4Address(normalized);
+    }
+
+    private boolean isPrivateIpv4Address(String host) {
+        String[] parts = host.split("\\.");
+        if (parts.length != 4) {
+            return false;
+        }
+
+        int[] octets = new int[4];
+        for (int i = 0; i < parts.length; i++) {
+            try {
+                octets[i] = Integer.parseInt(parts[i]);
+            } catch (NumberFormatException ex) {
+                return false;
+            }
+            if (octets[i] < 0 || octets[i] > 255) {
+                return false;
+            }
+        }
+
+        int first = octets[0];
+        int second = octets[1];
+        return first == 10
+                || first == 127
+                || (first == 172 && second >= 16 && second <= 31)
+                || (first == 192 && second == 168)
+                || (first == 169 && second == 254);
     }
 }

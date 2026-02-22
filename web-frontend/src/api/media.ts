@@ -15,13 +15,58 @@ function buildPublicObjectUrl(objectKey: string): string {
   return `${base}${PUBLIC_MEDIA_PREFIX}/${normalizedObjectKey}`;
 }
 
+function isPrivateIpv4Host(hostname: string): boolean {
+  const parts = hostname.split(".");
+  if (parts.length !== 4) {
+    return false;
+  }
+
+  const octets = parts.map((part) => Number.parseInt(part, 10));
+  if (octets.some((value) => Number.isNaN(value) || value < 0 || value > 255)) {
+    return false;
+  }
+
+  const [first, second] = octets;
+  return (
+    first === 10 ||
+    first === 127 ||
+    (first === 172 && second >= 16 && second <= 31) ||
+    (first === 192 && second === 168) ||
+    (first === 169 && second === 254)
+  );
+}
+
+function isInternalHost(hostname: string): boolean {
+  const normalized = hostname.trim().toLowerCase();
+  if (!normalized) {
+    return true;
+  }
+
+  if (
+    normalized === "localhost" ||
+    normalized === "minio" ||
+    normalized.endsWith(".local") ||
+    normalized.endsWith(".internal") ||
+    normalized.endsWith(".svc") ||
+    normalized.includes(".svc.cluster.local")
+  ) {
+    return true;
+  }
+
+  return isPrivateIpv4Host(normalized);
+}
+
 function isInternalMinioUrl(url: string): boolean {
   try {
     const parsedUrl = new URL(url, window.location.origin);
-    if (parsedUrl.hostname === "minio") {
+    if (isInternalHost(parsedUrl.hostname)) {
       return true;
     }
-    return parsedUrl.port === "9000" && (parsedUrl.hostname === "localhost" || parsedUrl.hostname === "127.0.0.1");
+
+    return (
+      parsedUrl.port === "9000" &&
+      parsedUrl.hostname.toLowerCase() !== window.location.hostname.toLowerCase()
+    );
   } catch {
     return true;
   }
