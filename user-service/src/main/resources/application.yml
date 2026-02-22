@@ -40,4 +40,5 @@ app:
     user-key-prefix: ${DIRECTORY_USER_KEY_PREFIX:directory:user:}
   kafka:
     topics:
+      keycloak-user-events: ${KAFKA_TOPIC_USER_EVENTS:keycloak-user-events}
       friend-events: ${WS_KAFKA_TOPIC_FRIEND_EVENTS:friend.event}

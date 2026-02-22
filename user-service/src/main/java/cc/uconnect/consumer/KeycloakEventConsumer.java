@@ -27,7 +27,10 @@ public class KeycloakEventConsumer {
         this.objectMapper = objectMapper;
     }
 
-    @KafkaListener(topics = "keycloak-user-events", groupId = "user-service")
+    @KafkaListener(
+            topics = "${app.kafka.topics.keycloak-user-events:keycloak-user-events}",
+            groupId = "${spring.kafka.consumer.group-id:user-service}"
+    )
     public void onKeycloakEvent(String message) {
         try {
             KeycloakUserEvent event = objectMapper.readValue(message, KeycloakUserEvent.class);
