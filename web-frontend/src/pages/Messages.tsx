@@ -79,6 +79,7 @@ export default function Messages() {
   const [createGroupOpen, setCreateGroupOpen] = useState(false);
   const [creatingGroup, setCreatingGroup] = useState(false);
   const [createGroupError, setCreateGroupError] = useState<string | null>(null);
+  const [mobileConversationOpen, setMobileConversationOpen] = useState(false);
   const [membersModalOpen, setMembersModalOpen] = useState(false);
   const [membersModalLoading, setMembersModalLoading] = useState(false);
   const [membersModalError, setMembersModalError] = useState<string | null>(null);
@@ -172,6 +173,7 @@ export default function Messages() {
       if (cancelled) {
         return;
       }
+      setMobileConversationOpen(true);
 
       const nextParams = new URLSearchParams(searchParams);
       nextParams.delete("kind");
@@ -381,6 +383,7 @@ export default function Messages() {
     if (!user?.sub) {
       return;
     }
+    setMobileConversationOpen(true);
     void selectConversation(conversationId, user.sub);
   };
 
@@ -575,6 +578,7 @@ export default function Messages() {
 
       if (groupConversationId) {
         await selectConversation(groupConversationId, user.sub);
+        setMobileConversationOpen(true);
       }
 
       setCreateGroupOpen(false);
@@ -664,6 +668,7 @@ export default function Messages() {
     <Layout hideSidebarRight>
       <div className="flex h-full bg-white overflow-hidden font-body">
         <ConversationListPanel
+          className={mobileConversationOpen ? "hidden lg:flex" : "flex"}
           conversations={conversations}
           presenceByUserId={presenceByUserId}
           activeUserId={user?.sub ?? null}
@@ -676,7 +681,11 @@ export default function Messages() {
           }}
         />
 
-        <div className="flex-1 flex flex-col h-full bg-white">
+        <div
+          className={`flex-1 flex-col h-full bg-white ${
+            mobileConversationOpen ? "flex" : "hidden lg:flex"
+          }`}
+        >
           {!selectedConversation ? (
             <div className="flex-1 flex items-center justify-center text-sm text-secondary-400">
               Selectionne une conversation pour commencer.
@@ -688,6 +697,8 @@ export default function Messages() {
                 isPeerOnline={selectedPeerOnline}
                 groupOnlineCount={selectedGroupOnlineCount}
                 typingLabel={selectedConversationTypingLabel}
+                showBackButton={mobileConversationOpen}
+                onBack={() => setMobileConversationOpen(false)}
                 onRequestOpenGroupMembers={() => void openGroupMembers()}
               />
               <MessagesTimeline

@@ -14,8 +14,10 @@ export default function MessagesTimeline({
   error,
 }: MessagesTimelineProps) {
   return (
-    <div className="flex-1 overflow-y-auto p-6 space-y-6 no-scrollbar bg-secondary-50/10">
-      <SectionHeader label="Discussion" />
+    <div className="flex-1 overflow-y-auto px-4 py-4 lg:p-6 space-y-4 lg:space-y-6 no-scrollbar bg-secondary-50/10">
+      <div className="hidden lg:block">
+        <SectionHeader label="Discussion" />
+      </div>
 
       {error && <p className="text-xs text-red-500">{error}</p>}
       {isLoadingMessages && (
@@ -28,7 +30,7 @@ export default function MessagesTimeline({
         </p>
       )}
 
-      <div className="flex flex-col gap-6">
+      <div className="flex flex-col gap-4 lg:gap-6 pb-2">
         {messages.map((message) => (
           <MessageBubble key={message.id} message={message} />
         ))}

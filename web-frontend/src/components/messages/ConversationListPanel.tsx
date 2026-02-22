@@ -12,6 +12,7 @@ interface ConversationListPanelProps {
   loadingConversations: boolean;
   onSelectConversation: (conversationId: string) => void;
   onRequestCreateGroup: () => void;
+  className?: string;
 }
 
 export default function ConversationListPanel({
@@ -22,6 +23,7 @@ export default function ConversationListPanel({
   loadingConversations,
   onSelectConversation,
   onRequestCreateGroup,
+  className = "",
 }: ConversationListPanelProps) {
   const [showMenu, setShowMenu] = useState(false);
   const menuRef = useRef<HTMLDivElement | null>(null);
@@ -42,8 +44,10 @@ export default function ConversationListPanel({
   }, [showMenu]);
 
   return (
-    <div className="w-[350px] border-r border-secondary-100 flex flex-col h-full bg-white shrink-0">
-      <div className="p-6 border-b border-secondary-100">
+    <div
+      className={`w-full lg:w-[350px] border-r border-secondary-100 flex flex-col h-full bg-white shrink-0 ${className}`}
+    >
+      <div className="p-4 lg:p-6 border-b border-secondary-100">
         <div className="mb-4 flex items-center justify-between">
           <h1 className="text-xl font-bold text-primary-900 font-display">Messages</h1>
           <div className="relative" ref={menuRef}>
@@ -110,7 +114,7 @@ export default function ConversationListPanel({
             <div
               key={conversation.id}
               onClick={() => onSelectConversation(conversation.id)}
-              className={`p-4 flex gap-3 cursor-pointer border-l-2 transition-all ${
+              className={`p-3 lg:p-4 flex gap-3 cursor-pointer border-l-2 transition-all ${
                 selectedConversationId === conversation.id
                   ? "bg-primary-50/30 border-primary-500"
                   : "border-transparent hover:bg-secondary-50"

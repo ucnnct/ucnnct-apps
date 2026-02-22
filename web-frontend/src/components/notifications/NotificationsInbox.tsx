@@ -26,7 +26,7 @@ export default function NotificationsInbox({
 }: NotificationsInboxProps) {
   return (
     <div className="flex-1 overflow-y-auto no-scrollbar p-6 space-y-4">
-      <SectionHeader label="Inbox" />
+      <SectionHeader label="Notifications" />
       {loading && items.length === 0 && (
         <p className="text-sm text-secondary-400">Chargement des notifications...</p>
       )}

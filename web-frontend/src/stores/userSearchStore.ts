@@ -14,6 +14,18 @@ interface UserSearchStoreState {
 
 let activeSearchId = 0;
 
+function dedupeProfiles(users: UserProfile[]): UserProfile[] {
+  const byId = new Map<string, UserProfile>();
+  for (const user of users) {
+    const key = user.keycloakId?.trim();
+    if (!key) {
+      continue;
+    }
+    byId.set(key, user);
+  }
+  return Array.from(byId.values());
+}
+
 export const useUserSearchStore = create<UserSearchStoreState>((set) => ({
   query: "",
   searching: false,
@@ -56,7 +68,7 @@ export const useUserSearchStore = create<UserSearchStoreState>((set) => ({
       if (searchId !== activeSearchId) {
         return;
       }
-      set({ results: users.slice(0, 8) });
+      set({ results: dedupeProfiles(users).slice(0, 8) });
     } catch {
       if (searchId !== activeSearchId) {
         return;

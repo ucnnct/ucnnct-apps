@@ -24,10 +24,10 @@ export default function MessageBubble({ message }: MessageBubbleProps) {
 
   return (
     <div
-      className={`flex ${message.isOwn ? "justify-end" : "justify-start"} items-end gap-3`}
+      className={`flex ${message.isOwn ? "justify-end" : "justify-start"} items-end gap-2 lg:gap-3`}
     >
       {!message.isOwn && (
-        <div className="w-8 h-8 bg-secondary-100 border border-secondary-200 rounded-sm overflow-hidden shrink-0">
+        <div className="w-7 h-7 lg:w-8 lg:h-8 bg-secondary-100 border border-secondary-200 rounded-sm overflow-hidden shrink-0">
           <img
             src={`https://api.dicebear.com/7.x/avataaars/svg?seed=${encodeURIComponent(message.senderLabel)}`}
             alt={message.senderLabel}
@@ -35,7 +35,7 @@ export default function MessageBubble({ message }: MessageBubbleProps) {
         </div>
       )}
       <div
-        className={`max-w-[70%] group flex flex-col ${message.isOwn ? "items-end" : "items-start"}`}
+        className={`max-w-[85%] lg:max-w-[70%] group flex flex-col ${message.isOwn ? "items-end" : "items-start"}`}
       >
         {!message.isOwn && (
           <p className="text-[11px] font-semibold text-secondary-400 mb-1 ml-1">
@@ -43,7 +43,7 @@ export default function MessageBubble({ message }: MessageBubbleProps) {
           </p>
         )}
         <div
-          className={`p-3 rounded-sm border transition-all ${
+          className={`p-3 rounded-xl border transition-all ${
             message.isOwn
               ? "bg-primary-500 border-primary-600 text-white"
               : "bg-white border-secondary-100 text-primary-900"

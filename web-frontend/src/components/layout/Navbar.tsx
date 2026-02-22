@@ -1,27 +1,32 @@
 import { useEffect, useRef, useState } from "react";
-import { Bell, Menu, X, Search, LogOut, Loader2 } from "lucide-react";
+import {
+  Bell,
+  Home,
+  Loader2,
+  LogOut,
+  Menu,
+  MessageSquare,
+  Search,
+  User,
+  UserPlus,
+  Users,
+  X,
+} from "lucide-react";
 import { useAuth } from "../../auth/AuthProvider";
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useLocation, useNavigate } from "react-router-dom";
 import { useUserSearchStore } from "../../stores/userSearchStore";
 import { useNotificationsStore } from "../../stores/notificationsStore";
 import { buildNotificationDestination } from "../../notifications/navigation";
-
-function formatNotificationDate(epochMillis: number | null): string {
-  if (!epochMillis) {
-    return "";
-  }
-  const date = new Date(epochMillis);
-  return new Intl.DateTimeFormat("fr-FR", {
-    day: "2-digit",
-    month: "2-digit",
-    hour: "2-digit",
-    minute: "2-digit",
-  }).format(date);
-}
+import {
+  formatNotificationCategory,
+  formatNotificationContent,
+  formatNotificationDate,
+} from "../notifications/utils";
 
 export default function Navbar() {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isNotificationsOpen, setIsNotificationsOpen] = useState(false);
+  const location = useLocation();
   const navigate = useNavigate();
   const { user, logout } = useAuth();
 
@@ -74,6 +79,10 @@ export default function Navbar() {
     void bootstrapNotifications(user.sub);
   }, [bootstrapNotifications, resetNotifications, user?.sub]);
 
+  useEffect(() => {
+    setIsMenuOpen(false);
+  }, [location.pathname]);
+
   const handleSearch = (value: string) => {
     setQuery(value);
     if (debounceRef.current) {
@@ -106,14 +115,14 @@ export default function Navbar() {
   return (
     <nav className="sticky top-0 z-50 bg-white border-b border-secondary h-16">
       <div className="max-w-[1250px] mx-auto px-8 h-full flex items-center justify-between">
-        <div className="flex items-center gap-3 cursor-pointer group w-[240px]">
+        <Link to="/" className="flex items-center gap-3 cursor-pointer group w-[240px]">
           <div className="w-8 h-8 flex items-center justify-center transition-transform group-hover:scale-105">
             <img src="/uconnect.svg" alt="U-Connect" className="w-full h-full object-contain" />
           </div>
           <span className="font-display font-bold text-xl tracking-tight text-primary-900">
             U-Connect
           </span>
-        </div>
+        </Link>
 
         <div className="hidden md:flex flex-1 max-w-lg mx-12">
           <div className="w-full relative group" ref={searchRef}>
@@ -214,6 +223,8 @@ export default function Navbar() {
                     const isRead =
                       Boolean(item.readAt) || String(item.status).toUpperCase() === "READ";
                     const destination = buildNotificationDestination(item, user?.sub ?? null);
+                    const content = formatNotificationContent(item);
+                    const categoryLabel = formatNotificationCategory(item.category);
                     return (
                       <button
                         key={item.notificationId}
@@ -228,9 +239,9 @@ export default function Navbar() {
                           isRead ? "bg-white" : "bg-primary-50/30"
                         }`}
                       >
-                        <p className="text-xs text-primary-900 break-words">{item.content}</p>
+                        <p className="text-xs text-primary-900 break-words">{content}</p>
                         <p className="text-[11px] text-secondary-400 mt-1">
-                          {item.category ?? "notification"} - {formatNotificationDate(item.createdAt)}
+                          {categoryLabel} - {formatNotificationDate(item.createdAt)}
                         </p>
                       </button>
                     );
@@ -284,10 +295,42 @@ export default function Navbar() {
 
       {isMenuOpen && (
         <div className="lg:hidden bg-white border-b border-secondary absolute w-full py-6 px-8 space-y-4 shadow-xl">
-          <MobileNavItem label="ACCUEIL" active />
-          <MobileNavItem label="EXPLORER" />
-          <MobileNavItem label="NOTIFICATIONS" />
-          <MobileNavItem label="MESSAGES" />
+          <MobileNavItem
+            to="/"
+            label="Accueil"
+            icon={<Home size={16} />}
+            active={location.pathname === "/"}
+          />
+          <MobileNavItem
+            to="/messages"
+            label="Messages"
+            icon={<MessageSquare size={16} />}
+            active={location.pathname.startsWith("/messages")}
+          />
+          <MobileNavItem
+            to="/notifications"
+            label="Notifications"
+            icon={<Bell size={16} />}
+            active={location.pathname.startsWith("/notifications")}
+          />
+          <MobileNavItem
+            to="/cercles"
+            label="Cercles"
+            icon={<Users size={16} />}
+            active={location.pathname.startsWith("/cercles")}
+          />
+          <MobileNavItem
+            to="/friend-requests"
+            label="Demandes d'amis"
+            icon={<UserPlus size={16} />}
+            active={location.pathname.startsWith("/friend-requests")}
+          />
+          <MobileNavItem
+            to="/profile"
+            label="Mon profil"
+            icon={<User size={16} />}
+            active={location.pathname.startsWith("/profile")}
+          />
         </div>
       )}
     </nav>
@@ -295,20 +338,25 @@ export default function Navbar() {
 }
 
 function MobileNavItem({
+  to,
   label,
+  icon,
   active = false,
 }: {
+  to: string;
   label: string;
+  icon: React.ReactNode;
   active?: boolean;
 }) {
   return (
-    <a
-      href="#"
-      className={`block text-xs font-medium tracking-wide uppercase ${
-        active ? "text-primary-500" : "text-secondary-500"
+    <Link
+      to={to}
+      className={`flex items-center gap-2 text-sm font-medium ${
+        active ? "text-primary-600" : "text-secondary-600"
       }`}
     >
+      <span>{icon}</span>
       {label}
-    </a>
+    </Link>
   );
 }

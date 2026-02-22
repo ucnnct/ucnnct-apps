@@ -50,7 +50,7 @@ export default function MessageComposer({
   };
 
   return (
-    <div className="p-6 border-t border-secondary-100 bg-white">
+    <div className="shrink-0 p-3 lg:p-6 border-t border-secondary-100 bg-white/95 backdrop-blur-sm">
       {attachmentError && (
         <p className="text-xs text-red-500 mb-2">{attachmentError}</p>
       )}
@@ -59,7 +59,7 @@ export default function MessageComposer({
           {attachmentStatusLabel ?? "Upload du fichier en cours..."}
         </p>
       )}
-      <div className="flex items-end gap-2 bg-secondary-50 border border-secondary-100 focus-within:bg-white focus-within:border-primary-500 transition-all rounded-sm p-2">
+      <div className="flex items-end gap-2 bg-secondary-50 border border-secondary-100 focus-within:bg-white focus-within:border-primary-500 transition-all rounded-xl p-2">
         <div className="flex gap-1 mb-1">
           <button
             type="button"
@@ -77,7 +77,7 @@ export default function MessageComposer({
           >
             <Paperclip size={18} />
           </button>
-          <button className="p-2 text-secondary-400 hover:text-primary-500 transition-colors">
+          <button className="hidden sm:inline-flex p-2 text-secondary-400 hover:text-primary-500 transition-colors">
             <Smile size={18} />
           </button>
         </div>
@@ -91,12 +91,12 @@ export default function MessageComposer({
             }
           }}
           placeholder={isWsConnected ? "Votre message..." : "WS deconnecte"}
-          className="flex-1 bg-transparent border-none focus:ring-0 text-sm text-primary-900 placeholder:text-secondary-300 resize-none h-10 py-2 font-normal"
+          className="flex-1 bg-transparent border-none focus:ring-0 text-sm text-primary-900 placeholder:text-secondary-300 resize-none h-9 lg:h-10 py-2 font-normal"
         />
         <button
           onClick={onSendMessage}
           disabled={!isWsConnected || uploadingAttachment || draft.trim().length === 0}
-          className="mb-1 p-2 bg-primary-500 hover:bg-primary-600 disabled:bg-secondary-200 disabled:cursor-not-allowed text-white rounded-sm transition-all group"
+          className="mb-1 p-2 bg-primary-500 hover:bg-primary-600 disabled:bg-secondary-200 disabled:cursor-not-allowed text-white rounded-full transition-all group"
         >
           <Send
             size={18}

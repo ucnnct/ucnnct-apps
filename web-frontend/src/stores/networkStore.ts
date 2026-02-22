@@ -19,6 +19,31 @@ interface NetworkStoreState {
 
 let loadPromise: Promise<void> | null = null;
 
+function dedupeProfiles(users: UserProfile[]): UserProfile[] {
+  const byId = new Map<string, UserProfile>();
+  for (const user of users) {
+    const key = user.keycloakId?.trim();
+    if (!key) {
+      continue;
+    }
+    byId.set(key, user);
+  }
+  return Array.from(byId.values());
+}
+
+function dedupeFriendships(friendships: Friendship[]): Friendship[] {
+  const byKey = new Map<string, Friendship>();
+  for (const friendship of friendships) {
+    const requesterId = friendship.requester?.keycloakId?.trim();
+    const receiverId = friendship.receiver?.keycloakId?.trim();
+    if (!requesterId || !receiverId) {
+      continue;
+    }
+    byKey.set(`${requesterId}|${receiverId}`, friendship);
+  }
+  return Array.from(byKey.values());
+}
+
 function buildSuggestions(
   authUserId: string,
   allUsers: UserProfile[],
@@ -30,7 +55,9 @@ function buildSuggestions(
   const sentIds = new Set(sent.map((req) => req.receiver.keycloakId));
   const pendingIds = new Set(received.map((req) => req.requester.keycloakId));
   const excludedIds = new Set([authUserId, ...friendIds, ...sentIds, ...pendingIds]);
-  const suggestions = allUsers.filter((user) => !excludedIds.has(user.keycloakId));
+  const suggestions = dedupeProfiles(allUsers).filter(
+    (user) => !excludedIds.has(user.keycloakId),
+  );
   return { suggestions, sentIds };
 }
 
@@ -64,18 +91,22 @@ export const useNetworkStore = create<NetworkStoreState>((set, get) => ({
       userApi.getAll(),
     ])
       .then(([friends, received, sent, allUsers]) => {
+        const uniqueFriends = dedupeProfiles(friends);
+        const uniqueReceived = dedupeFriendships(received);
+        const uniqueSent = dedupeFriendships(sent);
+        const uniqueUsers = dedupeProfiles(allUsers);
         const { suggestions, sentIds } = buildSuggestions(
           authUserId,
-          allUsers,
-          friends,
-          sent,
-          received,
+          uniqueUsers,
+          uniqueFriends,
+          uniqueSent,
+          uniqueReceived,
         );
         set({
           activeUserId: authUserId,
-          friends,
-          received,
-          sent,
+          friends: uniqueFriends,
+          received: uniqueReceived,
+          sent: uniqueSent,
           suggestions,
           sentIds,
         });

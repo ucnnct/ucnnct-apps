@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { MoreHorizontal } from "lucide-react";
+import { ArrowLeft, MoreHorizontal } from "lucide-react";
 import type { MessageConversationItem } from "../../stores/messagesStore";
 import GroupAvatar from "./GroupAvatar";
 
@@ -9,6 +9,8 @@ interface ConversationHeaderProps {
   groupOnlineCount: number;
   typingLabel?: string | null;
   onRequestOpenGroupMembers: () => void;
+  showBackButton?: boolean;
+  onBack?: () => void;
 }
 
 export default function ConversationHeader({
@@ -17,6 +19,8 @@ export default function ConversationHeader({
   groupOnlineCount,
   typingLabel = null,
   onRequestOpenGroupMembers,
+  showBackButton = false,
+  onBack,
 }: ConversationHeaderProps) {
   const [showMenu, setShowMenu] = useState(false);
   const menuRef = useRef<HTMLDivElement | null>(null);
@@ -38,7 +42,7 @@ export default function ConversationHeader({
 
   const groupSubtitle =
     conversation.kind === "group"
-      ? `${conversation.subtitle} · ${groupOnlineCount} en ligne`
+      ? `${conversation.subtitle} - ${groupOnlineCount} en ligne`
       : null;
 
   const subtitleText =
@@ -46,8 +50,18 @@ export default function ConversationHeader({
     (conversation.kind === "group" ? groupSubtitle : isPeerOnline ? "En ligne" : "Hors ligne");
 
   return (
-    <div className="h-[73px] px-6 border-b border-secondary-100 flex items-center justify-between bg-white/95 backdrop-blur-sm sticky top-0 z-10 font-display">
+    <div className="h-[68px] lg:h-[73px] px-4 lg:px-6 border-b border-secondary-100 flex items-center justify-between bg-white/95 backdrop-blur-sm sticky top-0 z-10 font-display">
       <div className="flex items-center gap-3 min-w-0">
+        {showBackButton && (
+          <button
+            type="button"
+            onClick={onBack}
+            className="lg:hidden p-2 -ml-2 rounded-sm text-secondary-500 hover:text-primary-600 hover:bg-secondary-100 transition-colors"
+            aria-label="Retour a la liste des conversations"
+          >
+            <ArrowLeft size={18} />
+          </button>
+        )}
         <div className="w-10 h-10 bg-secondary-100 border border-secondary-200 rounded-sm overflow-hidden shrink-0 flex items-center justify-center">
           {conversation.kind === "group" ? (
             <GroupAvatar seeds={conversation.avatarSeeds} />
@@ -60,12 +74,8 @@ export default function ConversationHeader({
           )}
         </div>
         <div className="min-w-0">
-          <p className="text-sm font-semibold text-primary-900 truncate">
-            {conversation.title}
-          </p>
-          <p className="text-[11px] font-normal text-secondary-400 truncate">
-            {subtitleText}
-          </p>
+          <p className="text-sm font-semibold text-primary-900 truncate">{conversation.title}</p>
+          <p className="text-[11px] font-normal text-secondary-400 truncate">{subtitleText}</p>
         </div>
       </div>
       <div className="relative" ref={menuRef}>

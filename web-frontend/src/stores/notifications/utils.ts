@@ -25,6 +25,60 @@ export function isRead(notification: NotificationItem): boolean {
   return String(notification.status ?? "").toUpperCase() === "READ";
 }
 
+function normalizeForKey(value: string | null | undefined): string {
+  if (!value) {
+    return "";
+  }
+  return value.trim().toLowerCase();
+}
+
+function toSemanticKey(item: NotificationItem): string {
+  const timeBucket = Math.floor((item.createdAt ?? 0) / 2000);
+  return [
+    normalizeForKey(item.ownerUserId),
+    normalizeForKey(item.targetId),
+    normalizeForKey(item.category),
+    normalizeForKey(item.content),
+    String(timeBucket),
+  ].join("|");
+}
+
+function mergeNotificationEntries(
+  current: NotificationItem,
+  incoming: NotificationItem,
+): NotificationItem {
+  const next = {
+    ...current,
+    ...incoming,
+  };
+
+  const readAt = [current.readAt, incoming.readAt].reduce<number | null>(
+    (maxValue, value) => {
+      if (value === null || value === undefined) {
+        return maxValue;
+      }
+      if (maxValue === null) {
+        return value;
+      }
+      return value > maxValue ? value : maxValue;
+    },
+    null,
+  );
+
+  if (isRead(current) || isRead(incoming)) {
+    return {
+      ...next,
+      status: "READ",
+      readAt,
+    };
+  }
+
+  return {
+    ...next,
+    readAt: null,
+  };
+}
+
 function sortNotifications(items: NotificationItem[]): NotificationItem[] {
   return [...items].sort((left, right) => {
     const leftTime = left.createdAt ?? 0;
@@ -65,17 +119,30 @@ export function mergeNotifications(
   const byId = new Map(existing.map((item) => [item.notificationId, item]));
   for (const item of incoming) {
     const current = byId.get(item.notificationId);
-    byId.set(item.notificationId, current ? { ...current, ...item } : item);
+    byId.set(
+      item.notificationId,
+      current ? mergeNotificationEntries(current, item) : item,
+    );
   }
-  return sortNotifications(Array.from(byId.values()));
+
+  const bySemanticKey = new Map<string, NotificationItem>();
+  for (const item of byId.values()) {
+    const semanticKey = toSemanticKey(item);
+    const current = bySemanticKey.get(semanticKey);
+    bySemanticKey.set(
+      semanticKey,
+      current ? mergeNotificationEntries(current, item) : item,
+    );
+  }
+
+  return sortNotifications(Array.from(bySemanticKey.values()));
 }
 
 export function normalizePageResponse(
   response: NotificationPageResponse,
 ): NotificationItem[] {
-  return sortNotifications(
-    (response.notifications ?? [])
-      .map((item) => normalizeNotification(item))
-      .filter((item): item is NotificationItem => item !== null),
-  );
+  const normalized = (response.notifications ?? [])
+    .map((item) => normalizeNotification(item))
+    .filter((item): item is NotificationItem => item !== null);
+  return mergeNotifications([], normalized);
 }
