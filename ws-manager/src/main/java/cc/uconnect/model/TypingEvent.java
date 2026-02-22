@@ -1,0 +1,24 @@
+package cc.uconnect.model;
+
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
+import com.fasterxml.jackson.annotation.JsonProperty;
+import lombok.AllArgsConstructor;
+import lombok.Builder;
+import lombok.Data;
+import lombok.NoArgsConstructor;
+
+@Data
+@Builder
+@NoArgsConstructor
+@AllArgsConstructor
+@JsonIgnoreProperties(ignoreUnknown = true)
+public class TypingEvent {
+
+    private String conversationId;
+    private String senderId;
+    private String targetUserId;
+    @JsonProperty("isTyping")
+    private Boolean typing;
+    private Long updatedAt;
+    private Long ttlMs;
+}

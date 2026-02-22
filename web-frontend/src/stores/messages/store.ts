@@ -38,6 +38,50 @@ let conversationsLoadPromise: Promise<void> | null = null;
 const messagesLoadPromises = new Map<string, Promise<void>>();
 const userHydrationInFlight = new Set<string>();
 const groupHydrationInFlight = new Set<string>();
+const DEFAULT_TYPING_TTL_MS = 3000;
+const MAX_TYPING_TTL_MS = 10_000;
+
+function cleanupTypingState(
+  typingByConversationId: Record<string, Record<string, number>>,
+  now: number,
+): {
+  nextTypingByConversationId: Record<string, Record<string, number>>;
+  changed: boolean;
+} {
+  let changed = false;
+  const nextTypingByConversationId: Record<string, Record<string, number>> = {};
+
+  for (const [conversationId, userExpirations] of Object.entries(typingByConversationId)) {
+    const nextUserExpirations: Record<string, number> = {};
+    for (const [userId, expiresAt] of Object.entries(userExpirations)) {
+      if (typeof expiresAt === "number" && expiresAt > now) {
+        nextUserExpirations[userId] = expiresAt;
+      } else {
+        changed = true;
+      }
+    }
+
+    if (Object.keys(nextUserExpirations).length > 0) {
+      nextTypingByConversationId[conversationId] = nextUserExpirations;
+      continue;
+    }
+
+    if (Object.keys(userExpirations).length > 0) {
+      changed = true;
+    }
+  }
+
+  if (!changed) {
+    const previousKeys = Object.keys(typingByConversationId).length;
+    const nextKeys = Object.keys(nextTypingByConversationId).length;
+    changed = previousKeys !== nextKeys;
+  }
+
+  return {
+    nextTypingByConversationId,
+    changed,
+  };
+}
 
 export const useMessagesStore = create<MessagesStoreState>((set, get) => {
   const hydrateUsers = async (userIds: string[]): Promise<void> => {
@@ -187,6 +231,7 @@ export const useMessagesStore = create<MessagesStoreState>((set, get) => {
     conversations: [],
     messagesByConversationId: {},
     presenceByUserId: {},
+    typingByConversationId: {},
     selectedConversationId: null,
     userDirectory: {},
     groupDirectory: {},
@@ -331,6 +376,7 @@ export const useMessagesStore = create<MessagesStoreState>((set, get) => {
           groupDirectory,
           messagesByConversationId: {},
           presenceByUserId: {},
+          typingByConversationId: {},
           loadingMessagesByConversationId: {},
           loadedMessagesByConversationId: {},
           error: null,
@@ -347,6 +393,7 @@ export const useMessagesStore = create<MessagesStoreState>((set, get) => {
             selectedConversationId: null,
             messagesByConversationId: {},
             presenceByUserId: {},
+            typingByConversationId: {},
             loadingMessagesByConversationId: {},
             loadedMessagesByConversationId: {},
             error: "Impossible de charger les conversations.",
@@ -373,6 +420,7 @@ export const useMessagesStore = create<MessagesStoreState>((set, get) => {
         conversations: [],
         messagesByConversationId: {},
         presenceByUserId: {},
+        typingByConversationId: {},
         selectedConversationId: null,
         userDirectory: {},
         groupDirectory: {},
@@ -910,6 +958,79 @@ export const useMessagesStore = create<MessagesStoreState>((set, get) => {
 
         return {
           messagesByConversationId: nextMessagesByConversationId,
+        };
+      });
+    },
+
+    ingestTypingUpdate: (payload, authUserId) => {
+      if (!isNonBlankString(authUserId)) {
+        return;
+      }
+
+      const conversationId = payload.conversationId?.trim() ?? "";
+      const senderId = payload.senderId?.trim() ?? "";
+      const isTyping = payload.isTyping;
+      if (
+        !isNonBlankString(conversationId) ||
+        !isNonBlankString(senderId) ||
+        senderId === authUserId ||
+        typeof isTyping !== "boolean"
+      ) {
+        return;
+      }
+
+      const requestedTtlMs =
+        typeof payload.ttlMs === "number" && Number.isFinite(payload.ttlMs)
+          ? payload.ttlMs
+          : DEFAULT_TYPING_TTL_MS;
+      const ttlMs = Math.max(500, Math.min(MAX_TYPING_TTL_MS, requestedTtlMs));
+      const now = Date.now();
+      const expiresAt = now + ttlMs;
+
+      set((state) => {
+        const { nextTypingByConversationId, changed: cleanedChanged } = cleanupTypingState(
+          state.typingByConversationId,
+          now,
+        );
+        const nextConversationTyping = {
+          ...(nextTypingByConversationId[conversationId] ?? {}),
+        };
+
+        if (isTyping) {
+          nextConversationTyping[senderId] = expiresAt;
+        } else {
+          delete nextConversationTyping[senderId];
+        }
+
+        if (Object.keys(nextConversationTyping).length === 0) {
+          delete nextTypingByConversationId[conversationId];
+        } else {
+          nextTypingByConversationId[conversationId] = nextConversationTyping;
+        }
+
+        if (!cleanedChanged && !isTyping && !(senderId in (state.typingByConversationId[conversationId] ?? {}))) {
+          return state;
+        }
+
+        return {
+          typingByConversationId: nextTypingByConversationId,
+        };
+      });
+    },
+
+    pruneExpiredTyping: () => {
+      const now = Date.now();
+      set((state) => {
+        const { nextTypingByConversationId, changed } = cleanupTypingState(
+          state.typingByConversationId,
+          now,
+        );
+        if (!changed) {
+          return state;
+        }
+
+        return {
+          typingByConversationId: nextTypingByConversationId,
         };
       });
     },

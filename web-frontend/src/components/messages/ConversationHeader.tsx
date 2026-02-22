@@ -7,6 +7,7 @@ interface ConversationHeaderProps {
   conversation: MessageConversationItem;
   isPeerOnline: boolean;
   groupOnlineCount: number;
+  typingLabel?: string | null;
   onRequestOpenGroupMembers: () => void;
 }
 
@@ -14,6 +15,7 @@ export default function ConversationHeader({
   conversation,
   isPeerOnline,
   groupOnlineCount,
+  typingLabel = null,
   onRequestOpenGroupMembers,
 }: ConversationHeaderProps) {
   const [showMenu, setShowMenu] = useState(false);
@@ -39,6 +41,10 @@ export default function ConversationHeader({
       ? `${conversation.subtitle} · ${groupOnlineCount} en ligne`
       : null;
 
+  const subtitleText =
+    typingLabel ??
+    (conversation.kind === "group" ? groupSubtitle : isPeerOnline ? "En ligne" : "Hors ligne");
+
   return (
     <div className="h-[73px] px-6 border-b border-secondary-100 flex items-center justify-between bg-white/95 backdrop-blur-sm sticky top-0 z-10 font-display">
       <div className="flex items-center gap-3 min-w-0">
@@ -58,11 +64,7 @@ export default function ConversationHeader({
             {conversation.title}
           </p>
           <p className="text-[11px] font-normal text-secondary-400 truncate">
-            {conversation.kind === "group"
-              ? groupSubtitle
-              : isPeerOnline
-                ? "En ligne"
-                : "Hors ligne"}
+            {subtitleText}
           </p>
         </div>
       </div>

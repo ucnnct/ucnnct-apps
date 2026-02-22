@@ -16,7 +16,7 @@ import {
 } from "../components/messages";
 import { toErrorMessage } from "../components/messages/utils";
 import { useAppSocket } from "../realtime/AppSocketProvider";
-import { useMessagesStore } from "../stores/messagesStore";
+import { useMessagesStore, type MessageConversationItem } from "../stores/messagesStore";
 import { useNetworkStore } from "../stores/networkStore";
 
 function resolveProfileDisplayName(profile: UserProfile, fallbackUserId: string): string {
@@ -28,6 +28,10 @@ function resolveProfileHandle(profile: UserProfile): string {
   const username = profile.username ?? "";
   return username.includes("@") ? `@${profile.email.split("@")[0]}` : `@${username}`;
 }
+
+const TYPING_REFRESH_INTERVAL_MS = 1000;
+const TYPING_IDLE_DELAY_MS = 1500;
+const TYPING_START_THROTTLE_MS = 1000;
 
 function toMemberViewItems(
   members: GroupMemberSummary[],
@@ -85,15 +89,21 @@ export default function Messages() {
   const [removingMemberIds, setRemovingMemberIds] = useState<Set<string>>(new Set());
 
   const readAckSentMessageIdsRef = useRef<Set<string>>(new Set());
+  const typingStopTimerRef = useRef<number | null>(null);
+  const typingConversationIdRef = useRef<string | null>(null);
+  const lastTypingStartSentAtRef = useRef<number>(0);
+  const previousConversationIdRef = useRef<string | null>(null);
 
   const conversations = useMessagesStore((state) => state.conversations);
   const selectedConversationId = useMessagesStore((state) => state.selectedConversationId);
   const messagesByConversationId = useMessagesStore((state) => state.messagesByConversationId);
   const presenceByUserId = useMessagesStore((state) => state.presenceByUserId);
+  const typingByConversationId = useMessagesStore((state) => state.typingByConversationId);
   const loadingConversations = useMessagesStore((state) => state.loadingConversations);
   const loadingMessagesByConversationId = useMessagesStore(
     (state) => state.loadingMessagesByConversationId,
   );
+  const userDirectory = useMessagesStore((state) => state.userDirectory);
   const groupDirectory = useMessagesStore((state) => state.groupDirectory);
   const error = useMessagesStore((state) => state.error);
   const bootstrap = useMessagesStore((state) => state.bootstrap);
@@ -103,6 +113,7 @@ export default function Messages() {
     (state) => state.removeGroupConversationParticipant,
   );
   const selectConversation = useMessagesStore((state) => state.selectConversation);
+  const pruneExpiredTyping = useMessagesStore((state) => state.pruneExpiredTyping);
   const reset = useMessagesStore((state) => state.reset);
 
   const friends = useNetworkStore((state) => state.friends);
@@ -194,6 +205,47 @@ export default function Messages() {
     );
   }, [conversations, selectedConversationId]);
 
+  const clearTypingStopTimer = useCallback(() => {
+    if (typingStopTimerRef.current !== null) {
+      window.clearTimeout(typingStopTimerRef.current);
+      typingStopTimerRef.current = null;
+    }
+  }, []);
+
+  const emitTypingState = useCallback(
+    (conversation: MessageConversationItem | null, isTyping: boolean): boolean => {
+      if (!user?.sub || !isWsConnected || !conversation || conversation.kind !== "peer") {
+        return false;
+      }
+      const targetUserId = conversation.peerUserId;
+      if (!targetUserId) {
+        return false;
+      }
+
+      return sendAction("SEND_TYPING", {
+        conversationId: conversation.id,
+        targetUserId,
+        isTyping,
+        ttlMs: 3000,
+      });
+    },
+    [isWsConnected, sendAction, user?.sub],
+  );
+
+  const stopTypingForConversation = useCallback(
+    (conversation: MessageConversationItem | null) => {
+      if (!conversation) {
+        return;
+      }
+      clearTypingStopTimer();
+      emitTypingState(conversation, false);
+      if (typingConversationIdRef.current === conversation.id) {
+        typingConversationIdRef.current = null;
+      }
+    },
+    [clearTypingStopTimer, emitTypingState],
+  );
+
   const selectedMessages = selectedConversation
     ? messagesByConversationId[selectedConversation.id] ?? []
     : [];
@@ -212,6 +264,34 @@ export default function Messages() {
           (participantId) => participantId !== user?.sub && Boolean(presenceByUserId[participantId]),
         ).length
       : 0;
+
+  const selectedConversationTypingLabel = useMemo(() => {
+    if (!selectedConversation || !user?.sub) {
+      return null;
+    }
+
+    const now = Date.now();
+    const typingUsers = Object.entries(typingByConversationId[selectedConversation.id] ?? {})
+      .filter(([, expiresAt]) => expiresAt > now)
+      .map(([typingUserId]) => typingUserId)
+      .filter((typingUserId) => typingUserId !== user.sub);
+
+    if (typingUsers.length === 0) {
+      return null;
+    }
+
+    if (selectedConversation.kind === "peer") {
+      return "Ecrit...";
+    }
+
+    if (typingUsers.length === 1) {
+      const typingUserId = typingUsers[0];
+      const displayName = userDirectory[typingUserId]?.displayName ?? "Quelqu'un";
+      return `${displayName} ecrit...`;
+    }
+
+    return `${typingUsers.length} personnes ecrivent...`;
+  }, [selectedConversation, typingByConversationId, user?.sub, userDirectory]);
 
   const canRemoveGroupMembers = Boolean(
     user?.sub &&
@@ -233,6 +313,36 @@ export default function Messages() {
       })),
     );
   }, [membersModalOpen, presenceByUserId]);
+
+  useEffect(() => {
+    const timer = window.setInterval(() => {
+      pruneExpiredTyping();
+    }, TYPING_REFRESH_INTERVAL_MS);
+    return () => {
+      window.clearInterval(timer);
+    };
+  }, [pruneExpiredTyping]);
+
+  useEffect(() => {
+    const previousConversationId = previousConversationIdRef.current;
+    const nextConversationId = selectedConversation?.id ?? null;
+    if (
+      previousConversationId &&
+      previousConversationId !== nextConversationId &&
+      typingConversationIdRef.current === previousConversationId
+    ) {
+      const previousConversation =
+        conversations.find((conversation) => conversation.id === previousConversationId) ?? null;
+      stopTypingForConversation(previousConversation);
+    }
+    previousConversationIdRef.current = nextConversationId;
+  }, [conversations, selectedConversation?.id, stopTypingForConversation]);
+
+  useEffect(() => {
+    return () => {
+      clearTypingStopTimer();
+    };
+  }, [clearTypingStopTimer]);
 
   useEffect(() => {
     if (!user?.sub || !isWsConnected || !selectedConversation) {
@@ -274,6 +384,47 @@ export default function Messages() {
     void selectConversation(conversationId, user.sub);
   };
 
+  const handleDraftChange = useCallback(
+    (value: string) => {
+      setDraft(value);
+
+      if (!selectedConversation || selectedConversation.kind !== "peer") {
+        return;
+      }
+
+      const hasContent = value.trim().length > 0;
+      if (!hasContent) {
+        stopTypingForConversation(selectedConversation);
+        return;
+      }
+
+      const now = Date.now();
+      const shouldSendTypingStart =
+        typingConversationIdRef.current !== selectedConversation.id ||
+        now - lastTypingStartSentAtRef.current >= TYPING_START_THROTTLE_MS;
+
+      if (shouldSendTypingStart) {
+        const startSent = emitTypingState(selectedConversation, true);
+        if (startSent) {
+          typingConversationIdRef.current = selectedConversation.id;
+          lastTypingStartSentAtRef.current = now;
+        }
+      }
+
+      clearTypingStopTimer();
+      typingStopTimerRef.current = window.setTimeout(() => {
+        if (typingConversationIdRef.current !== selectedConversation.id) {
+          return;
+        }
+        const stopSent = emitTypingState(selectedConversation, false);
+        if (stopSent) {
+          typingConversationIdRef.current = null;
+        }
+      }, TYPING_IDLE_DELAY_MS);
+    },
+    [clearTypingStopTimer, emitTypingState, selectedConversation, stopTypingForConversation],
+  );
+
   const handleSendMessage = () => {
     if (!selectedConversation) {
       return;
@@ -299,6 +450,7 @@ export default function Messages() {
 
     if (sent) {
       setDraft("");
+      stopTypingForConversation(selectedConversation);
     }
   };
 
@@ -535,6 +687,7 @@ export default function Messages() {
                 conversation={selectedConversation}
                 isPeerOnline={selectedPeerOnline}
                 groupOnlineCount={selectedGroupOnlineCount}
+                typingLabel={selectedConversationTypingLabel}
                 onRequestOpenGroupMembers={() => void openGroupMembers()}
               />
               <MessagesTimeline
@@ -548,7 +701,7 @@ export default function Messages() {
                 uploadingAttachment={uploadingAttachment}
                 attachmentStatusLabel={attachmentStatusLabel}
                 attachmentError={attachmentError}
-                onDraftChange={setDraft}
+                onDraftChange={handleDraftChange}
                 onSendMessage={handleSendMessage}
                 onAttachmentSelected={sendAttachmentMessage}
               />

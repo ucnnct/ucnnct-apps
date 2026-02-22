@@ -2,6 +2,7 @@ export const WS_INBOUND_ACTIONS = [
   "SEND_PRIVATE_MESSAGE",
   "SEND_GROUP_MESSAGE",
   "SEND_FILE_MESSAGE",
+  "SEND_TYPING",
   "MESSAGE_RECEIVED",
   "MESSAGE_READ",
   "UPDATE_ACTIVE_CONTEXT",
@@ -23,6 +24,7 @@ export const WS_OUTBOUND_ACTIONS = [
   "GROUP_MESSAGE_RECEIVED_CONFIRMED",
   "MESSAGE_READ_CONFIRMED",
   "GROUP_MESSAGE_READ_CONFIRMED",
+  "USER_TYPING",
   "UPLOAD_COMPLETED_ACK",
   "DOWNLOAD_REQUEST_ACK",
   "ERROR",
@@ -74,6 +76,15 @@ export interface WsPresenceUpdatePayload {
   userId?: string;
   online?: boolean;
   updatedAt?: number;
+}
+
+export interface WsTypingPayload {
+  conversationId?: string;
+  senderId?: string;
+  targetUserId?: string;
+  isTyping?: boolean;
+  updatedAt?: number;
+  ttlMs?: number;
 }
 
 export interface WsErrorPayload {

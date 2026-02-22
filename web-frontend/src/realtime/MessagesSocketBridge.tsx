@@ -2,7 +2,12 @@ import { useEffect, useMemo, useRef } from "react";
 import { useAuth } from "../auth/AuthProvider";
 import { useMessagesStore } from "../stores/messagesStore";
 import { useAppSocket, useAppSocketAction, WS_ALL_ACTIONS } from "./AppSocketProvider";
-import type { WsOutboundActionType, WsPacket, WsMessagePayload } from "./wsProtocol";
+import type {
+  WsOutboundActionType,
+  WsPacket,
+  WsMessagePayload,
+  WsTypingPayload,
+} from "./wsProtocol";
 
 const MESSAGE_DELIVERY_ACTION_TYPES = new Set<WsOutboundActionType>([
   "PRIVATE_MESSAGE",
@@ -30,6 +35,10 @@ function isWsMessagePayload(value: unknown): value is WsMessagePayload {
   return typeof value === "object" && value !== null;
 }
 
+function isWsTypingPayload(value: unknown): value is WsTypingPayload {
+  return typeof value === "object" && value !== null;
+}
+
 export function MessagesSocketBridge() {
   const { authenticated, user } = useAuth();
   const { sendAction } = useAppSocket();
@@ -53,6 +62,15 @@ export function MessagesSocketBridge() {
     }
 
     const actionType = packet.type as WsOutboundActionType;
+
+    if (actionType === "USER_TYPING") {
+      if (!isWsTypingPayload(packet.payload)) {
+        return;
+      }
+      useMessagesStore.getState().ingestTypingUpdate(packet.payload, currentUserId);
+      return;
+    }
+
     if (
       !MESSAGE_DELIVERY_ACTION_TYPES.has(actionType) &&
       !ACK_CONFIRMATION_ACTION_TYPES.has(actionType)

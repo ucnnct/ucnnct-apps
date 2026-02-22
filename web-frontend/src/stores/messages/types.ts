@@ -3,6 +3,7 @@ import type {
   WsMessagePayload,
   WsOutboundActionType,
   WsPresenceUpdatePayload,
+  WsTypingPayload,
 } from "../../realtime/wsProtocol";
 import type { AuthUser } from "../authStore";
 
@@ -57,6 +58,7 @@ export interface MessagesStoreState {
   conversations: MessageConversationItem[];
   messagesByConversationId: Record<string, MessageItem[]>;
   presenceByUserId: Record<string, boolean>;
+  typingByConversationId: Record<string, Record<string, number>>;
   selectedConversationId: string | null;
   userDirectory: Record<string, UserDirectoryEntry>;
   groupDirectory: Record<string, GroupDirectoryEntry>;
@@ -83,6 +85,8 @@ export interface MessagesStoreState {
     authUserId: string,
   ) => void;
   ingestPresenceUpdate: (payload: WsPresenceUpdatePayload) => void;
+  ingestTypingUpdate: (payload: WsTypingPayload, authUserId: string) => void;
+  pruneExpiredTyping: () => void;
 }
 
 export interface WsConversationRef {
