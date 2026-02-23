@@ -1,0 +1,3 @@
+export const TYPING_REFRESH_INTERVAL_MS = 1000;
+export const TYPING_IDLE_DELAY_MS = 1500;
+export const TYPING_START_THROTTLE_MS = 1000;

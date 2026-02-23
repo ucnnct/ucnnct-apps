@@ -1,65 +1,25 @@
-import { useEffect, useState, type ReactNode } from "react";
-import { Link } from "react-router-dom";
+ï»¿import { Link } from "react-router-dom";
 import Layout from "../components/layout/Layout";
 import { UserX, Users, Compass, X, Loader2 } from "lucide-react";
 import SectionHeader from "../components/common/SectionHeader";
-import { useAuth } from "../auth/AuthProvider";
-import { useNetworkStore } from "../stores/networkStore";
-import type { UserProfile } from "../api/users";
-
-type Tab = "discover" | "network";
+import { EmptyState, ToggleButton, UserCard } from "../components/cercles/ui";
+import { useCerclesPage } from "../hooks/cercles/useCerclesPage";
 
 export default function Cercles() {
-  const { user: authUser } = useAuth();
-  const [tab, setTab] = useState<Tab>("discover");
-
-  const loading = useNetworkStore((state) => state.loading);
-  const friends = useNetworkStore((state) => state.friends);
-  const received = useNetworkStore((state) => state.received);
-  const sent = useNetworkStore((state) => state.sent);
-  const suggestions = useNetworkStore((state) => state.suggestions);
-  const sentIds = useNetworkStore((state) => state.sentIds);
-  const load = useNetworkStore((state) => state.load);
-  const sendRequest = useNetworkStore((state) => state.sendRequest);
-  const acceptRequest = useNetworkStore((state) => state.acceptRequest);
-  const rejectRequest = useNetworkStore((state) => state.rejectRequest);
-  const removeFriend = useNetworkStore((state) => state.removeFriend);
-
-  useEffect(() => {
-    if (!authUser?.sub) {
-      return;
-    }
-    void load(authUser.sub);
-  }, [authUser?.sub, load]);
-
-  const handleAddFriend = async (keycloakId: string) => {
-    try {
-      await sendRequest(keycloakId);
-    } catch {
-      // ignore
-    }
-  };
-
-  const handleAccept = async (requesterId: string) => {
-    if (!authUser?.sub) {
-      return;
-    }
-    await acceptRequest(requesterId, authUser.sub);
-  };
-
-  const handleReject = async (requesterId: string) => {
-    if (!authUser?.sub) {
-      return;
-    }
-    await rejectRequest(requesterId, authUser.sub);
-  };
-
-  const handleRemove = async (friendId: string) => {
-    if (!authUser?.sub) {
-      return;
-    }
-    await removeFriend(friendId, authUser.sub);
-  };
+  const {
+    tab,
+    setTab,
+    loading,
+    friends,
+    received,
+    sent,
+    suggestions,
+    sentIds,
+    handleAddFriend,
+    handleAccept,
+    handleReject,
+    handleRemove,
+  } = useCerclesPage();
 
   return (
     <Layout hideSidebarRight>
@@ -99,7 +59,7 @@ export default function Cercles() {
                     return (
                       <UserCard key={user.keycloakId} user={user}>
                         <button
-                          onClick={() => !alreadySent && handleAddFriend(user.keycloakId)}
+                          onClick={() => !alreadySent && void handleAddFriend(user.keycloakId)}
                           className={`w-full py-2 text-xs font-medium uppercase tracking-wide rounded-sm transition-all ${
                             alreadySent
                               ? "bg-secondary-50 text-secondary-400 border border-secondary-100"
@@ -153,13 +113,13 @@ export default function Cercles() {
                           </Link>
                           <div className="flex gap-2 shrink-0">
                             <button
-                              onClick={() => handleAccept(request.requester.keycloakId)}
+                              onClick={() => void handleAccept(request.requester.keycloakId)}
                               className="px-4 py-1.5 bg-primary-500 hover:bg-primary-600 text-white text-xs font-medium uppercase tracking-wide rounded-sm transition-all"
                             >
                               ACCEPTER
                             </button>
                             <button
-                              onClick={() => handleReject(request.requester.keycloakId)}
+                              onClick={() => void handleReject(request.requester.keycloakId)}
                               className="p-1.5 border border-secondary-200 hover:border-red-300 hover:text-red-500 text-secondary-400 rounded-sm transition-all"
                               title="Refuser"
                             >
@@ -189,7 +149,7 @@ export default function Cercles() {
                             VOIR PROFIL
                           </Link>
                           <button
-                            onClick={() => handleRemove(friend.keycloakId)}
+                            onClick={() => void handleRemove(friend.keycloakId)}
                             className="p-2 border border-secondary-200 hover:border-red-300 hover:text-red-500 text-secondary-400 rounded-sm transition-all"
                             title="Retirer"
                           >
@@ -251,92 +211,3 @@ export default function Cercles() {
     </Layout>
   );
 }
-
-function ToggleButton({
-  active,
-  onClick,
-  icon,
-  label,
-  badge,
-}: {
-  active: boolean;
-  onClick: () => void;
-  icon: ReactNode;
-  label: string;
-  badge?: number;
-}) {
-  return (
-    <button
-      onClick={onClick}
-      className={`flex items-center gap-2 px-4 py-2 text-xs font-medium tracking-wide uppercase transition-all ${
-        active ? "bg-white text-primary-500 shadow-sm" : "text-secondary-400 hover:text-secondary-600"
-      }`}
-    >
-      {icon}
-      <span>{label}</span>
-      {badge && badge > 0 && (
-        <span className="w-4 h-4 flex items-center justify-center bg-primary-500 text-white text-[9px] font-medium rounded-full">
-          {badge}
-        </span>
-      )}
-    </button>
-  );
-}
-
-function UserCard({
-  user,
-  children,
-}: {
-  user: UserProfile;
-  children: ReactNode;
-}) {
-  const fullName = `${user.firstName} ${user.lastName}`.trim();
-  const handle = user.username.includes("@")
-    ? user.firstName || user.email.split("@")[0]
-    : user.username;
-  const detail = [user.fieldOfStudy, user.university].filter(Boolean).join(" · ");
-
-  return (
-    <div className="border border-secondary-100 rounded-sm overflow-hidden hover:shadow-md transition-all group">
-      <div className="h-16 bg-secondary-100 relative">
-        <div className="absolute inset-0 bg-linear-to-br from-primary-500/10 to-secondary-200/30" />
-        <div className="absolute -bottom-5 left-4">
-          <div className="w-14 h-14 bg-white p-0.5 rounded-sm border border-secondary-100 shadow-sm overflow-hidden">
-            <img
-              src={
-                user.avatarUrl ||
-                `https://api.dicebear.com/7.x/avataaars/svg?seed=${encodeURIComponent(fullName)}`
-              }
-              alt={fullName}
-              className="w-full h-full object-cover rounded-sm"
-            />
-          </div>
-        </div>
-      </div>
-
-      <div className="pt-8 px-4 pb-4">
-        <Link to={`/profile/${user.keycloakId}`} className="block mb-3 group/link">
-          <p className="text-sm font-semibold text-primary-900 truncate group-hover/link:text-primary-500 transition-colors">
-            {fullName}
-          </p>
-          <p className="text-[11px] font-normal text-secondary-400">@{handle}</p>
-        </Link>
-
-        {detail && <p className="text-[11px] font-normal text-secondary-400 mb-2 truncate">{detail}</p>}
-
-        {user.bio && <p className="text-sm font-normal text-secondary-500 leading-relaxed mb-3 line-clamp-2">{user.bio}</p>}
-
-        {children}
-      </div>
-    </div>
-  );
-}
-
-function EmptyState({ text }: { text: string }) {
-  return (
-    <div className="py-16 flex flex-col items-center justify-center border-2 border-dashed border-secondary-100 rounded-sm">
-      <p className="text-xs font-normal text-secondary-300">{text}</p>
-    </div>
-  );
-}
-

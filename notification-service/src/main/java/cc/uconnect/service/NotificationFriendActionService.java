@@ -2,18 +2,22 @@ package cc.uconnect.service;
 
 import cc.uconnect.configs.NotificationServiceProperties;
 import cc.uconnect.enums.FriendEventType;
-import cc.uconnect.enums.NotificationCategory;
 import cc.uconnect.enums.NotificationDecisionType;
+import cc.uconnect.interfaces.FriendNotificationTemplateHandler;
 import cc.uconnect.model.FriendEvent;
 import cc.uconnect.model.Notification;
 import cc.uconnect.model.PresenceSnapshot;
 import cc.uconnect.model.UserContact;
 import cc.uconnect.publisher.NotificationKafkaPublisher;
+import jakarta.annotation.PostConstruct;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.log4j.Log4j2;
 import org.springframework.stereotype.Service;
 import reactor.core.publisher.Mono;
 
+import java.util.EnumMap;
+import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 
 @Service
@@ -29,12 +33,34 @@ public class NotificationFriendActionService {
     private final NotificationDirectoryService directoryService;
     private final NotificationEmailService notificationEmailService;
     private final NotificationEmailTemplateService notificationEmailTemplateService;
+    private final List<FriendNotificationTemplateHandler> templateHandlers;
+
+    private final Map<FriendEventType, FriendNotificationTemplateHandler> templateHandlersByType =
+            new EnumMap<>(FriendEventType.class);
+
+    @PostConstruct
+    public void initTemplateHandlers() {
+        for (FriendNotificationTemplateHandler templateHandler : templateHandlers) {
+            FriendNotificationTemplateHandler existing =
+                    templateHandlersByType.putIfAbsent(templateHandler.eventType(), templateHandler);
+            if (existing != null) {
+                throw new IllegalStateException("Duplicate friend notification template handler for type "
+                        + templateHandler.eventType());
+            }
+        }
+        for (FriendEventType eventType : FriendEventType.values()) {
+            if (!templateHandlersByType.containsKey(eventType)) {
+                throw new IllegalStateException("Missing friend notification template handler for type " + eventType);
+            }
+        }
+    }
 
     public Mono<Void> handleFriendEvent(FriendEvent event) {
         if (!isValidEvent(event)) {
             return Mono.empty();
         }
 
+        FriendNotificationTemplateHandler templateHandler = resolveTemplateHandler(event.getEventType());
         String recipientUserId = event.getRecipientUserId();
         return presenceContextService.getPresenceSnapshot(recipientUserId)
                 .flatMap(snapshot -> {
@@ -42,8 +68,8 @@ public class NotificationFriendActionService {
                             decisionService.decideFriendEvent(event.getEventType(), snapshot);
                     return switch (decision) {
                         case SKIP -> skipNotification(event, snapshot);
-                        case IN_APP -> sendInAppNotification(event);
-                        case EMAIL -> sendEmailNotification(event);
+                        case IN_APP -> sendInAppNotification(event, templateHandler);
+                        case EMAIL -> sendEmailNotification(event, templateHandler);
                     };
                 });
     }
@@ -59,10 +85,10 @@ public class NotificationFriendActionService {
                 snapshot == null || snapshot.getActiveContext() == null ? null : snapshot.getActiveContext().getPage()));
     }
 
-    private Mono<Void> sendInAppNotification(FriendEvent event) {
+    private Mono<Void> sendInAppNotification(FriendEvent event, FriendNotificationTemplateHandler templateHandler) {
         return resolveActorName(event)
                 .flatMap(actorName -> {
-                    Notification notification = buildNotification(event, actorName);
+                    Notification notification = buildNotification(event, actorName, templateHandler);
                     return notificationPersistenceService.persist(
                                     notification,
                                     NotificationDecisionType.IN_APP,
@@ -74,17 +100,12 @@ public class NotificationFriendActionService {
                 });
     }
 
-    private Mono<Void> sendEmailNotification(FriendEvent event) {
+    private Mono<Void> sendEmailNotification(FriendEvent event, FriendNotificationTemplateHandler templateHandler) {
         return resolveActorName(event)
                 .flatMap(actorName -> {
-                    Notification notification = buildNotification(event, actorName);
-                    FriendTemplate template = resolveTemplate(event);
-                    String subject = buildEmailSubject(template.emailSubjectBase());
-                    String htmlBody = buildEmailHtmlBody(
-                            template.emailTemplateFile(),
-                            template.emailHeadlinePattern(),
-                            template.inAppPattern(),
-                            actorName);
+                    Notification notification = buildNotification(event, actorName, templateHandler);
+                    String subject = buildEmailSubject(templateHandler.emailSubjectBase());
+                    String htmlBody = buildEmailHtmlBody(templateHandler, event, actorName);
                     return notificationPersistenceService.persist(
                                     notification,
                                     NotificationDecisionType.EMAIL,
@@ -105,16 +126,25 @@ public class NotificationFriendActionService {
                 });
     }
 
-    private Notification buildNotification(FriendEvent event, String actorName) {
-        FriendTemplate template = resolveTemplate(event);
-        String content = applyActorPattern(template.inAppPattern(), actorName);
+    private Notification buildNotification(FriendEvent event,
+                                           String actorName,
+                                           FriendNotificationTemplateHandler templateHandler) {
+        String content = templateHandler.buildInAppContent(event, actorName);
 
         return Notification.builder()
                 .notificationId(UUID.randomUUID().toString())
                 .targetId(valueOrDefault(event.getActorUserId(), event.getRecipientUserId()))
-                .category(template.category().name())
+                .category(templateHandler.category().name())
                 .content(content)
                 .build();
+    }
+
+    private FriendNotificationTemplateHandler resolveTemplateHandler(FriendEventType eventType) {
+        FriendNotificationTemplateHandler templateHandler = templateHandlersByType.get(eventType);
+        if (templateHandler == null) {
+            throw new IllegalStateException("No friend notification template handler registered for type " + eventType);
+        }
+        return templateHandler;
     }
 
     private Mono<String> resolveActorName(FriendEvent event) {
@@ -147,51 +177,6 @@ public class NotificationFriendActionService {
         return "";
     }
 
-    private FriendTemplate resolveTemplate(FriendEvent event) {
-        FriendEventType eventType = event == null ? null : event.getEventType();
-        if (eventType == FriendEventType.FRIEND_REQUEST_ACCEPTED) {
-            NotificationServiceProperties.FriendAcceptedProperties props =
-                    properties.getNotifications().getFriendAccepted();
-            return new FriendTemplate(
-                    NotificationCategory.FRIEND_REQUEST_ACCEPTED_IN_APP,
-                    valueOrDefault(props.getInAppPattern(), "{actor} a accepte votre demande d'ami."),
-                    valueOrDefault(props.getEmailSubjectBase(), "Demande d'ami acceptee"),
-                    valueOrDefault(props.getEmailTemplateFile(), "friend_accepted.html"),
-                    valueOrDefault(props.getEmailHeadlinePattern(), "{actor} a accepte votre demande d'ami."));
-        }
-
-        if (eventType == FriendEventType.FRIEND_REQUEST_REJECTED) {
-            NotificationServiceProperties.FriendRejectedProperties props =
-                    properties.getNotifications().getFriendRejected();
-            return new FriendTemplate(
-                    NotificationCategory.FRIEND_REQUEST_REJECTED_IN_APP,
-                    valueOrDefault(props.getInAppPattern(), "{actor} a refuse votre demande d'ami."),
-                    valueOrDefault(props.getEmailSubjectBase(), "Demande d'ami refusee"),
-                    valueOrDefault(props.getEmailTemplateFile(), "friend_rejected.html"),
-                    valueOrDefault(props.getEmailHeadlinePattern(), "{actor} a refuse votre demande d'ami."));
-        }
-
-        if (eventType == FriendEventType.FRIEND_REMOVED) {
-            NotificationServiceProperties.FriendRemovedProperties props =
-                    properties.getNotifications().getFriendRemoved();
-            return new FriendTemplate(
-                    NotificationCategory.FRIEND_REMOVED_IN_APP,
-                    valueOrDefault(props.getInAppPattern(), "{actor} vous a retire de ses amis."),
-                    valueOrDefault(props.getEmailSubjectBase(), "Amitie terminee"),
-                    valueOrDefault(props.getEmailTemplateFile(), "friend_removed.html"),
-                    valueOrDefault(props.getEmailHeadlinePattern(), "{actor} vous a retire de ses amis."));
-        }
-
-        NotificationServiceProperties.FriendRequestProperties props =
-                properties.getNotifications().getFriendRequest();
-        return new FriendTemplate(
-                NotificationCategory.FRIEND_REQUEST_IN_APP,
-                valueOrDefault(props.getInAppPattern(), "{actor} vous a envoye une demande d'ami."),
-                valueOrDefault(props.getEmailSubjectBase(), "Nouvelle demande d'ami"),
-                valueOrDefault(props.getEmailTemplateFile(), "friend_request.html"),
-                valueOrDefault(props.getEmailHeadlinePattern(), "{actor} vous a envoye une demande d'ami."));
-    }
-
     private String buildEmailSubject(String subjectBase) {
         String prefix = valueOrEmpty(properties.getEmail().getSubjectPrefix()).trim();
         if (prefix.isBlank()) {
@@ -200,21 +185,15 @@ public class NotificationFriendActionService {
         return prefix + " " + subjectBase;
     }
 
-    private String buildEmailHtmlBody(String templateFile,
-                                      String headlinePattern,
-                                      String previewPattern,
+    private String buildEmailHtmlBody(FriendNotificationTemplateHandler templateHandler,
+                                      FriendEvent event,
                                       String actorName) {
-        String preview = applyActorPattern(previewPattern, actorName);
-        String headline = applyActorPattern(headlinePattern, actorName);
+        String preview = templateHandler.buildInAppContent(event, actorName);
+        String headline = templateHandler.buildEmailHeadline(event, actorName);
         return notificationEmailTemplateService.render(
-                templateFile,
+                templateHandler.emailTemplateFile(),
                 escapeHtml(headline),
                 escapeHtml(preview));
-    }
-
-    private String applyActorPattern(String pattern, String actorName) {
-        String safePattern = valueOrEmpty(pattern);
-        return safePattern.replace("{actor}", valueOrDefault(actorName, defaultSenderName()));
     }
 
     private boolean isValidEvent(FriendEvent event) {
@@ -269,12 +248,5 @@ public class NotificationFriendActionService {
             return "";
         }
         return normalized;
-    }
-
-    private record FriendTemplate(NotificationCategory category,
-                                  String inAppPattern,
-                                  String emailSubjectBase,
-                                  String emailTemplateFile,
-                                  String emailHeadlinePattern) {
     }
 }

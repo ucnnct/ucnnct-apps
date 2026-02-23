@@ -2,19 +2,23 @@ package cc.uconnect.service;
 
 import cc.uconnect.configs.NotificationServiceProperties;
 import cc.uconnect.enums.GroupEventType;
-import cc.uconnect.enums.NotificationCategory;
 import cc.uconnect.enums.NotificationDecisionType;
+import cc.uconnect.interfaces.GroupNotificationTemplateHandler;
 import cc.uconnect.model.GroupEvent;
 import cc.uconnect.model.GroupInfo;
 import cc.uconnect.model.Notification;
 import cc.uconnect.model.PresenceSnapshot;
 import cc.uconnect.model.UserContact;
 import cc.uconnect.publisher.NotificationKafkaPublisher;
+import jakarta.annotation.PostConstruct;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.log4j.Log4j2;
 import org.springframework.stereotype.Service;
 import reactor.core.publisher.Mono;
 
+import java.util.EnumMap;
+import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 
 @Service
@@ -30,20 +34,42 @@ public class NotificationGroupActionService {
     private final NotificationDirectoryService directoryService;
     private final NotificationEmailService notificationEmailService;
     private final NotificationEmailTemplateService notificationEmailTemplateService;
+    private final List<GroupNotificationTemplateHandler> templateHandlers;
+
+    private final Map<GroupEventType, GroupNotificationTemplateHandler> templateHandlersByType =
+            new EnumMap<>(GroupEventType.class);
+
+    @PostConstruct
+    public void initTemplateHandlers() {
+        for (GroupNotificationTemplateHandler templateHandler : templateHandlers) {
+            GroupNotificationTemplateHandler existing =
+                    templateHandlersByType.putIfAbsent(templateHandler.eventType(), templateHandler);
+            if (existing != null) {
+                throw new IllegalStateException("Duplicate group notification template handler for type "
+                        + templateHandler.eventType());
+            }
+        }
+        for (GroupEventType eventType : GroupEventType.values()) {
+            if (!templateHandlersByType.containsKey(eventType)) {
+                throw new IllegalStateException("Missing group notification template handler for type " + eventType);
+            }
+        }
+    }
 
     public Mono<Void> handleGroupEvent(GroupEvent event) {
         if (!isValidEvent(event)) {
             return Mono.empty();
         }
 
+        GroupNotificationTemplateHandler templateHandler = resolveTemplateHandler(event.getEventType());
         String recipientUserId = event.getRecipientUserId();
         return presenceContextService.getPresenceSnapshot(recipientUserId)
                 .flatMap(snapshot -> {
                     NotificationDecisionType decision = decisionService.decideGroupEvent(event, snapshot);
                     return switch (decision) {
                         case SKIP -> skipNotification(event, snapshot);
-                        case IN_APP -> sendInAppNotification(event);
-                        case EMAIL -> sendEmailNotification(event);
+                        case IN_APP -> sendInAppNotification(event, templateHandler);
+                        case EMAIL -> sendEmailNotification(event, templateHandler);
                     };
                 });
     }
@@ -60,12 +86,12 @@ public class NotificationGroupActionService {
                 snapshot == null || snapshot.getActiveContext() == null ? null : snapshot.getActiveContext().getConversationId()));
     }
 
-    private Mono<Void> sendInAppNotification(GroupEvent event) {
+    private Mono<Void> sendInAppNotification(GroupEvent event, GroupNotificationTemplateHandler templateHandler) {
         return Mono.zip(resolveActorName(event), resolveGroupName(event))
                 .flatMap(tuple -> {
                     String actorName = tuple.getT1();
                     String groupName = tuple.getT2();
-                    Notification notification = buildNotification(event, actorName, groupName);
+                    Notification notification = buildNotification(event, actorName, groupName, templateHandler);
                     return notificationPersistenceService.persist(
                                     notification,
                                     NotificationDecisionType.IN_APP,
@@ -77,20 +103,14 @@ public class NotificationGroupActionService {
                 });
     }
 
-    private Mono<Void> sendEmailNotification(GroupEvent event) {
+    private Mono<Void> sendEmailNotification(GroupEvent event, GroupNotificationTemplateHandler templateHandler) {
         return Mono.zip(resolveActorName(event), resolveGroupName(event))
                 .flatMap(tuple -> {
                     String actorName = tuple.getT1();
                     String groupName = tuple.getT2();
-                    GroupTemplate template = resolveTemplate(event);
-                    Notification notification = buildNotification(event, actorName, groupName);
-                    String subject = buildEmailSubject(template.emailSubjectBase());
-                    String htmlBody = buildEmailHtmlBody(
-                            template.emailTemplateFile(),
-                            template.emailHeadlinePattern(),
-                            template.inAppPattern(),
-                            actorName,
-                            groupName);
+                    Notification notification = buildNotification(event, actorName, groupName, templateHandler);
+                    String subject = buildEmailSubject(templateHandler.emailSubjectBase());
+                    String htmlBody = buildEmailHtmlBody(templateHandler, event, actorName, groupName);
                     return notificationPersistenceService.persist(
                                     notification,
                                     NotificationDecisionType.EMAIL,
@@ -111,17 +131,27 @@ public class NotificationGroupActionService {
                 });
     }
 
-    private Notification buildNotification(GroupEvent event, String actorName, String groupName) {
-        GroupTemplate template = resolveTemplate(event);
-        String content = applyPattern(template.inAppPattern(), actorName, groupName);
+    private Notification buildNotification(GroupEvent event,
+                                           String actorName,
+                                           String groupName,
+                                           GroupNotificationTemplateHandler templateHandler) {
+        String content = templateHandler.buildInAppContent(event, actorName, groupName);
         String targetId = valueOrDefault(event.getGroupId(), event.getRecipientUserId());
 
         return Notification.builder()
                 .notificationId(UUID.randomUUID().toString())
                 .targetId(targetId)
-                .category(template.category().name())
+                .category(templateHandler.category().name())
                 .content(content)
                 .build();
+    }
+
+    private GroupNotificationTemplateHandler resolveTemplateHandler(GroupEventType eventType) {
+        GroupNotificationTemplateHandler templateHandler = templateHandlersByType.get(eventType);
+        if (templateHandler == null) {
+            throw new IllegalStateException("No group notification template handler registered for type " + eventType);
+        }
+        return templateHandler;
     }
 
     private Mono<String> resolveActorName(GroupEvent event) {
@@ -151,29 +181,6 @@ public class NotificationGroupActionService {
                 .defaultIfEmpty(defaultGroupName());
     }
 
-    private GroupTemplate resolveTemplate(GroupEvent event) {
-        GroupEventType eventType = event == null ? null : event.getEventType();
-        if (eventType == GroupEventType.GROUP_DELETED) {
-            NotificationServiceProperties.GroupDeletedProperties props =
-                    properties.getNotifications().getGroupDeleted();
-            return new GroupTemplate(
-                    NotificationCategory.GROUP_DELETED_IN_APP,
-                    valueOrDefault(props.getInAppPattern(), "{actor} a supprime le groupe {group}."),
-                    valueOrDefault(props.getEmailSubjectBase(), "Suppression de groupe"),
-                    valueOrDefault(props.getEmailTemplateFile(), "group_deleted.html"),
-                    valueOrDefault(props.getEmailHeadlinePattern(), "{actor} a supprime le groupe {group}."));
-        }
-
-        NotificationServiceProperties.GroupMemberAddedProperties props =
-                properties.getNotifications().getGroupMemberAdded();
-        return new GroupTemplate(
-                NotificationCategory.GROUP_MEMBER_ADDED_IN_APP,
-                valueOrDefault(props.getInAppPattern(), "{actor} vous a ajoute au groupe {group}."),
-                valueOrDefault(props.getEmailSubjectBase(), "Ajout dans un groupe"),
-                valueOrDefault(props.getEmailTemplateFile(), "group_member_added.html"),
-                valueOrDefault(props.getEmailHeadlinePattern(), "{actor} vous a ajoute au groupe {group}."));
-    }
-
     private String buildEmailSubject(String subjectBase) {
         String prefix = valueOrEmpty(properties.getEmail().getSubjectPrefix()).trim();
         if (prefix.isBlank()) {
@@ -182,23 +189,16 @@ public class NotificationGroupActionService {
         return prefix + " " + subjectBase;
     }
 
-    private String buildEmailHtmlBody(String templateFile,
-                                      String headlinePattern,
-                                      String previewPattern,
+    private String buildEmailHtmlBody(GroupNotificationTemplateHandler templateHandler,
+                                      GroupEvent event,
                                       String actorName,
                                       String groupName) {
-        String headline = applyPattern(headlinePattern, actorName, groupName);
-        String preview = applyPattern(previewPattern, actorName, groupName);
+        String headline = templateHandler.buildEmailHeadline(event, actorName, groupName);
+        String preview = templateHandler.buildInAppContent(event, actorName, groupName);
         return notificationEmailTemplateService.render(
-                templateFile,
+                templateHandler.emailTemplateFile(),
                 escapeHtml(headline),
                 escapeHtml(preview));
-    }
-
-    private String applyPattern(String pattern, String actorName, String groupName) {
-        return valueOrEmpty(pattern)
-                .replace("{actor}", valueOrDefault(actorName, defaultSenderName()))
-                .replace("{group}", valueOrDefault(groupName, defaultGroupName()));
     }
 
     private boolean isValidEvent(GroupEvent event) {
@@ -263,12 +263,5 @@ public class NotificationGroupActionService {
             return "";
         }
         return normalized;
-    }
-
-    private record GroupTemplate(NotificationCategory category,
-                                 String inAppPattern,
-                                 String emailSubjectBase,
-                                 String emailTemplateFile,
-                                 String emailHeadlinePattern) {
     }
 }
