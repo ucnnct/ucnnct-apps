@@ -29,6 +29,7 @@ import java.util.Set;
 @Slf4j
 public class MessageService {
 
+    private static final String STATUS_SENT = "SENT";
     private static final String STATUS_READ = "READ";
     private static final String STATUS_RECEIVED = "RECEIVED";
     private static final String STATUS_DELIVERED = "DELIVERED";
@@ -368,7 +369,7 @@ public class MessageService {
             if (legacyReaderId != null && !legacyReaderId.isBlank()) {
                 return STATUS_READ;
             }
-            return STATUS_DELIVERED;
+            return STATUS_SENT;
         }
         return status.trim().toUpperCase(Locale.ROOT);
     }

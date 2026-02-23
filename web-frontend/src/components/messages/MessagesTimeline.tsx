@@ -1,3 +1,4 @@
+import { useEffect, useRef } from "react";
 import SectionHeader from "../common/SectionHeader";
 import type { MessageItem } from "../../stores/messagesStore";
 import MessageBubble from "./MessageBubble";
@@ -13,8 +14,37 @@ export default function MessagesTimeline({
   isLoadingMessages,
   error,
 }: MessagesTimelineProps) {
+  const scrollerRef = useRef<HTMLDivElement>(null);
+  const bottomAnchorRef = useRef<HTMLDivElement>(null);
+  const previousMessageCountRef = useRef<number>(0);
+
+  useEffect(() => {
+    if (isLoadingMessages) {
+      return;
+    }
+
+    if (messages.length === 0) {
+      if (scrollerRef.current) {
+        scrollerRef.current.scrollTop = 0;
+      }
+      previousMessageCountRef.current = 0;
+      return;
+    }
+
+    const hasNewMessage = messages.length > previousMessageCountRef.current;
+    previousMessageCountRef.current = messages.length;
+
+    bottomAnchorRef.current?.scrollIntoView({
+      behavior: hasNewMessage ? "smooth" : "auto",
+      block: "end",
+    });
+  }, [isLoadingMessages, messages]);
+
   return (
-    <div className="flex-1 overflow-y-auto px-4 py-4 lg:p-6 space-y-4 lg:space-y-6 no-scrollbar bg-secondary-50/10">
+    <div
+      className="flex-1 overflow-y-auto px-4 py-4 lg:p-6 space-y-4 lg:space-y-6 no-scrollbar bg-secondary-50/10"
+      ref={scrollerRef}
+    >
       <div className="hidden lg:block">
         <SectionHeader label="Discussion" />
       </div>
@@ -34,6 +64,7 @@ export default function MessagesTimeline({
         {messages.map((message) => (
           <MessageBubble key={message.id} message={message} />
         ))}
+        <div ref={bottomAnchorRef} />
       </div>
     </div>
   );

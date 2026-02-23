@@ -25,6 +25,7 @@ import {
 
 export default function Navbar() {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const [isMobileSearchOpen, setIsMobileSearchOpen] = useState(false);
   const [isNotificationsOpen, setIsNotificationsOpen] = useState(false);
   const location = useLocation();
   const navigate = useNavigate();
@@ -47,6 +48,7 @@ export default function Navbar() {
   const resetNotifications = useNotificationsStore((state) => state.reset);
 
   const searchRef = useRef<HTMLDivElement>(null);
+  const mobileSearchRef = useRef<HTMLDivElement>(null);
   const notificationsRef = useRef<HTMLDivElement>(null);
   const debounceRef = useRef<ReturnType<typeof setTimeout>>(undefined);
 
@@ -54,8 +56,17 @@ export default function Navbar() {
 
   useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {
-      if (searchRef.current && !searchRef.current.contains(e.target as Node)) {
+      const target = e.target as Node;
+      const clickedDesktopSearch = Boolean(
+        searchRef.current && searchRef.current.contains(target),
+      );
+      const clickedMobileSearch = Boolean(
+        mobileSearchRef.current && mobileSearchRef.current.contains(target),
+      );
+
+      if (!clickedDesktopSearch && !clickedMobileSearch) {
         setShowResults(false);
+        setIsMobileSearchOpen(false);
       }
       if (notificationsRef.current && !notificationsRef.current.contains(e.target as Node)) {
         setIsNotificationsOpen(false);
@@ -81,7 +92,9 @@ export default function Navbar() {
 
   useEffect(() => {
     setIsMenuOpen(false);
-  }, [location.pathname]);
+    setIsMobileSearchOpen(false);
+    setShowResults(false);
+  }, [location.pathname, setShowResults]);
 
   const handleSearch = (value: string) => {
     setQuery(value);
@@ -112,8 +125,60 @@ export default function Navbar() {
     navigate(destination);
   };
 
+  const renderSearchResults = (containerClassName: string) => {
+    if (!showResults) {
+      return null;
+    }
+
+    return (
+      <div className={containerClassName}>
+        {searching ? (
+          <div className="flex justify-center py-4">
+            <Loader2 className="w-4 h-4 animate-spin text-secondary-300" />
+          </div>
+        ) : results.length === 0 ? (
+          <p className="text-[11px] font-normal text-secondary-400 p-4 text-center">Aucun resultat</p>
+        ) : (
+          results.map((u) => {
+            const fullName = `${u.firstName} ${u.lastName}`.trim();
+            const handle = u.username.includes("@")
+              ? u.firstName || u.email.split("@")[0]
+              : u.username;
+
+            return (
+              <Link
+                key={u.keycloakId}
+                to={`/profile/${u.keycloakId}`}
+                onClick={() => {
+                  setShowResults(false);
+                  setIsMobileSearchOpen(false);
+                  clear();
+                }}
+                className="flex items-center gap-3 px-4 py-3 hover:bg-secondary-50 transition-colors"
+              >
+                <div className="w-8 h-8 avatar-sharp shrink-0">
+                  <img
+                    src={
+                      u.avatarUrl ||
+                      `https://api.dicebear.com/7.x/avataaars/svg?seed=${encodeURIComponent(fullName)}`
+                    }
+                    alt={fullName}
+                  />
+                </div>
+                <div className="min-w-0">
+                  <p className="text-sm font-semibold text-primary-900 truncate">{fullName}</p>
+                  <p className="text-[11px] font-normal text-secondary-400">@{handle}</p>
+                </div>
+              </Link>
+            );
+          })
+        )}
+      </div>
+    );
+  };
+
   return (
-    <nav className="sticky top-0 z-50 bg-white border-b border-secondary h-16">
+    <nav className="sticky top-0 z-50 bg-white border-b border-secondary h-16 relative">
       <div className="max-w-[1250px] mx-auto px-8 h-full flex items-center justify-between">
         <Link to="/" className="flex items-center gap-2 sm:gap-3 cursor-pointer group w-auto md:w-[240px] shrink-0">
           <div className="w-8 h-8 flex items-center justify-center transition-transform group-hover:scale-105">
@@ -137,54 +202,34 @@ export default function Navbar() {
               placeholder="Rechercher sur le campus..."
               className="block w-full bg-secondary-50 border border-secondary-100 focus:bg-white focus:border-primary-500 focus:ring-4 focus:ring-primary-500/10 rounded-full py-2.5 pl-12 pr-4 text-xs font-normal tracking-normal transition-all placeholder:text-secondary-300"
             />
-            {showResults && (
-              <div className="absolute top-full left-0 right-0 mt-2 bg-white border border-secondary-100 rounded-sm shadow-lg overflow-hidden z-50">
-                {searching ? (
-                  <div className="flex justify-center py-4">
-                    <Loader2 className="w-4 h-4 animate-spin text-secondary-300" />
-                  </div>
-                ) : results.length === 0 ? (
-                  <p className="text-[11px] font-normal text-secondary-400 p-4 text-center">Aucun resultat</p>
-                ) : (
-                  results.map((u) => {
-                    const fullName = `${u.firstName} ${u.lastName}`.trim();
-                    const handle = u.username.includes("@")
-                      ? u.firstName || u.email.split("@")[0]
-                      : u.username;
-
-                    return (
-                      <Link
-                        key={u.keycloakId}
-                        to={`/profile/${u.keycloakId}`}
-                        onClick={() => {
-                          setShowResults(false);
-                          clear();
-                        }}
-                        className="flex items-center gap-3 px-4 py-3 hover:bg-secondary-50 transition-colors"
-                      >
-                        <div className="w-8 h-8 avatar-sharp shrink-0">
-                          <img
-                            src={
-                              u.avatarUrl ||
-                              `https://api.dicebear.com/7.x/avataaars/svg?seed=${encodeURIComponent(fullName)}`
-                            }
-                            alt={fullName}
-                          />
-                        </div>
-                        <div className="min-w-0">
-                          <p className="text-sm font-semibold text-primary-900 truncate">{fullName}</p>
-                          <p className="text-[11px] font-normal text-secondary-400">@{handle}</p>
-                        </div>
-                      </Link>
-                    );
-                  })
-                )}
-              </div>
+            {renderSearchResults(
+              "absolute top-full left-0 right-0 mt-2 bg-white border border-secondary-100 rounded-sm shadow-lg overflow-hidden z-50",
             )}
           </div>
         </div>
 
         <div className="flex items-center gap-3 sm:gap-4 md:gap-6 justify-end w-auto md:w-[240px]">
+          <button
+            onClick={() => {
+              setIsMenuOpen(false);
+              setIsNotificationsOpen(false);
+              setIsMobileSearchOpen((open) => {
+                const nextOpen = !open;
+                if (nextOpen && query.trim()) {
+                  setShowResults(true);
+                }
+                if (!nextOpen) {
+                  setShowResults(false);
+                }
+                return nextOpen;
+              });
+            }}
+            title="Rechercher sur le campus"
+            className="relative p-1 text-secondary-400 hover:text-primary-500 transition-colors md:hidden"
+          >
+            <Search size={20} />
+          </button>
+
           <div className="relative" ref={notificationsRef}>
             <button
               onClick={() => setIsNotificationsOpen((open) => !open)}
@@ -199,7 +244,7 @@ export default function Navbar() {
             </button>
 
             {isNotificationsOpen && (
-              <div className="absolute right-0 mt-2 w-[360px] bg-white border border-secondary-100 rounded-sm shadow-lg z-50 overflow-hidden">
+              <div className="fixed left-3 right-3 top-[72px] md:absolute md:left-auto md:right-0 md:top-full md:mt-2 md:w-[360px] bg-white border border-secondary-100 rounded-sm shadow-lg z-50 overflow-hidden max-h-[calc(100dvh-88px)] md:max-h-none">
                 <div className="flex items-center justify-between px-4 py-3 border-b border-secondary-100">
                   <p className="text-sm font-semibold text-primary-900">Notifications</p>
                   <button
@@ -211,7 +256,7 @@ export default function Navbar() {
                   </button>
                 </div>
 
-                <div className="max-h-80 overflow-y-auto no-scrollbar">
+                <div className="max-h-[calc(100dvh-190px)] md:max-h-80 overflow-y-auto no-scrollbar">
                   {notificationsLoading && notifications.length === 0 && (
                     <p className="p-4 text-xs text-secondary-400">Chargement...</p>
                   )}
@@ -292,6 +337,32 @@ export default function Navbar() {
           </div>
         </div>
       </div>
+
+      {isMobileSearchOpen && (
+        <div
+          className="md:hidden absolute left-0 right-0 top-full bg-white border-b border-secondary shadow-lg z-40"
+          ref={mobileSearchRef}
+        >
+          <div className="px-4 py-3">
+            <div className="w-full relative group">
+              <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none transition-colors group-focus-within:text-primary-500 text-secondary-400">
+                {searching ? <Loader2 size={18} className="animate-spin" /> : <Search size={18} />}
+              </div>
+              <input
+                type="text"
+                value={query}
+                onChange={(e) => handleSearch(e.target.value)}
+                onFocus={() => query.trim() && setShowResults(true)}
+                placeholder="Rechercher sur le campus..."
+                className="block w-full bg-secondary-50 border border-secondary-100 focus:bg-white focus:border-primary-500 focus:ring-4 focus:ring-primary-500/10 rounded-full py-2.5 pl-12 pr-4 text-xs font-normal tracking-normal transition-all placeholder:text-secondary-300"
+              />
+              {renderSearchResults(
+                "absolute top-full left-0 right-0 mt-2 bg-white border border-secondary-100 rounded-sm shadow-lg overflow-hidden z-50 max-h-[45vh] overflow-y-auto",
+              )}
+            </div>
+          </div>
+        </div>
+      )}
 
       {isMenuOpen && (
         <div className="lg:hidden bg-white border-b border-secondary absolute w-full py-6 px-8 space-y-4 shadow-xl">
