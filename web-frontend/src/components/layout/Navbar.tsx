@@ -115,11 +115,11 @@ export default function Navbar() {
   return (
     <nav className="sticky top-0 z-50 bg-white border-b border-secondary h-16">
       <div className="max-w-[1250px] mx-auto px-8 h-full flex items-center justify-between">
-        <Link to="/" className="flex items-center gap-3 cursor-pointer group w-[240px]">
+        <Link to="/" className="flex items-center gap-2 sm:gap-3 cursor-pointer group w-auto md:w-[240px] shrink-0">
           <div className="w-8 h-8 flex items-center justify-center transition-transform group-hover:scale-105">
             <img src="/uconnect.svg" alt="U-Connect" className="w-full h-full object-contain" />
           </div>
-          <span className="font-display font-bold text-xl tracking-tight text-primary-900">
+          <span className="font-display font-bold text-base sm:text-lg md:text-xl tracking-tight text-primary-900 whitespace-nowrap leading-none">
             U-Connect
           </span>
         </Link>
@@ -184,7 +184,7 @@ export default function Navbar() {
           </div>
         </div>
 
-        <div className="flex items-center gap-6 justify-end w-[240px]">
+        <div className="flex items-center gap-3 sm:gap-4 md:gap-6 justify-end w-auto md:w-[240px]">
           <div className="relative" ref={notificationsRef}>
             <button
               onClick={() => setIsNotificationsOpen((open) => !open)}
