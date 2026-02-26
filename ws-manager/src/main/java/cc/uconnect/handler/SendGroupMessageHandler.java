@@ -34,6 +34,10 @@ public class SendGroupMessageHandler implements WsInboundActionHandler {
                     message.setSenderId(senderUserId);
                     return message;
                 })
+                .doOnNext(message -> log.info("FLOW ws.inbound action=SEND_GROUP_MESSAGE senderId={} messageId={} groupId={} step=ws.receive-group",
+                        senderUserId,
+                        message.getMessageId(),
+                        message.getGroupId()))
                 .flatMap(messageKafkaPublisher::publishToGroupResolve)
                 .onErrorResume(ex -> {
                     log.warn("SEND_GROUP_MESSAGE processing error senderUserId={}", senderUserId, ex);

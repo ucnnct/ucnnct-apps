@@ -26,7 +26,15 @@ public class NotificationFriendKafkaConsumer {
     )
     public void onFriendEvent(String rawPayload) {
         decode(rawPayload)
+                .doOnNext(event -> log.info("FLOW kafka.consume topic={} eventId={} eventType={} recipientUserId={} step=notification.consume-friend",
+                        properties.getKafka().getTopics().getFriendEvents(),
+                        event.getEventId(),
+                        event.getEventType(),
+                        event.getRecipientUserId()))
                 .flatMap(event -> notificationFriendActionService.handleFriendEvent(event)
+                        .doOnSuccess(ignored -> log.info("FLOW notification.handled eventId={} eventType={} step=notification.friend",
+                                event.getEventId(),
+                                event.getEventType()))
                         .onErrorResume(ex -> {
                             log.error("Friend notification dispatch failed eventId={} eventType={}",
                                     event.getEventId(),

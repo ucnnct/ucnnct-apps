@@ -23,7 +23,7 @@ public class GroupKafkaProducer {
 
     public void publishGroupResolved(GroupResolvedEvent event) {
         int receiversCount = event.getReceiversId() == null ? 0 : event.getReceiversId().size();
-        log.debug("Publishing group.resolved topic={} groupId={} receiversCount={} messageId={}",
+        log.info("FLOW kafka.publish topic={} groupId={} receiversCount={} messageId={} step=group.resolved",
                 groupResolvedTopic,
                 event.getGroupId(),
                 receiversCount,
@@ -43,7 +43,7 @@ public class GroupKafkaProducer {
             return;
         }
 
-        log.debug("Publishing group.event topic={} eventType={} eventId={} recipientUserId={} groupId={}",
+        log.info("FLOW kafka.publish topic={} eventType={} eventId={} recipientUserId={} groupId={} step=group.event",
                 groupEventsTopic,
                 event.getEventType(),
                 event.getEventId(),

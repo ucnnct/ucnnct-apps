@@ -49,6 +49,10 @@ public class NotificationActionService {
                     message == null ? null : message.getMessageId()));
         }
 
+        log.info("FLOW notification.handler-selected eventType={} messageId={} handler={} step=notification.dispatch",
+                eventType,
+                message.getMessageId(),
+                eventHandler.getClass().getSimpleName());
         return eventHandler.handle(message);
     }
 }

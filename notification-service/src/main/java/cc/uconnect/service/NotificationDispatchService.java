@@ -45,6 +45,10 @@ public class NotificationDispatchService {
         if (targetUserIds.isEmpty()) {
             return Mono.empty();
         }
+        log.info("FLOW notification.dispatch-start messageId={} senderId={} targetsCount={} step=notification.dispatch",
+                message.getMessageId(),
+                message.getSenderId(),
+                targetUserIds.size());
 
         return contextResolver.resolve(message)
                 .flatMapMany(context -> Flux.fromIterable(targetUserIds)
@@ -90,7 +94,12 @@ public class NotificationDispatchService {
                 context,
                 messageBuilder);
         return notificationPersistenceService.persist(notification, NotificationDecisionType.IN_APP, message, targetUserId)
-                .flatMap(savedNotification -> notificationKafkaPublisher.publishInAppNotification(targetUserId, savedNotification));
+                .flatMap(savedNotification -> notificationKafkaPublisher.publishInAppNotification(targetUserId, savedNotification)
+                        .then(Mono.fromRunnable(() -> log.info(
+                                "FLOW notification.sent channel=IN_APP targetUserId={} messageId={} notificationId={} step=notification.dispatch",
+                                targetUserId,
+                                message.getMessageId(),
+                                savedNotification.getNotificationId()))));
     }
 
     private Mono<Void> sendEmailNotification(String targetUserId,
@@ -115,7 +124,12 @@ public class NotificationDispatchService {
                         .flatMap(contact -> notificationEmailService.sendOfflineMessageNotification(
                                 contact,
                                 subject,
-                                htmlBody)));
+                                htmlBody)
+                                .then(Mono.fromRunnable(() -> log.info(
+                                        "FLOW notification.sent channel=EMAIL targetUserId={} messageId={} email={} step=notification.dispatch",
+                                        targetUserId,
+                                        message.getMessageId(),
+                                        contact.getEmail())))));
     }
 
     private Notification buildNotificationForDispatch(String targetUserId,

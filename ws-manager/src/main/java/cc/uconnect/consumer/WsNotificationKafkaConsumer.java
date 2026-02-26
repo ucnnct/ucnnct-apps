@@ -32,6 +32,9 @@ public class WsNotificationKafkaConsumer {
                         notification == null ? null : notification.getTargetId());
                 return;
             }
+            log.info("FLOW kafka.consume topic=inapp.notification notificationId={} ownerUserId={} step=ws.consume-notification",
+                    notification.getNotificationId(),
+                    notification.getOwnerUserId());
 
             userPacketRoutingService.routeToUser(notification.getOwnerUserId(), WsOutboundActionType.NOTIFICATION, notification)
                     .onErrorResume(ex -> {

@@ -25,7 +25,7 @@ public class ChatKafkaProducer {
 
     public void publishMessagePersisted(MessagePersistedEvent event) {
         String key = resolveKafkaKey(event);
-        log.debug("Publishing message.persisted topic={} key={} messageId={} type={}",
+        log.info("FLOW kafka.publish topic={} key={} messageId={} type={} step=chat.persisted",
                 messagesPersistedTopic,
                 key,
                 event.getMessageId(),
@@ -34,8 +34,9 @@ public class ChatKafkaProducer {
     }
 
     public void publishMessageReadConfirmed(MessageReadConfirmedEvent event) {
-        log.debug("Publishing message.read.confirmed topic={} messageId={}",
+        log.info("FLOW kafka.publish topic={} key={} messageId={} step=chat.read-confirmed",
                 messageReadConfirmedTopic,
+                event.getMessageId(),
                 event.getMessageId());
         kafkaTemplate.send(messageReadConfirmedTopic, event.getMessageId(), event);
     }

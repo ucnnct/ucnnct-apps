@@ -44,6 +44,11 @@ public class FriendEventKafkaPublisher {
             return;
         }
 
+        log.info("FLOW kafka.publish topic={} eventType={} eventId={} recipientUserId={} step=user.friend-event",
+                friendEventsTopic,
+                event.getEventType(),
+                event.getEventId(),
+                recipientUserId);
         kafkaTemplate.send(friendEventsTopic, recipientUserId, payload)
                 .whenComplete((result, ex) -> {
                     if (ex != null) {
@@ -58,7 +63,7 @@ public class FriendEventKafkaPublisher {
                     if (result == null) {
                         return;
                     }
-                    log.debug("Friend event published topic={} eventType={} eventId={} recipientUserId={} partition={} offset={}",
+                    log.info("FLOW kafka.publish-confirmed topic={} eventType={} eventId={} recipientUserId={} partition={} offset={} step=user.friend-event",
                             friendEventsTopic,
                             event.getEventType(),
                             event.getEventId(),

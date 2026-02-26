@@ -171,6 +171,12 @@ public class MessageService {
 
         message = messageRepository.save(message);
         refreshDirectoryUserCache(message);
+        log.info("FLOW db.persist messageId={} conversationId={} type={} senderId={} receiversCount={} step=chat.persist-from-kafka",
+                message.getId(),
+                message.getConversationId(),
+                message.getType(),
+                message.getSenderId(),
+                message.getReceiversId() == null ? 0 : message.getReceiversId().size());
 
         Conversation.LastMessage lastMsg = new Conversation.LastMessage();
         lastMsg.setId(message.getId());
@@ -204,7 +210,7 @@ public class MessageService {
         message.setUpdatedAt(Instant.now());
 
         Message saved = messageRepository.save(message);
-        log.debug("Message status updated messageId={} status={} actorUserId={}",
+        log.info("FLOW db.update-status messageId={} status={} actorUserId={} step=chat.status-updated",
                 saved.getId(),
                 saved.getStatus(),
                 actorUserId);

@@ -29,10 +29,11 @@ public class WsMessageKafkaPublisher {
     public Mono<Void> publishToGroupResolve(Message message) {
         String key = resolveKafkaKey(message);
         return kafkaPublisher.publish(groupResolveTopic, key, message)
-                .doOnNext(sendResult -> log.debug(
-                        "Message published to Kafka topic={} key={} type={} partition={} offset={}",
+                .doOnNext(sendResult -> log.info(
+                        "FLOW kafka.publish topic={} key={} messageId={} type={} partition={} offset={} step=ws.group-resolve",
                         groupResolveTopic,
                         key,
+                        message.getMessageId(),
                         message.getType(),
                         sendResult.getRecordMetadata().partition(),
                         sendResult.getRecordMetadata().offset()))
@@ -42,10 +43,11 @@ public class WsMessageKafkaPublisher {
     public Mono<Void> publishToChat(Message message) {
         String key = resolveKafkaKey(message);
         return kafkaPublisher.publish(chatMessagesTopic, key, message)
-                .doOnNext(sendResult -> log.debug(
-                        "Message published to Kafka topic={} key={} type={} partition={} offset={}",
+                .doOnNext(sendResult -> log.info(
+                        "FLOW kafka.publish topic={} key={} messageId={} type={} partition={} offset={} step=ws.chat",
                         chatMessagesTopic,
                         key,
+                        message.getMessageId(),
                         message.getType(),
                         sendResult.getRecordMetadata().partition(),
                         sendResult.getRecordMetadata().offset()))
@@ -55,10 +57,11 @@ public class WsMessageKafkaPublisher {
     public Mono<Void> publishStatusUpdate(Message message) {
         String key = resolveStatusKey(message);
         return kafkaPublisher.publish(messageStatusUpdatesTopic, key, message)
-                .doOnNext(sendResult -> log.debug(
-                        "Message status update published topic={} key={} status={} partition={} offset={}",
+                .doOnNext(sendResult -> log.info(
+                        "FLOW kafka.publish topic={} key={} messageId={} status={} partition={} offset={} step=ws.status-update",
                         messageStatusUpdatesTopic,
                         key,
+                        message.getMessageId(),
                         message.getStatus(),
                         sendResult.getRecordMetadata().partition(),
                         sendResult.getRecordMetadata().offset()))

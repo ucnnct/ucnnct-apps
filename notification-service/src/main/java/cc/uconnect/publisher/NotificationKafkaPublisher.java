@@ -19,8 +19,8 @@ public class NotificationKafkaPublisher {
         String topic = properties.getKafka().getTopics().getInAppNotifications();
         String key = recipientUserId;
         return kafkaJsonPublisher.publish(topic, key, notification)
-                .doOnNext(sendResult -> log.debug(
-                        "In-app notification published topic={} key={} notificationId={} targetId={} partition={} offset={}",
+                .doOnNext(sendResult -> log.info(
+                        "FLOW kafka.publish topic={} key={} notificationId={} targetId={} partition={} offset={} step=notification.in-app",
                         topic,
                         key,
                         notification.getNotificationId(),

@@ -36,6 +36,11 @@ public class WsMessageKafkaConsumer {
                         message.getGroupId());
                 return;
             }
+            log.info("FLOW kafka.consume topic=message.persisted messageId={} type={} senderId={} receiversCount={} step=ws.consume-persisted",
+                    message.getMessageId(),
+                    message.getType(),
+                    message.getSenderId(),
+                    message.getReceiversId() == null ? 0 : message.getReceiversId().size());
             routePersistedMessage(message)
                     .onErrorResume(ex -> {
                         log.error("Failed to deliver persisted message receiversId={}", message.getReceiversId(), ex);
@@ -80,6 +85,10 @@ public class WsMessageKafkaConsumer {
         }
 
         WsOutboundActionType actionType = resolveOutboundAction(message);
+        log.info("FLOW ws.route messageId={} action={} targetCount={} step=ws.route-persisted",
+                message.getMessageId(),
+                actionType,
+                targetUserIds.size());
         return Flux.fromIterable(targetUserIds)
                 .concatMap(targetUserId -> userPacketRoutingService.routeToUser(targetUserId, actionType, message))
                 .then(sendSentAckToSender(message))
@@ -102,6 +111,10 @@ public class WsMessageKafkaConsumer {
             return Mono.empty();
         }
         WsOutboundActionType ackActionType = resolveSentAckAction(message);
+        log.info("FLOW ws.ack messageId={} senderId={} action={} step=ws.sender-ack",
+                message.getMessageId(),
+                message.getSenderId(),
+                ackActionType);
         return userPacketRoutingService.routeToUser(message.getSenderId(), ackActionType, message);
     }
 

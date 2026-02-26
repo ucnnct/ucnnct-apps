@@ -34,6 +34,11 @@ public class SendFileMessageHandler implements WsInboundActionHandler {
                     message.setType(resolveConversationType(message));
                     return message;
                 })
+                .doOnNext(message -> log.info("FLOW ws.inbound action=SEND_FILE_MESSAGE senderId={} messageId={} type={} groupId={} step=ws.receive-file",
+                        senderUserId,
+                        message.getMessageId(),
+                        message.getType(),
+                        message.getGroupId()))
                 .flatMap(message -> {
                     if (message.getType() == MessageType.GROUP) {
                         return messageKafkaPublisher.publishToGroupResolve(message);

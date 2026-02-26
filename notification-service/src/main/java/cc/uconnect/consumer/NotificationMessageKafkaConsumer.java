@@ -26,7 +26,13 @@ public class NotificationMessageKafkaConsumer {
     )
     public void onPersistedMessage(String rawPayload) {
         decode(rawPayload)
+                .doOnNext(message -> log.info("FLOW kafka.consume topic={} messageId={} senderId={} step=notification.consume-message",
+                        properties.getKafka().getTopics().getMessagesPersisted(),
+                        message.getMessageId(),
+                        message.getSenderId()))
                 .flatMap(message -> notificationActionService.handlePersistedMessage(message)
+                        .doOnSuccess(ignored -> log.info("FLOW notification.handled messageId={} step=notification.dispatch",
+                                message.getMessageId()))
                         .onErrorResume(ex -> {
                             log.error("Notification dispatch failed messageId={} senderId={}",
                                     message.getMessageId(),

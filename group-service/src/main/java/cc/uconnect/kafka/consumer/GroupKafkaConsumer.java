@@ -34,7 +34,7 @@ public class GroupKafkaConsumer {
             return;
         }
 
-        log.debug("Received group.resolve groupId={} senderId={} messageId={}",
+        log.info("FLOW kafka.consume topic=group.resolve groupId={} senderId={} messageId={} step=group.consume-resolve",
                 event.getGroupId(),
                 event.getSenderId(),
                 event.getMessageId());
@@ -69,7 +69,7 @@ public class GroupKafkaConsumer {
                     .build();
             producer.publishGroupResolved(resolved);
 
-            log.debug("Published group.resolved groupId={} receiverCount={} messageId={}",
+            log.info("FLOW kafka.publish topic=group.resolved groupId={} receiverCount={} messageId={} step=group.publish-resolved",
                     event.getGroupId(),
                     receiversId.size(),
                     event.getMessageId());

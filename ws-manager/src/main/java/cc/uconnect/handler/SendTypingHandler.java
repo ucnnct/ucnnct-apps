@@ -34,6 +34,12 @@ public class SendTypingHandler implements WsInboundActionHandler {
     public Mono<Void> handle(String senderUserId, JsonNode payload) {
         return decodePayload(payload)
                 .map(request -> normalizeTypingEvent(senderUserId, request))
+                .doOnNext(event -> log.info("FLOW ws.inbound action=SEND_TYPING senderId={} targetUserId={} conversationId={} typing={} ttlMs={} step=ws.typing",
+                        event.getSenderId(),
+                        event.getTargetUserId(),
+                        event.getConversationId(),
+                        event.getTyping(),
+                        event.getTtlMs()))
                 .flatMap(event -> userPacketRoutingService.routeToUser(
                         event.getTargetUserId(),
                         WsOutboundActionType.USER_TYPING,

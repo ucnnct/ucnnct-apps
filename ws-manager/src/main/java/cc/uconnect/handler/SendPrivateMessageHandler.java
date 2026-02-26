@@ -34,6 +34,10 @@ public class SendPrivateMessageHandler implements WsInboundActionHandler {
                     message.setSenderId(senderUserId);
                     return message;
                 })
+                .doOnNext(message -> log.info("FLOW ws.inbound action=SEND_PRIVATE_MESSAGE senderId={} messageId={} receiversCount={} step=ws.receive-private",
+                        senderUserId,
+                        message.getMessageId(),
+                        message.getReceiversId() == null ? 0 : message.getReceiversId().size()))
                 .flatMap(messageKafkaPublisher::publishToChat)
                 .onErrorResume(ex -> {
                     log.warn("SEND_PRIVATE_MESSAGE processing error senderUserId={}", senderUserId, ex);

@@ -35,6 +35,10 @@ public class MessageReceivedHandler implements WsInboundActionHandler {
     public Mono<Void> handle(String receiverUserId, JsonNode payload) {
         return messagePayloadDecoder.decodeReceiptPayload(payload)
                 .map(message -> enrichMessage(message, receiverUserId))
+                .doOnNext(message -> log.info("FLOW ws.inbound action=MESSAGE_RECEIVED receiverUserId={} messageId={} senderId={} step=ws.received-ack",
+                        receiverUserId,
+                        message.getMessageId(),
+                        message.getSenderId()))
                 .flatMap(message -> messageKafkaPublisher.publishStatusUpdate(message)
                         .then(userPacketRoutingService.routeToUser(
                                 message.getSenderId(),

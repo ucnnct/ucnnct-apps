@@ -33,7 +33,7 @@ public class ChatKafkaConsumer {
     public void onMessageSend(String rawPayload) {
         try {
             SendMessageEvent event = objectMapper.readValue(rawPayload, SendMessageEvent.class);
-            log.debug("Received message.send messageId={} senderId={} type={} groupId={}",
+            log.info("FLOW kafka.consume topic=message.send messageId={} senderId={} type={} groupId={} step=chat.consume-send",
                     event.getMessageId(),
                     event.getSenderId(),
                     event.getType(),
@@ -42,6 +42,10 @@ public class ChatKafkaConsumer {
             Message saved = messageService.persistFromKafka(event);
             MessagePersistedEvent persistedEvent = toPersistedEvent(saved);
             producer.publishMessagePersisted(persistedEvent);
+            log.info("FLOW message.persisted messageId={} conversationId={} type={} step=chat.persisted-db",
+                    saved.getId(),
+                    saved.getConversationId(),
+                    saved.getType());
         } catch (Exception e) {
             log.error("Failed to persist message from Kafka payload={}", rawPayload, e);
         }
@@ -58,7 +62,7 @@ public class ChatKafkaConsumer {
     public void onMessageStatusUpdate(String rawPayload) {
         try {
             MessageStatusUpdateEvent event = objectMapper.readValue(rawPayload, MessageStatusUpdateEvent.class);
-            log.debug("Received message status update messageId={} status={} senderId={}",
+            log.info("FLOW kafka.consume topic=message.status.update messageId={} status={} senderId={} step=chat.consume-status",
                     event.getMessageId(),
                     event.getStatus(),
                     event.getSenderId());

@@ -33,6 +33,10 @@ public class WsGroupResolvedKafkaConsumer {
             }
 
             message.setType(MessageType.GROUP);
+            log.info("FLOW kafka.consume topic=group.resolved messageId={} groupId={} receiversCount={} step=ws.consume-group-resolved",
+                    message.getMessageId(),
+                    message.getGroupId(),
+                    message.getReceiversId() == null ? 0 : message.getReceiversId().size());
             messageKafkaPublisher.publishToChat(message)
                     .onErrorResume(ex -> {
                         log.error("Failed to publish group resolved message to chat topic groupId={}",

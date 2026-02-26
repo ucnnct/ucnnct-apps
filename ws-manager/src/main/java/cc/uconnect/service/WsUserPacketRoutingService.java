@@ -41,6 +41,9 @@ public class WsUserPacketRoutingService {
         }
 
         if (packetSender.hasLocalUser(targetUserId)) {
+            log.info("FLOW ws.route-local action={} targetUserId={} step=ws.route",
+                    actionName,
+                    targetUserId);
             return localSendSupplier.get();
         }
 
@@ -54,6 +57,10 @@ public class WsUserPacketRoutingService {
                     }
 
                     if (instanceId.equals(redisPubSubService.localInstanceId())) {
+                        log.info("FLOW ws.route-local action={} targetUserId={} instanceId={} step=ws.route",
+                                actionName,
+                                targetUserId,
+                                instanceId);
                         return localSendSupplier.get();
                     }
 
@@ -62,6 +69,10 @@ public class WsUserPacketRoutingService {
                             .targetUserId(targetUserId)
                             .packet(packet)
                             .build();
+                    log.info("FLOW ws.route-remote action={} targetUserId={} instanceId={} step=ws.route-redis",
+                            actionName,
+                            targetUserId,
+                            instanceId);
                     return redisPublisher.publishToInstance(instanceId, routedPacket);
                 })
                 .switchIfEmpty(Mono.fromRunnable(() ->

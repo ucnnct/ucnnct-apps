@@ -26,7 +26,16 @@ public class NotificationGroupKafkaConsumer {
     )
     public void onGroupEvent(String rawPayload) {
         decode(rawPayload)
+                .doOnNext(event -> log.info("FLOW kafka.consume topic={} eventId={} eventType={} recipientUserId={} groupId={} step=notification.consume-group",
+                        properties.getKafka().getTopics().getGroupEvents(),
+                        event.getEventId(),
+                        event.getEventType(),
+                        event.getRecipientUserId(),
+                        event.getGroupId()))
                 .flatMap(event -> notificationGroupActionService.handleGroupEvent(event)
+                        .doOnSuccess(ignored -> log.info("FLOW notification.handled eventId={} eventType={} step=notification.group",
+                                event.getEventId(),
+                                event.getEventType()))
                         .onErrorResume(ex -> {
                             log.error("Group notification dispatch failed eventId={} eventType={}",
                                     event.getEventId(),
