@@ -37,7 +37,7 @@ export default function Navbar() {
   } = useNavbarController();
 
   return (
-    <nav className="sticky top-0 z-50 bg-white border-b border-secondary h-16 relative">
+    <nav className="sticky top-0 z-50 bg-[#0b1f4d] border-b border-blue-900 h-16 relative">
       <div className="max-w-[1250px] mx-auto px-8 h-full flex items-center justify-between">
         <Link
           to="/"
@@ -46,7 +46,7 @@ export default function Navbar() {
           <div className="w-8 h-8 flex items-center justify-center transition-transform group-hover:scale-105">
             <img src="/uconnect.svg" alt="U-Connect" className="w-full h-full object-contain" />
           </div>
-          <span className="font-display font-bold text-base sm:text-lg md:text-xl tracking-tight text-primary-900 whitespace-nowrap leading-none">
+          <span className="font-display font-bold text-base sm:text-lg md:text-xl tracking-tight text-white whitespace-nowrap leading-none">
             U-Connect
           </span>
         </Link>
@@ -78,7 +78,7 @@ export default function Navbar() {
           <button
             onClick={toggleMobileSearch}
             title="Rechercher sur le campus"
-            className="relative p-1 text-secondary-400 hover:text-primary-500 transition-colors md:hidden"
+            className="relative p-1 text-blue-100 hover:text-white transition-colors md:hidden"
           >
             <Search size={20} />
           </button>
@@ -86,14 +86,14 @@ export default function Navbar() {
           <div className="relative" ref={notificationsRef}>
             <button
               onClick={toggleNotifications}
-              className="relative p-1 text-secondary-400 hover:text-primary-500 transition-colors"
+              className="relative p-1 text-blue-100 hover:text-white transition-colors"
             >
               <Bell size={20} />
               {unreadCount > 0 && (
-                <span className="absolute -top-2 -right-2 min-w-4 h-4 px-1 rounded-full bg-primary-500 text-white text-[10px] leading-4 text-center border border-white">
-                  {unreadCount > 99 ? "99+" : unreadCount}
-                </span>
-              )}
+                  <span className="absolute -top-2 -right-2 min-w-4 h-4 px-1 rounded-full bg-primary-500 text-white text-[10px] leading-4 text-center border border-blue-900">
+                    {unreadCount > 99 ? "99+" : unreadCount}
+                  </span>
+                )}
             </button>
 
             <NotificationsPopover
@@ -118,7 +118,7 @@ export default function Navbar() {
                 alt="User"
               />
             </div>
-            <span className="text-xs font-medium text-primary-900 hidden lg:block group-hover:text-primary-500 transition-colors">
+            <span className="text-xs font-medium text-blue-50 hidden lg:block group-hover:text-white transition-colors">
               {displayName}
             </span>
           </div>
@@ -126,13 +126,13 @@ export default function Navbar() {
           <button
             onClick={logout}
             title="Se deconnecter"
-            className="p-1 text-secondary-400 hover:text-red-500 transition-colors"
+            className="p-1 text-blue-100 hover:text-red-300 transition-colors"
           >
             <LogOut size={20} />
           </button>
 
           <div className="flex items-center lg:hidden">
-            <button onClick={toggleMenu} className="p-2 text-primary-900 transition-none">
+            <button onClick={toggleMenu} className="p-2 text-white transition-none">
               {isMenuOpen ? <X size={24} /> : <Menu size={24} />}
             </button>
           </div>
