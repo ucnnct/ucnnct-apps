@@ -34,6 +34,11 @@ management:
       exposure:
         include: health
 
+logging:
+  level:
+    org.springframework.security: DEBUG
+    root: INFO
+
 app:
   instance:
     id: ${WS_INSTANCE_ID:}
