@@ -9,6 +9,8 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.log4j.Log4j2;
 import org.springframework.data.r2dbc.core.R2dbcEntityTemplate;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Propagation;
+import org.springframework.transaction.annotation.Transactional;
 import reactor.core.publisher.Mono;
 
 import java.time.Instant;
@@ -21,6 +23,7 @@ public class NotificationPersistenceService {
 
     private final R2dbcEntityTemplate entityTemplate;
 
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
     public Mono<Notification> persist(Notification notification,
                                       NotificationDecisionType decisionType,
                                       Message message,
