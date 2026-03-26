@@ -37,7 +37,7 @@ export default function Navbar() {
   } = useNavbarController();
 
   return (
-    <nav className="sticky top-0 z-50 bg-[#0b1f4d] border-b border-blue-900 h-16 relative">
+    <nav className="sticky top-0 z-50 bg-[#aeb95c] border-b border-blue-900 h-16 relative">
       <div className="max-w-[1250px] mx-auto px-8 h-full flex items-center justify-between">
         <Link
           to="/"
