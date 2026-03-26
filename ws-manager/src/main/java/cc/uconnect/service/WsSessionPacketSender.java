@@ -17,8 +17,8 @@ import java.util.concurrent.ConcurrentHashMap;
 @RequiredArgsConstructor
 public class WsSessionPacketSender {
 
-    
     private final ObjectMapper objectMapper;
+    private final WsInstanceIdentityService instanceIdentityService;
     private final Map<String, Sinks.Many<String>> sessionSinks = new ConcurrentHashMap<>();
     private final Map<String, Set<String>> userSessions = new ConcurrentHashMap<>();
     private final Map<String, String> sessionUsers = new ConcurrentHashMap<>();
@@ -56,13 +56,17 @@ public class WsSessionPacketSender {
     public boolean sendPacketToUser(String userId, WsPacket packet) {
         Set<String> sessions = userSessions.get(userId);
         if (sessions == null || sessions.isEmpty()) {
-            log.debug("Cannot send packet. User is not connected userId={}", userId);
+            log.debug("Cannot send packet. User is not connected userId={} localInstanceId={} action={}",
+                    userId,
+                    instanceIdentityService.getInstanceId(),
+                    packet == null ? null : packet.getType());
             return false;
         }
 
         try {
             String payload = objectMapper.writeValueAsString(packet);
             boolean sentAtLeastOnce = false;
+            int deliveredSessions = 0;
             for (String sessionId : List.copyOf(sessions)) {
                 Sinks.Many<String> sink = sessionSinks.get(sessionId);
                 if (sink == null) {
@@ -72,6 +76,7 @@ public class WsSessionPacketSender {
                 Sinks.EmitResult result = sink.tryEmitNext(payload);
                 if (result == Sinks.EmitResult.OK) {
                     sentAtLeastOnce = true;
+                    deliveredSessions++;
                     continue;
                 }
 
@@ -80,6 +85,13 @@ public class WsSessionPacketSender {
                         sessionId,
                         result,
                         packet.getType());
+            }
+            if (sentAtLeastOnce) {
+                log.info("FLOW ws.deliver-local action={} targetUserId={} localInstanceId={} connectionHostedHere=true deliveredSessions={} step=ws.deliver",
+                        packet == null ? null : packet.getType(),
+                        userId,
+                        instanceIdentityService.getInstanceId(),
+                        deliveredSessions);
             }
             return sentAtLeastOnce;
         } catch (Exception ex) {

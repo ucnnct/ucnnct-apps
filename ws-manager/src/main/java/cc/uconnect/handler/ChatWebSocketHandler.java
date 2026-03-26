@@ -2,6 +2,7 @@ package cc.uconnect.handler;
 
 import cc.uconnect.model.WsPacket;
 import cc.uconnect.service.WsActionService;
+import cc.uconnect.service.WsInstanceIdentityService;
 import cc.uconnect.service.WsPresenceRedisService;
 import cc.uconnect.service.WsPresenceSubscriptionService;
 import cc.uconnect.service.WsSessionPacketSender;
@@ -37,6 +38,7 @@ public class ChatWebSocketHandler implements WebSocketHandler {
     private final ObjectMapper objectMapper;
     private final WsSessionPacketSender packetSender;
     private final WsActionService actionService;
+    private final WsInstanceIdentityService instanceIdentityService;
     private final WsPresenceRedisService presenceRedisService;
     private final WsPresenceSubscriptionService presenceSubscriptionService;
 
@@ -66,7 +68,8 @@ public class ChatWebSocketHandler implements WebSocketHandler {
     }
 
     private Mono<Void> handleAuthenticatedSession(WebSocketSession session, String sessionId, String userId) {
-        log.info("New WebSocket connection: sessionId={} userId={}", sessionId, userId);
+        String localInstanceId = instanceIdentityService.getInstanceId();
+        log.info("New WebSocket connection: sessionId={} userId={} localInstanceId={}", sessionId, userId, localInstanceId);
 
         Sinks.Many<String> outboundSink = Sinks.many()
                 .unicast()
@@ -107,7 +110,7 @@ public class ChatWebSocketHandler implements WebSocketHandler {
                                 })
                                 .subscribe();
                     }
-                    log.info("Connection closed: sessionId={} userId={} signal={}", sessionId, userId, signal);
+                    log.info("Connection closed: sessionId={} userId={} signal={} localInstanceId={}", sessionId, userId, signal, localInstanceId);
                 });
     }
 

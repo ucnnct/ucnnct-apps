@@ -12,5 +12,7 @@ import lombok.NoArgsConstructor;
 public class WsRoutedPacket {
 
     private String targetUserId;
+    private String sourceInstanceId;
+    private String targetInstanceId;
     private WsPacket packet;
 }

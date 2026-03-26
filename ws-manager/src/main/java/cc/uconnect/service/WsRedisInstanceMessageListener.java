@@ -17,15 +17,28 @@ public class WsRedisInstanceMessageListener implements MessageListener {
 
     private final ObjectMapper objectMapper;
     private final WsSessionPacketSender packetSender;
+    private final WsRedisPubSubService pubSubService;
 
     @Override
     public void onMessage(Message message, byte[] pattern) {
         String raw = new String(message.getBody(), StandardCharsets.UTF_8);
         try {
             WsRoutedPacket routedPacket = objectMapper.readValue(raw, WsRoutedPacket.class);
+            String localInstanceId = pubSubService.localInstanceId();
+            log.info("FLOW ws.route-received action={} targetUserId={} sourceInstanceId={} localInstanceId={} routeOwnerInstanceId={} connectionHostedHere=true step=ws.route-received",
+                    routedPacket.getPacket() == null ? null : routedPacket.getPacket().getType(),
+                    routedPacket.getTargetUserId(),
+                    routedPacket.getSourceInstanceId(),
+                    localInstanceId,
+                    routedPacket.getTargetInstanceId());
             boolean delivered = packetSender.sendPacketToUser(routedPacket.getTargetUserId(), routedPacket.getPacket());
             if (!delivered) {
-                log.debug("Routed packet received but not delivered targetUserId={}", routedPacket.getTargetUserId());
+                log.warn("FLOW ws.route-received-not-delivered action={} targetUserId={} sourceInstanceId={} localInstanceId={} routeOwnerInstanceId={} connectionHostedHere=true step=ws.route-received",
+                        routedPacket.getPacket() == null ? null : routedPacket.getPacket().getType(),
+                        routedPacket.getTargetUserId(),
+                        routedPacket.getSourceInstanceId(),
+                        localInstanceId,
+                        routedPacket.getTargetInstanceId());
             }
         } catch (Exception ex) {
             log.error("Failed to process routed Redis packet payload={}", raw, ex);

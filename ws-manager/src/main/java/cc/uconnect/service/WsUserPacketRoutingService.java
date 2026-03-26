@@ -35,15 +35,19 @@ public class WsUserPacketRoutingService {
             String actionName,
             Supplier<Mono<Void>> localSendSupplier,
             Supplier<WsPacket> packetBuilder) {
+        String localInstanceId = redisPubSubService.localInstanceId();
+
         if (targetUserId == null || targetUserId.isBlank()) {
             return Mono.fromRunnable(() ->
                     log.warn("Cannot route packet: targetUserId is missing action={}", actionName));
         }
 
         if (packetSender.hasLocalUser(targetUserId)) {
-            log.info("FLOW ws.route-local action={} targetUserId={} step=ws.route",
+            log.info("FLOW ws.route-local action={} targetUserId={} localInstanceId={} routeOwnerInstanceId={} connectionHostedHere=true step=ws.route",
                     actionName,
-                    targetUserId);
+                    targetUserId,
+                    localInstanceId,
+                    localInstanceId);
             return localSendSupplier.get();
         }
 
@@ -56,10 +60,11 @@ public class WsUserPacketRoutingService {
                         return Mono.empty();
                     }
 
-                    if (instanceId.equals(redisPubSubService.localInstanceId())) {
-                        log.info("FLOW ws.route-local action={} targetUserId={} instanceId={} step=ws.route",
+                    if (instanceId.equals(localInstanceId)) {
+                        log.info("FLOW ws.route-local action={} targetUserId={} localInstanceId={} routeOwnerInstanceId={} connectionHostedHere=true step=ws.route",
                                 actionName,
                                 targetUserId,
+                                localInstanceId,
                                 instanceId);
                         return localSendSupplier.get();
                     }
@@ -67,11 +72,14 @@ public class WsUserPacketRoutingService {
                     WsPacket packet = packetBuilder.get();
                     WsRoutedPacket routedPacket = WsRoutedPacket.builder()
                             .targetUserId(targetUserId)
+                            .sourceInstanceId(localInstanceId)
+                            .targetInstanceId(instanceId)
                             .packet(packet)
                             .build();
-                    log.info("FLOW ws.route-remote action={} targetUserId={} instanceId={} step=ws.route-redis",
+                    log.info("FLOW ws.route-remote action={} targetUserId={} localInstanceId={} routeOwnerInstanceId={} connectionHostedHere=false step=ws.route-redis",
                             actionName,
                             targetUserId,
+                            localInstanceId,
                             instanceId);
                     return redisPublisher.publishToInstance(instanceId, routedPacket);
                 })
