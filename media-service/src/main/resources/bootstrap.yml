@@ -1,0 +1,16 @@
+spring:
+  application:
+    name: ucnnct
+  cloud:
+    vault:
+      host: ${VAULT_HOST:172.31.253.10}
+      port: ${VAULT_PORT:8200}
+      scheme: https
+      authentication: KUBERNETES
+      kubernetes:
+        role: ucnnct
+        service-account-token-file: /var/run/secrets/kubernetes.io/serviceaccount/token
+      kv:
+        version: 2
+      ssl:
+        verify-hostname: false
