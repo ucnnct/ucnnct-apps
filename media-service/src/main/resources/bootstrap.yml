@@ -14,3 +14,4 @@ spring:
         version: 2
       ssl:
         verify-hostname: false
+        skip-ssl-verify: true
