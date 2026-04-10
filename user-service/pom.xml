@@ -13,7 +13,7 @@
 
     <groupId>cc.uconnect</groupId>
     <artifactId>user-service</artifactId>
-    <version>1.4.0</version>
+    <version>1.4.1</version>
     <name>user-service</name>
     <description>User service</description>
 
