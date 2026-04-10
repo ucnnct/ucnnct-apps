@@ -13,7 +13,7 @@
 
     <groupId>cc.uconnect</groupId>
     <artifactId>media-service</artifactId>
-    <version>1.3.2</version>
+    <version>1.4.0</version>
     <name>media-service</name>
     <description>Media service</description>
 
