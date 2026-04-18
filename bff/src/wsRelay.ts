@@ -3,7 +3,7 @@ import type { RequestHandler } from "express";
 import type { Session, SessionData } from "express-session";
 import type { Duplex } from "stream";
 import { WebSocket, WebSocketServer, type RawData } from "ws";
-import { getUserInfoFromAccessToken } from "./auth";
+import { getUserInfoFromAccessToken, refreshAccessTokenIfNeeded } from "./auth";
 import logger from "./logger";
 
 type SessionRequest = IncomingMessage & {
@@ -60,8 +60,11 @@ function resolveUserId(req: SessionRequest): string | undefined {
 
 async function resolveWsAuth(req: SessionRequest): Promise<{ userId: string; accessToken?: string } | undefined> {
   const sessionUserId = resolveUserId(req);
-  const sessionAccessToken = req.session?.tokenSet?.access_token;
   if (sessionUserId) {
+    const refreshedAccessToken = await refreshAccessTokenIfNeeded(req as any);
+    const sessionAccessToken =
+      refreshedAccessToken ??
+      (typeof req.session?.tokenSet?.access_token === "string" ? req.session.tokenSet.access_token : undefined);
     return {
       userId: sessionUserId,
       accessToken: typeof sessionAccessToken === "string" && sessionAccessToken ? sessionAccessToken : undefined,
