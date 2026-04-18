@@ -59,6 +59,10 @@ function resolveUserId(req: SessionRequest): string | undefined {
 }
 
 async function resolveWsAuth(req: SessionRequest): Promise<{ userId: string; accessToken?: string } | undefined> {
+  const authorization = req.headers.authorization;
+  const bearerAccessToken = authorization?.startsWith("Bearer ")
+    ? authorization.slice("Bearer ".length).trim()
+    : undefined;
   const sessionUserId = resolveUserId(req);
   if (sessionUserId) {
     const refreshedAccessToken = await refreshAccessTokenIfNeeded(req as any);
@@ -67,11 +71,12 @@ async function resolveWsAuth(req: SessionRequest): Promise<{ userId: string; acc
       (typeof req.session?.tokenSet?.access_token === "string" ? req.session.tokenSet.access_token : undefined);
     return {
       userId: sessionUserId,
-      accessToken: typeof sessionAccessToken === "string" && sessionAccessToken ? sessionAccessToken : undefined,
+      accessToken:
+        (typeof sessionAccessToken === "string" && sessionAccessToken ? sessionAccessToken : undefined) ??
+        bearerAccessToken,
     };
   }
 
-  const authorization = req.headers.authorization;
   if (!authorization?.startsWith("Bearer ")) {
     return undefined;
   }
