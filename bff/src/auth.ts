@@ -53,7 +53,10 @@ function normalizeIssuerParam(
 }
 
 export async function setupAuth(app: Express) {
-  const internalIssuerUri = process.env.KEYCLOAK_ISSUER_URI || "http://keycloak:8080/realms/ucnnct";
+  const internalIssuerUri =
+    process.env.KEYCLOAK_INTERNAL_ISSUER_URI ||
+    process.env.KEYCLOAK_ISSUER_URI ||
+    "http://keycloak:8080/realms/ucnnct";
   const externalIssuerUri = process.env.KEYCLOAK_EXTERNAL_URI || "http://localhost:8882/realms/ucnnct";
 
   const discoverIssuer = async () => {
@@ -177,7 +180,15 @@ export async function setupAuth(app: Express) {
       logger.info("[OIDC] User authenticated sub={}", tokenSet.claims().sub);
       req.session.save(() => res.redirect("/"));
     } catch (err) {
-      logger.error("[OIDC] Callback error", err as Error);
+      const message = err instanceof Error ? err.message : String(err);
+      const stack = err instanceof Error && err.stack ? err.stack.replace(/\s+/g, " ").slice(0, 1200) : "n/a";
+      logger.error(
+        "[OIDC] Callback error message={} stack={} has_nonce={} has_state={}",
+        message,
+        stack,
+        String(Boolean(req.session.nonce)),
+        String(Boolean(req.session.state))
+      );
       res.status(500).send("Authentication error. <a href='/bff/login'>Retry</a>");
     }
   });
