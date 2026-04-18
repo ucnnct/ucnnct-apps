@@ -3,10 +3,15 @@ import type { RequestHandler } from "express";
 import type { Session, SessionData } from "express-session";
 import type { Duplex } from "stream";
 import { WebSocket, WebSocketServer, type RawData } from "ws";
+import { getUserInfoFromAccessToken } from "./auth";
 import logger from "./logger";
 
 type SessionRequest = IncomingMessage & {
   session?: Session & Partial<SessionData>;
+  wsAuth?: {
+    userId: string;
+    accessToken?: string;
+  };
 };
 
 const CLIENT_WS_PATH = process.env.WS_CLIENT_PATH || "/ws/uconnect";
@@ -51,6 +56,35 @@ function resolveUserId(req: SessionRequest): string | undefined {
   }
   const sub = (claims as Record<string, unknown>).sub;
   return typeof sub === "string" && sub.trim() ? sub : undefined;
+}
+
+async function resolveWsAuth(req: SessionRequest): Promise<{ userId: string; accessToken?: string } | undefined> {
+  const sessionUserId = resolveUserId(req);
+  const sessionAccessToken = req.session?.tokenSet?.access_token;
+  if (sessionUserId) {
+    return {
+      userId: sessionUserId,
+      accessToken: typeof sessionAccessToken === "string" && sessionAccessToken ? sessionAccessToken : undefined,
+    };
+  }
+
+  const authorization = req.headers.authorization;
+  if (!authorization?.startsWith("Bearer ")) {
+    return undefined;
+  }
+
+  const accessToken = authorization.slice("Bearer ".length).trim();
+  if (!accessToken) {
+    return undefined;
+  }
+
+  const claims = await getUserInfoFromAccessToken(accessToken);
+  const sub = claims?.sub;
+  if (typeof sub !== "string" || !sub.trim()) {
+    return undefined;
+  }
+
+  return { userId: sub, accessToken };
 }
 
 function closeWithStatus(socket: Duplex, status: number, message: string): void {
@@ -142,17 +176,18 @@ export function setupWsRelay(server: HttpServer, sessionMiddleware: RequestHandl
 
   wss.on("connection", (downstream, req) => {
     const sessionReq = req as SessionRequest;
-    const userId = resolveUserId(sessionReq);
-    if (!userId) {
+    const wsAuth = sessionReq.wsAuth;
+    if (!wsAuth?.userId) {
       downstream.close(1008, "unauthorized");
       return;
     }
+    const userId = wsAuth.userId;
 
     const connectionId = `${Date.now()}-${++sequence}`;
     const upstreamUrl = new URL(WS_MANAGER_URL);
     upstreamUrl.searchParams.set("userId", userId);
 
-    const accessToken = sessionReq.session?.tokenSet?.access_token;
+    const accessToken = wsAuth.accessToken ?? sessionReq.session?.tokenSet?.access_token;
     const upstreamHeaders: Record<string, string> = { "X-User-Id": userId };
     if (typeof accessToken === "string" && accessToken) {
       upstreamHeaders.Authorization = `Bearer ${accessToken}`;
@@ -184,10 +219,12 @@ export function setupWsRelay(server: HttpServer, sessionMiddleware: RequestHandl
       return;
     }
 
-    if (!resolveUserId(sessionReq)) {
+    const wsAuth = await resolveWsAuth(sessionReq);
+    if (!wsAuth) {
       closeWithStatus(socket, 401, "Unauthorized");
       return;
     }
+    sessionReq.wsAuth = wsAuth;
 
     wss.handleUpgrade(req, socket, head, (ws) => {
       wss.emit("connection", ws, sessionReq);

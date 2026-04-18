@@ -226,6 +226,22 @@ export async function refreshAccessTokenIfNeeded(req: Request): Promise<string |
   return tokenSet.access_token;
 }
 
+export async function getUserInfoFromAccessToken(
+  accessToken: string
+): Promise<Record<string, unknown> | undefined> {
+  if (!isOidcReady || !oidcClient || !accessToken) {
+    return undefined;
+  }
+
+  try {
+    const claims = await oidcClient.userinfo(accessToken);
+    return claims && typeof claims === "object" ? (claims as Record<string, unknown>) : undefined;
+  } catch (err) {
+    logger.warn("[OIDC] Bearer token userinfo lookup failed");
+    return undefined;
+  }
+}
+
 export function getOidcStatus() {
   return isOidcReady ? "UP" : "STARTING";
 }
