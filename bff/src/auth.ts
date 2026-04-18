@@ -9,6 +9,44 @@ let oidcValidationIssuerUri: string | undefined;
 const REDIRECT_URI = process.env.REDIRECT_URI || "http://localhost:5173/login/oauth2/code/keycloak";
 const LOGOUT_REDIRECT_URI = process.env.LOGOUT_REDIRECT_URI || "http://localhost:5173/";
 
+function decodeJwtExp(token: string | undefined): number | undefined {
+  if (!token) return undefined;
+
+  try {
+    const payload = token.split(".")[1];
+    if (!payload) return undefined;
+    const json = Buffer.from(payload, "base64url").toString("utf8");
+    const claims = JSON.parse(json) as { exp?: unknown };
+    return typeof claims.exp === "number" ? claims.exp : undefined;
+  } catch {
+    return undefined;
+  }
+}
+
+function normalizeTokenSetTimestamps(raw: Record<string, unknown> | undefined): TokenSet | undefined {
+  if (!raw) return undefined;
+
+  const tokenSet = new TokenSet(raw);
+  if (typeof tokenSet.expires_at === "number" && tokenSet.expires_at > 0) {
+    return tokenSet;
+  }
+
+  const exp =
+    decodeJwtExp(typeof tokenSet.access_token === "string" ? tokenSet.access_token : undefined) ??
+    decodeJwtExp(typeof tokenSet.id_token === "string" ? tokenSet.id_token : undefined);
+
+  if (typeof exp === "number" && exp > 0) {
+    tokenSet.expires_at = exp;
+    return tokenSet;
+  }
+
+  if (typeof tokenSet.expires_in === "number" && tokenSet.expires_in > 0) {
+    tokenSet.expires_at = Math.floor(Date.now() / 1000) + tokenSet.expires_in;
+  }
+
+  return tokenSet;
+}
+
 function rewriteBrowserEndpoint(
   endpoint: string | undefined,
   discoveredIssuerUri: string | undefined,
@@ -219,7 +257,15 @@ export async function setupAuth(app: Express) {
 export async function refreshAccessTokenIfNeeded(req: Request): Promise<string | undefined> {
   if (!isOidcReady || !oidcClient || !req.session.tokenSet) return undefined;
 
-  let tokenSet = new TokenSet(req.session.tokenSet);
+  const normalizedTokenSet = normalizeTokenSetTimestamps(
+    req.session.tokenSet as Record<string, unknown>
+  );
+  if (!normalizedTokenSet) {
+    return undefined;
+  }
+
+  let tokenSet = normalizedTokenSet;
+  req.session.tokenSet = tokenSet;
 
   if (tokenSet.expired()) {
     try {
