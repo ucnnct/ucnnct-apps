@@ -12,6 +12,7 @@ import lombok.extern.log4j.Log4j2;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationToken;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 import org.springframework.util.MultiValueMap;
 import org.springframework.web.reactive.socket.CloseStatus;
@@ -24,7 +25,9 @@ import reactor.core.publisher.Mono;
 import reactor.core.publisher.Sinks;
 import reactor.core.scheduler.Schedulers;
 
+import java.nio.charset.StandardCharsets;
 import java.net.URI;
+import java.security.MessageDigest;
 import java.security.Principal;
 import java.util.concurrent.ArrayBlockingQueue;
 
@@ -34,6 +37,7 @@ import java.util.concurrent.ArrayBlockingQueue;
 public class ChatWebSocketHandler implements WebSocketHandler {
 
     private static final int OUTBOUND_BUFFER_SIZE = 1024;
+    private static final String RELAY_SECRET_HEADER = "X-Uconnect-Relay-Secret";
 
     private final ObjectMapper objectMapper;
     private final WsSessionPacketSender packetSender;
@@ -41,6 +45,12 @@ public class ChatWebSocketHandler implements WebSocketHandler {
     private final WsInstanceIdentityService instanceIdentityService;
     private final WsPresenceRedisService presenceRedisService;
     private final WsPresenceSubscriptionService presenceSubscriptionService;
+
+    @Value("${WS_RELAY_SHARED_SECRET:}")
+    private String relaySharedSecret;
+
+    @Value("${SESSION_SECRET:}")
+    private String sessionSecret;
 
     @Override
     public Mono<Void> handle(WebSocketSession session) {
@@ -62,6 +72,10 @@ public class ChatWebSocketHandler implements WebSocketHandler {
                     return handleAuthenticatedSession(session, sessionId, userId);
                 })
                 .switchIfEmpty(Mono.defer(() -> {
+                    String trustedRelayUserId = resolveTrustedRelayUserId(session);
+                    if (trustedRelayUserId != null) {
+                        return handleAuthenticatedSession(session, sessionId, trustedRelayUserId);
+                    }
                     log.warn("WebSocket rejected: unauthenticated connection. sessionId={}", sessionId);
                     return session.close(CloseStatus.POLICY_VIOLATION);
                 }));
@@ -172,5 +186,39 @@ public class ChatWebSocketHandler implements WebSocketHandler {
             return true;
         }
         return authenticatedUserId.equals(requestedUserId);
+    }
+
+    private String resolveTrustedRelayUserId(WebSocketSession session) {
+        String configuredSecret = firstNonBlank(relaySharedSecret, sessionSecret);
+        if (configuredSecret == null || configuredSecret.isBlank()) {
+            return null;
+        }
+
+        String providedSecret = session.getHandshakeInfo().getHeaders().getFirst(RELAY_SECRET_HEADER);
+        if (!secretsMatch(configuredSecret, providedSecret)) {
+            return null;
+        }
+
+        String requestedUserId = resolveRequestedUserId(session);
+        return requestedUserId != null && !requestedUserId.isBlank() ? requestedUserId : null;
+    }
+
+    private boolean secretsMatch(String expected, String provided) {
+        if (provided == null || provided.isBlank()) {
+            return false;
+        }
+
+        byte[] expectedBytes = expected.getBytes(StandardCharsets.UTF_8);
+        byte[] providedBytes = provided.getBytes(StandardCharsets.UTF_8);
+        return MessageDigest.isEqual(expectedBytes, providedBytes);
+    }
+
+    private String firstNonBlank(String... values) {
+        for (String value : values) {
+            if (value != null && !value.isBlank()) {
+                return value;
+            }
+        }
+        return null;
     }
 }
