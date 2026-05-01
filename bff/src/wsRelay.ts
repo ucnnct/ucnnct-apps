@@ -18,6 +18,10 @@ const CLIENT_WS_PATH = process.env.WS_CLIENT_PATH || "/ws/uconnect";
 const WS_MANAGER_URL = process.env.WS_MANAGER_URL || "ws://ws-manager:8080/ws/uconnect";
 const MAX_PAYLOAD_BYTES = Number(process.env.WS_MAX_PAYLOAD_BYTES || 262144);
 const MAX_BUFFERED_MESSAGES = Number(process.env.WS_MAX_BUFFERED_MESSAGES || 100);
+const RELAY_HEARTBEAT_INTERVAL_MS = Math.max(
+  5_000,
+  Number(process.env.WS_RELAY_HEARTBEAT_INTERVAL_MS || 25_000),
+);
 
 const allowedOrigins = new Set(
   (process.env.WS_ALLOWED_ORIGINS || "http://localhost:5173,http://127.0.0.1:5173,https://localhost:5443,https://127.0.0.1:5443")
@@ -108,6 +112,39 @@ function normalizeCloseCode(code: number): number {
   return 1011;
 }
 
+function startRelayHeartbeat(
+  downstream: WebSocket,
+  upstream: WebSocket,
+  connectionId: string,
+  userId: string,
+): NodeJS.Timeout {
+  const ping = (side: "client" | "upstream", ws: WebSocket) => {
+    if (ws.readyState !== WebSocket.OPEN) {
+      return;
+    }
+
+    try {
+      ws.ping();
+    } catch (err) {
+      logger.warn(
+        "[WS] Heartbeat ping failed id={} userId={} side={} err={}",
+        connectionId,
+        userId,
+        side,
+        err instanceof Error ? err.message : String(err),
+      );
+      ws.terminate();
+    }
+  };
+
+  const timer = setInterval(() => {
+    ping("client", downstream);
+    ping("upstream", upstream);
+  }, RELAY_HEARTBEAT_INTERVAL_MS);
+  timer.unref?.();
+  return timer;
+}
+
 function forward(
   downstream: WebSocket,
   upstream: WebSocket,
@@ -115,6 +152,8 @@ function forward(
   userId: string,
 ): void {
   const queued: Array<{ data: RawData; isBinary: boolean }> = [];
+  const heartbeatTimer = startRelayHeartbeat(downstream, upstream, connectionId, userId);
+  const stopHeartbeat = () => clearInterval(heartbeatTimer);
 
   downstream.on("message", (data, isBinary) => {
     if (upstream.readyState === WebSocket.OPEN) {
@@ -144,6 +183,7 @@ function forward(
   });
 
   upstream.on("close", (code, reason) => {
+    stopHeartbeat();
     const text = reason.toString();
     logger.info("[WS] Upstream closed id={} userId={} code={} reason={}", connectionId, userId, code, text || "none");
     if (downstream.readyState === WebSocket.OPEN || downstream.readyState === WebSocket.CONNECTING) {
@@ -159,6 +199,7 @@ function forward(
   });
 
   downstream.on("close", (code, reason) => {
+    stopHeartbeat();
     const text = reason.toString();
     logger.info("[WS] Client closed id={} userId={} code={} reason={}", connectionId, userId, code, text || "none");
     if (upstream.readyState === WebSocket.OPEN || upstream.readyState === WebSocket.CONNECTING) {
