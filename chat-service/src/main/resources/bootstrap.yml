@@ -1,9 +1,9 @@
 spring:
   application:
-    name: ucnnct
+    name: chat-service
   cloud:
     vault:
-      host: ${VAULT_HOST:172.31.253.10}
+      host: ${VAULT_HOST:172.31.253.76}
       port: ${VAULT_PORT:8200}
       scheme: https
       authentication: KUBERNETES
