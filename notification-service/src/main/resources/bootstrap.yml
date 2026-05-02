@@ -15,3 +15,4 @@ spring:
       ssl:
         verify-hostname: false
         skip-ssl-verify: true
+
