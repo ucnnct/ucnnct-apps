@@ -1,6 +1,6 @@
 spring:
   application:
-    name: user-service
+    name: ws-manager
   cloud:
     vault:
       host: ${VAULT_HOST:172.31.253.76}
@@ -16,4 +16,3 @@ spring:
         verify-hostname: false
         skip-ssl-verify: true
         key-store-insecure-trust-any-certificate: true
-

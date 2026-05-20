@@ -15,4 +15,5 @@ spring:
       ssl:
         verify-hostname: false
         skip-ssl-verify: true
+        key-store-insecure-trust-any-certificate: true
 
