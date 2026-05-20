@@ -17,6 +17,7 @@ hs_err_pid*
 **/dist/
 **/dist-ssr/
 *.local
+.env
 .env.local
 
 # === Logs ===

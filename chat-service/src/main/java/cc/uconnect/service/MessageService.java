@@ -37,6 +37,7 @@ public class MessageService {
     private final MessageRepository messageRepository;
     private final ConversationService conversationService;
     private final UserDirectoryCacheService userDirectoryCacheService;
+    private final MessageCipherService cipher;
 
     public Message sendMessage(SendMessageRequest req, String senderId) {
         String conversationId;
@@ -63,7 +64,8 @@ public class MessageService {
         message.setGroupId(groupId);
         message.setReceiversId(receiversId);
         message.setTargetId(req.getTargetId());
-        message.setContent(req.getContent());
+        String plainContent = req.getContent();
+        message.setContent(cipher.encrypt(plainContent));
         message.setObjectKey(null);
         message.setFormat(req.getFormat() != null ? req.getFormat() : MessageFormat.TEXT);
         message.setAttachments(req.getAttachments() != null ? req.getAttachments() : new ArrayList<>());
@@ -77,6 +79,7 @@ public class MessageService {
         message.setUpdatedAt(Instant.now());
 
         message = messageRepository.save(message);
+        message.setContent(plainContent);
         refreshDirectoryUserCache(message);
         log.debug("Message sent (REST) messageId={} conversationId={} senderId={}",
                 message.getId(),
@@ -86,7 +89,7 @@ public class MessageService {
         Conversation.LastMessage lastMsg = new Conversation.LastMessage();
         lastMsg.setId(message.getId());
         lastMsg.setSenderId(senderId);
-        lastMsg.setContent(req.getContent());
+        lastMsg.setContent(cipher.encrypt(req.getContent()));
         lastMsg.setCreatedAt(message.getCreatedAt());
         conversationService.updateLastMessage(conversationId, lastMsg, senderId);
 
@@ -95,8 +98,10 @@ public class MessageService {
 
     public Page<Message> getMessages(String conversationId, int page, int size) {
         log.debug("Get messages conversationId={} page={} size={}", conversationId, page, size);
-        return messageRepository.findByConversationIdOrderByCreatedAtDesc(
+        Page<Message> messages = messageRepository.findByConversationIdOrderByCreatedAtDesc(
                 conversationId, PageRequest.of(page, size));
+        messages.forEach(m -> m.setContent(cipher.decrypt(m.getContent())));
+        return messages;
     }
 
     public Message editMessage(String messageId, String newContent, String currentUserId) {
@@ -111,10 +116,11 @@ public class MessageService {
             throw new ResponseStatusException(HttpStatus.GONE, "Message has been deleted");
         }
 
-        message.setContent(newContent);
+        message.setContent(cipher.encrypt(newContent));
         message.setEdited(true);
         message.setUpdatedAt(Instant.now());
         Message saved = messageRepository.save(message);
+        saved.setContent(newContent);
         log.info("Message edited messageId={} by senderId={}", messageId, currentUserId);
         return saved;
     }
@@ -157,7 +163,8 @@ public class MessageService {
         message.setGroupId(context.groupId());
         message.setReceiversId(context.receiversId());
         message.setTargetId(context.targetId());
-        message.setContent(event.getContent());
+        String plainContent = event.getContent();
+        message.setContent(cipher.encrypt(plainContent));
         message.setObjectKey(event.getObjectKey());
         message.setFormat(resolveFormat(event.getFormat()));
         message.setAttachments(resolveAttachments(event.getObjectKey()));
@@ -170,6 +177,7 @@ public class MessageService {
         message.setUpdatedAt(Instant.now());
 
         message = messageRepository.save(message);
+        message.setContent(plainContent);
         refreshDirectoryUserCache(message);
         log.info("FLOW db.persist messageId={} conversationId={} type={} senderId={} receiversCount={} step=chat.persist-from-kafka",
                 message.getId(),

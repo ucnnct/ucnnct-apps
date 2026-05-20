@@ -21,10 +21,17 @@ import java.util.Set;
 public class ConversationService {
 
     private final ConversationRepository conversationRepository;
+    private final MessageCipherService cipher;
 
     public List<Conversation> getMyConversations(String userId) {
         log.debug("Get conversations userId={}", userId);
-        return conversationRepository.findByParticipantsContaining(userId);
+        List<Conversation> conversations = conversationRepository.findByParticipantsContaining(userId);
+        conversations.forEach(conv -> {
+            if (conv.getLastMessage() != null) {
+                conv.getLastMessage().setContent(cipher.decrypt(conv.getLastMessage().getContent()));
+            }
+        });
+        return conversations;
     }
 
     public Conversation getOrCreatePeerConversation(String userA, String userB) {

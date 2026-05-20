@@ -3,6 +3,7 @@ spring:
     name: chat-service
   cloud:
     vault:
+      enabled: ${VAULT_ENABLED:false}
       host: ${VAULT_HOST:172.31.253.76}
       port: ${VAULT_PORT:8200}
       scheme: https
