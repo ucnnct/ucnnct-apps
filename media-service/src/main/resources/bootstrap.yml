@@ -13,7 +13,7 @@ spring:
       kv:
         version: 2
       ssl:
-        verify-hostname: false
-        skip-ssl-verify: true
-        key-store-insecure-trust-any-certificate: true
+        trust-store: classpath:vault-truststore.jks
+        trust-store-password: changeit
+        trust-store-type: JKS
 
