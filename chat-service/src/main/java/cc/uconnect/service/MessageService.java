@@ -101,6 +101,8 @@ public class MessageService {
         Page<Message> messages = messageRepository.findByConversationIdOrderByCreatedAtDesc(
                 conversationId, PageRequest.of(page, size));
         messages.forEach(m -> m.setContent(cipher.decrypt(m.getContent())));
+        log.info("FLOW cipher.decrypt conversationId={} count={} mode=vault-transit step=chat.decrypt",
+                conversationId, messages.getNumberOfElements());
         return messages;
     }
 
@@ -164,7 +166,8 @@ public class MessageService {
         message.setReceiversId(context.receiversId());
         message.setTargetId(context.targetId());
         String plainContent = event.getContent();
-        message.setContent(cipher.encrypt(plainContent));
+        String encryptedContent = cipher.encrypt(plainContent);
+        message.setContent(encryptedContent);
         message.setObjectKey(event.getObjectKey());
         message.setFormat(resolveFormat(event.getFormat()));
         message.setAttachments(resolveAttachments(event.getObjectKey()));
@@ -185,6 +188,12 @@ public class MessageService {
                 message.getType(),
                 message.getSenderId(),
                 message.getReceiversId() == null ? 0 : message.getReceiversId().size());
+        log.info("FLOW cipher.encrypt messageId={} senderId={} targetId={} type={} cipherPrefix={} mode=vault-transit step=chat.encrypt",
+                message.getId(),
+                message.getSenderId(),
+                message.getTargetId(),
+                message.getType(),
+                encryptedContent != null ? encryptedContent.substring(0, Math.min(encryptedContent.length(), 16)) : "plain");
 
         Conversation.LastMessage lastMsg = new Conversation.LastMessage();
         lastMsg.setId(message.getId());
