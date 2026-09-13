@@ -1,0 +1,42 @@
+spring:
+  application:
+    name: post-service
+  datasource:
+    url: jdbc:postgresql://${DB_HOST:localhost}:${DB_PORT:5432}/${DB_NAME:postdb}
+    username: ${DB_USER:postservice}
+    password: ${DB_PASSWORD:password}
+  jpa:
+    hibernate:
+      ddl-auto: update
+    open-in-view: false
+  kafka:
+    bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:localhost:9092}
+    producer:
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+      value-serializer: org.apache.kafka.common.serialization.StringSerializer
+  security:
+    oauth2:
+      resourceserver:
+        jwt:
+          jwk-set-uri: ${KEYCLOAK_JWKSET_URI:http://localhost:8081/realms/ucnnct/protocol/openid-connect/certs}
+          issuer-uri: ${KEYCLOAK_ISSUER_URI:http://localhost:8081/realms/ucnnct}
+
+server:
+  port: ${SERVER_PORT:8080}
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health
+
+logging:
+  level:
+    org.springframework.security: DEBUG
+    root: INFO
+
+app:
+  kafka:
+    topics:
+      social-events: ${WS_KAFKA_TOPIC_SOCIAL_EVENTS:social.event}
+      in-app-notifications: ${WS_KAFKA_TOPIC_INAPP_NOTIFICATIONS:inapp.notification}

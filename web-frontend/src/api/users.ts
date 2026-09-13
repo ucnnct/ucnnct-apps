@@ -13,6 +13,10 @@ export interface UserProfile {
   avatarUrl: string | null;
   fieldOfStudy: string | null;
   yearOfStudy: number | null;
+  campus: string | null;
+  school: string | null;
+  interests: string | null;
+  preferredActivityCategories: string | null;
   createdAt: string;
   updatedAt: string;
 }
@@ -25,6 +29,10 @@ export interface UpdateProfileData {
   avatarUrl?: string;
   fieldOfStudy?: string;
   yearOfStudy?: number;
+  campus?: string;
+  school?: string;
+  interests?: string;
+  preferredActivityCategories?: string;
 }
 
 export const userApi = {

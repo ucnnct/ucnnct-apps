@@ -8,6 +8,8 @@ on:
       - "user-service/**"
       - "chat-service/**"
       - "group-service/**"
+      - "post-service/**"
+      - "recommendation-service/**"
       - "ws-manager/**"
       - "notification-service/**"
       - "media-service/**"
@@ -36,6 +38,8 @@ jobs:
       user: ${{ steps.filter.outputs.user }}
       chat: ${{ steps.filter.outputs.chat }}
       group: ${{ steps.filter.outputs.group }}
+      post: ${{ steps.filter.outputs.post }}
+      recommendation: ${{ steps.filter.outputs.recommendation }}
       ws: ${{ steps.filter.outputs.ws }}
       notif: ${{ steps.filter.outputs.notif }}
       media: ${{ steps.filter.outputs.media }}
@@ -54,6 +58,8 @@ jobs:
             user:  ["user-service/**"]
             chat:  ["chat-service/**"]
             group: ["group-service/**"]
+            post:  ["post-service/**"]
+            recommendation: ["recommendation-service/**"]
             ws:    ["ws-manager/**"]
             notif: ["notification-service/**"]
             media: ["media-service/**"]
@@ -70,14 +76,14 @@ jobs:
 
       # Java tests (only if any backend changed)
       - uses: actions/setup-java@v4
-        if: needs.detect-changes.outputs.auth == 'true' || needs.detect-changes.outputs.user == 'true' || needs.detect-changes.outputs.chat == 'true' || needs.detect-changes.outputs.group == 'true' || needs.detect-changes.outputs.ws == 'true' || needs.detect-changes.outputs.notif == 'true' || needs.detect-changes.outputs.media == 'true' || needs.detect-changes.outputs.keycloak == 'true'
+        if: needs.detect-changes.outputs.auth == 'true' || needs.detect-changes.outputs.user == 'true' || needs.detect-changes.outputs.chat == 'true' || needs.detect-changes.outputs.group == 'true' || needs.detect-changes.outputs.post == 'true' || needs.detect-changes.outputs.recommendation == 'true' || needs.detect-changes.outputs.ws == 'true' || needs.detect-changes.outputs.notif == 'true' || needs.detect-changes.outputs.media == 'true' || needs.detect-changes.outputs.keycloak == 'true'
         with:
           distribution: temurin
           java-version: "17"
           cache: maven
 
       - name: Spring tests (changed services only)
-        if: needs.detect-changes.outputs.auth == 'true' || needs.detect-changes.outputs.user == 'true' || needs.detect-changes.outputs.chat == 'true' || needs.detect-changes.outputs.group == 'true' || needs.detect-changes.outputs.ws == 'true' || needs.detect-changes.outputs.notif == 'true' || needs.detect-changes.outputs.media == 'true' || needs.detect-changes.outputs.keycloak == 'true'
+        if: needs.detect-changes.outputs.auth == 'true' || needs.detect-changes.outputs.user == 'true' || needs.detect-changes.outputs.chat == 'true' || needs.detect-changes.outputs.group == 'true' || needs.detect-changes.outputs.post == 'true' || needs.detect-changes.outputs.recommendation == 'true' || needs.detect-changes.outputs.ws == 'true' || needs.detect-changes.outputs.notif == 'true' || needs.detect-changes.outputs.media == 'true' || needs.detect-changes.outputs.keycloak == 'true'
         shell: bash
         run: |
           set -e
@@ -95,6 +101,8 @@ jobs:
           if [[ "${{ needs.detect-changes.outputs.user }}" == "true" ]]; then run_maven_tests "user-service"; fi
           if [[ "${{ needs.detect-changes.outputs.chat }}" == "true" ]]; then run_maven_tests "chat-service"; fi
           if [[ "${{ needs.detect-changes.outputs.group }}" == "true" ]]; then run_maven_tests "group-service"; fi
+          if [[ "${{ needs.detect-changes.outputs.post }}" == "true" ]]; then run_maven_tests "post-service"; fi
+          if [[ "${{ needs.detect-changes.outputs.recommendation }}" == "true" ]]; then run_maven_tests "recommendation-service"; fi
           if [[ "${{ needs.detect-changes.outputs.ws }}" == "true" ]]; then run_maven_tests "ws-manager"; fi
           if [[ "${{ needs.detect-changes.outputs.notif }}" == "true" ]]; then run_maven_tests "notification-service"; fi
           if [[ "${{ needs.detect-changes.outputs.media }}" == "true" ]]; then run_maven_tests "media-service"; fi
@@ -186,6 +194,8 @@ jobs:
           if [[ "${{ needs.detect-changes.outputs.user }}" == "true" ]]; then SERVICES+="user-service "; fi
           if [[ "${{ needs.detect-changes.outputs.chat }}" == "true" ]]; then SERVICES+="chat-service "; fi
           if [[ "${{ needs.detect-changes.outputs.group }}" == "true" ]]; then SERVICES+="group-service "; fi
+          if [[ "${{ needs.detect-changes.outputs.post }}" == "true" ]]; then SERVICES+="post-service "; fi
+          if [[ "${{ needs.detect-changes.outputs.recommendation }}" == "true" ]]; then SERVICES+="recommendation-service "; fi
           if [[ "${{ needs.detect-changes.outputs.ws }}" == "true" ]]; then SERVICES+="ws-manager "; fi
           if [[ "${{ needs.detect-changes.outputs.notif }}" == "true" ]]; then SERVICES+="notification-service "; fi
           if [[ "${{ needs.detect-changes.outputs.media }}" == "true" ]]; then SERVICES+="media-service "; fi
@@ -319,6 +329,8 @@ jobs:
               "user_version": read_pom_version("user-service/pom.xml"),
               "chat_version": read_pom_version("chat-service/pom.xml"),
               "group_version": read_pom_version("group-service/pom.xml"),
+              "post_version": read_pom_version("post-service/pom.xml"),
+              "recommendation_version": read_pom_version("recommendation-service/pom.xml"),
               "ws_version": read_pom_version("ws-manager/pom.xml"),
               "notif_version": read_pom_version("notification-service/pom.xml"),
               "media_version": read_pom_version("media-service/pom.xml"),
@@ -384,6 +396,30 @@ jobs:
           tags: |
             ${{ env.REGISTRY }}/${{ env.OWNER }}/uconnect-group-service:${{ steps.versions.outputs.group_version }}
             ${{ env.REGISTRY }}/${{ env.OWNER }}/uconnect-group-service:latest
+          build-args: |
+            HELLO_MESSAGE=${{ env.HELLO_MESSAGE }}
+
+      - name: Build & push post-service
+        if: needs.detect-changes.outputs.post == 'true'
+        uses: docker/build-push-action@v6
+        with:
+          context: post-service
+          push: true
+          tags: |
+            ${{ env.REGISTRY }}/${{ env.OWNER }}/uconnect-post-service:${{ steps.versions.outputs.post_version }}
+            ${{ env.REGISTRY }}/${{ env.OWNER }}/uconnect-post-service:latest
+          build-args: |
+            HELLO_MESSAGE=${{ env.HELLO_MESSAGE }}
+
+      - name: Build & push recommendation-service
+        if: needs.detect-changes.outputs.recommendation == 'true'
+        uses: docker/build-push-action@v6
+        with:
+          context: recommendation-service
+          push: true
+          tags: |
+            ${{ env.REGISTRY }}/${{ env.OWNER }}/uconnect-recommendation-service:${{ steps.versions.outputs.recommendation_version }}
+            ${{ env.REGISTRY }}/${{ env.OWNER }}/uconnect-recommendation-service:latest
           build-args: |
             HELLO_MESSAGE=${{ env.HELLO_MESSAGE }}
 
@@ -460,7 +496,7 @@ jobs:
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add auth-service/pom.xml user-service/pom.xml chat-service/pom.xml group-service/pom.xml ws-manager/pom.xml notification-service/pom.xml media-service/pom.xml keycloak/event-listener/pom.xml bff/package.json web-frontend/package.json
+          git add auth-service/pom.xml user-service/pom.xml chat-service/pom.xml group-service/pom.xml post-service/pom.xml recommendation-service/pom.xml ws-manager/pom.xml notification-service/pom.xml media-service/pom.xml keycloak/event-listener/pom.xml bff/package.json web-frontend/package.json
           if git diff --staged --quiet; then
             echo "No version changes to commit."
             exit 0

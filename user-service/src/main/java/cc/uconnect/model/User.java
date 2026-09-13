@@ -54,6 +54,16 @@ public class User {
     @Column(name = "year_of_study")
     private Integer yearOfStudy;
 
+    private String campus;
+
+    private String school;
+
+    @Column(columnDefinition = "TEXT")
+    private String interests;
+
+    @Column(name = "preferred_activity_categories", columnDefinition = "TEXT")
+    private String preferredActivityCategories;
+
     @Column(name = "created_at", nullable = false, updatable = false)
     private Instant createdAt;
 

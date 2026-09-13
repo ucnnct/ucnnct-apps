@@ -139,6 +139,35 @@ export default function EditProfile() {
                   onChange={(value) => updateEditData({ ...editData, fieldOfStudy: value })}
                   placeholder="Ex: Informatique L3"
                 />
+                <EditField
+                  label="Ecole"
+                  value={editData.school ?? ""}
+                  onChange={(value) => updateEditData({ ...editData, school: value })}
+                  placeholder="Ex: SIRIUS"
+                />
+                <EditField
+                  label="Campus"
+                  value={editData.campus ?? ""}
+                  onChange={(value) => updateEditData({ ...editData, campus: value })}
+                  placeholder="Ex: Paris"
+                />
+              </div>
+            </Section>
+
+            <Section icon={<GraduationCap size={16} />} title="Preferences">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <EditField
+                  label="Centres d'interet"
+                  value={editData.interests ?? ""}
+                  onChange={(value) => updateEditData({ ...editData, interests: value })}
+                  placeholder="Ex: ia, sport, backend"
+                />
+                <EditField
+                  label="Categories d'activite"
+                  value={editData.preferredActivityCategories ?? ""}
+                  onChange={(value) => updateEditData({ ...editData, preferredActivityCategories: value })}
+                  placeholder="Ex: hackathon, revision"
+                />
               </div>
             </Section>
 

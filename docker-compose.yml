@@ -167,6 +167,19 @@ services:
     networks:
       - uconnect-network
 
+  post-db:
+    image: postgres:15
+    container_name: uconnect-post-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POST_DB_NAME}
+      POSTGRES_USER: ${POST_DB_USER}
+      POSTGRES_PASSWORD: ${POST_DB_PASSWORD}
+    volumes:
+      - post_data:/var/lib/postgresql/data
+    networks:
+      - uconnect-network
+
   notification-db:
     image: postgres:15
     container_name: uconnect-notification-db
@@ -279,6 +292,44 @@ services:
     networks:
       - uconnect-network
 
+  post-service:
+    build: ./post-service
+    container_name: uconnect-post-service
+    restart: unless-stopped
+    environment:
+      DB_HOST: post-db
+      DB_PORT: 5432
+      DB_NAME: ${POST_DB_NAME}
+      DB_USER: ${POST_DB_USER}
+      DB_PASSWORD: ${POST_DB_PASSWORD}
+      KAFKA_BOOTSTRAP_SERVERS: kafka:9092
+      WS_KAFKA_TOPIC_SOCIAL_EVENTS: social.event
+      WS_KAFKA_TOPIC_INAPP_NOTIFICATIONS: inapp.notification
+      KEYCLOAK_ISSUER_URI: http://keycloak:8080/realms/ucnnct
+      KEYCLOAK_JWKSET_URI: http://keycloak:8080/realms/ucnnct/protocol/openid-connect/certs
+    depends_on:
+      - post-db
+      - kafka
+      - keycloak
+    networks:
+      - uconnect-network
+
+  recommendation-service:
+    build: ./recommendation-service
+    container_name: uconnect-recommendation-service
+    restart: unless-stopped
+    environment:
+      POST_SERVICE_URL: http://post-service:8080
+      USER_SERVICE_URL: http://user-service:8082
+      KEYCLOAK_ISSUER_URI: http://keycloak:8080/realms/ucnnct
+      KEYCLOAK_JWKSET_URI: http://keycloak:8080/realms/ucnnct/protocol/openid-connect/certs
+    depends_on:
+      - post-service
+      - user-service
+      - keycloak
+    networks:
+      - uconnect-network
+
   chat-service:
     build: ./chat-service
     container_name: uconnect-chat-service
@@ -357,6 +408,8 @@ services:
       MEDIA_SERVICE_URL: http://media-service:8083
       GROUP_SERVICE_URL: http://group-service:8085
       CHAT_SERVICE_URL: http://chat-service:8084
+      POST_SERVICE_URL: http://post-service:8080
+      RECOMMENDATION_SERVICE_URL: http://recommendation-service:8080
       NOTIFICATION_SERVICE_URL: http://notification-service:8080
       REDIRECT_URI: https://localhost:${APP_HTTPS_PORT}/login/oauth2/code/keycloak
       LOGOUT_REDIRECT_URI: https://localhost:${APP_HTTPS_PORT}/
@@ -372,6 +425,8 @@ services:
     depends_on:
       - user-service
       - media-service
+      - post-service
+      - recommendation-service
       - keycloak
       - ws-manager
       - notification-service
@@ -402,6 +457,7 @@ volumes:
   user_data:
   minio_data:
   group_data:
+  post_data:
   notification_data:
   mongo_data:
   redis_data:

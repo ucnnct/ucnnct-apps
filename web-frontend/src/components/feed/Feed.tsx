@@ -1,60 +1,96 @@
-import type { ReactNode } from "react";
+import { useCallback, useEffect, useMemo, useState, type FormEvent, type ReactNode } from "react";
 import {
-  Image as ImageIcon,
-  BarChart2,
-  Smile,
-  MessageCircle,
-  Repeat2,
+  CalendarDays,
   Heart,
-  Bookmark,
-  Share,
+  Image as ImageIcon,
+  Loader2,
+  MapPin,
+  MessageCircle,
   MoreHorizontal,
+  Send,
+  Sparkles,
+  Tag,
+  Users,
 } from "lucide-react";
+import { feedApi, type FeedItem, type PostResponse, type PostType } from "../../api/feed";
 import { useAuth } from "../../auth/AuthProvider";
-import { useFeedStore } from "../../stores/feedStore";
+import { useFeedStore, type FeedTab } from "../../stores/feedStore";
+
+const FEED_TABS: Array<{ id: FeedTab; label: string }> = [
+  { id: "recommended", label: "RECOMMANDE" },
+  { id: "activities", label: "ACTIVITES" },
+  { id: "circles", label: "CERCLES" },
+  { id: "friends", label: "AMIS" },
+];
 
 export default function Feed() {
   const activeTab = useFeedStore((state) => state.activeTab);
   const setActiveTab = useFeedStore((state) => state.setActiveTab);
+  const [items, setItems] = useState<FeedItem[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  const loadFeed = useCallback(async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const response = await feedApi.getFeed(activeTab, 30);
+      setItems(response.items);
+    } catch {
+      setError("Impossible de charger le fil.");
+    } finally {
+      setLoading(false);
+    }
+  }, [activeTab]);
+
+  useEffect(() => {
+    void loadFeed();
+  }, [loadFeed]);
+
+  const replacePost = (nextPost: PostResponse) => {
+    setItems((previous) =>
+      previous.map((item) => (item.post.id === nextPost.id ? { ...item, post: nextPost } : item)),
+    );
+  };
 
   return (
     <div className="flex flex-col min-h-screen bg-white">
-      <div className="sticky top-0 z-20 bg-white/95 backdrop-blur-sm border-b border-secondary-100 flex">
-        <TabButton
-          active={activeTab === "discover"}
-          onClick={() => setActiveTab("discover")}
-          label="DECOUVRIR"
-        />
-        <TabButton
-          active={activeTab === "events"}
-          onClick={() => setActiveTab("events")}
-          label="EVENEMENTS A VENIR"
-        />
+      <div className="sticky top-0 z-20 bg-white/95 backdrop-blur-sm border-b border-secondary-100 flex overflow-x-auto">
+        {FEED_TABS.map((tab) => (
+          <TabButton
+            key={tab.id}
+            active={activeTab === tab.id}
+            onClick={() => setActiveTab(tab.id)}
+            label={tab.label}
+          />
+        ))}
       </div>
 
-      <CreatePostArea />
+      <CreatePostArea onCreated={() => void loadFeed()} />
 
-      <div className="divide-y divide-secondary-100">
-        <Post
-          author="NJONOU Gaby"
-          handle="@gaby_njou"
-          time="2h"
-          content="Validation du stage au CERN. La recherche avance, les opportunites aussi."
-          replies={5}
-          reposts={12}
-          likes={42}
-        />
-        <Post
-          author="Hamza Damouh"
-          handle="@hamza_dmh"
-          time="5h"
-          content="Analyse comparative des architectures Transformer. Quelqu'un a explore les limites des modeles de raisonnement recents ?"
-          image="https://images.unsplash.com/photo-1620712943543-bcc4688e7485?auto=format&fit=crop&w=800&q=80"
-          replies={34}
-          reposts={8}
-          likes={128}
-        />
-      </div>
+      {error && (
+        <div className="mx-6 mt-4 border border-red-100 bg-red-50 text-red-700 text-sm px-4 py-3 rounded-sm">
+          {error}
+        </div>
+      )}
+
+      {loading ? (
+        <div className="flex items-center justify-center h-64 text-secondary-400">
+          <Loader2 className="w-6 h-6 animate-spin" />
+        </div>
+      ) : (
+        <div className="divide-y divide-secondary-100">
+          {items.length === 0 ? (
+            <div className="px-6 py-12 text-center text-sm text-secondary-400">
+              Aucun contenu pour ce filtre.
+            </div>
+          ) : (
+            items.map((item) => (
+              <Post key={item.post.id} item={item} onPostChanged={replacePost} />
+            ))
+          )}
+        </div>
+      )}
     </div>
   );
 }
@@ -71,7 +107,7 @@ function TabButton({
   return (
     <button
       onClick={onClick}
-      className={`flex-1 py-4 text-xs font-medium tracking-wide uppercase transition-all relative ${active ? "text-primary-500" : "text-secondary-400 hover:text-secondary-600"}`}
+      className={`min-w-[130px] flex-1 py-4 text-xs font-medium tracking-wide uppercase transition-all relative ${active ? "text-primary-500" : "text-secondary-400 hover:text-secondary-600"}`}
     >
       {label}
       {active && <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-primary-500" />}
@@ -79,11 +115,74 @@ function TabButton({
   );
 }
 
-function CreatePostArea() {
+function CreatePostArea({ onCreated }: { onCreated: () => void }) {
   const { user } = useAuth();
+  const [type, setType] = useState<PostType>("TEXT");
+  const [content, setContent] = useState("");
+  const [tags, setTags] = useState("");
+  const [mediaUrl, setMediaUrl] = useState("");
+  const [activityTitle, setActivityTitle] = useState("");
+  const [activityCategory, setActivityCategory] = useState("");
+  const [activityLocation, setActivityLocation] = useState("");
+  const [activityStartAt, setActivityStartAt] = useState("");
+  const [activityCapacity, setActivityCapacity] = useState("");
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const canSubmit = useMemo(() => {
+    if (type === "ACTIVITY") {
+      return activityTitle.trim().length > 0;
+    }
+    return content.trim().length > 0 || mediaUrl.trim().length > 0;
+  }, [activityTitle, content, mediaUrl, type]);
+
+  const reset = () => {
+    setContent("");
+    setTags("");
+    setMediaUrl("");
+    setActivityTitle("");
+    setActivityCategory("");
+    setActivityLocation("");
+    setActivityStartAt("");
+    setActivityCapacity("");
+  };
+
+  const submit = async (event: FormEvent) => {
+    event.preventDefault();
+    if (!canSubmit || saving) {
+      return;
+    }
+    setSaving(true);
+    setError(null);
+    try {
+      await feedApi.createPost({
+        type,
+        visibility: "PUBLIC",
+        content: content.trim() || undefined,
+        mediaUrl: mediaUrl.trim() || undefined,
+        tags: splitInput(tags),
+        activity:
+          type === "ACTIVITY"
+            ? {
+                title: activityTitle.trim(),
+                category: activityCategory.trim() || undefined,
+                location: activityLocation.trim() || undefined,
+                startAt: activityStartAt ? new Date(activityStartAt).toISOString() : undefined,
+                capacity: activityCapacity ? Number(activityCapacity) : undefined,
+              }
+            : undefined,
+      });
+      reset();
+      onCreated();
+    } catch {
+      setError("Publication impossible pour le moment.");
+    } finally {
+      setSaving(false);
+    }
+  };
 
   return (
-    <div className="p-6 border-b border-secondary-100">
+    <form onSubmit={(event) => void submit(event)} className="p-6 border-b border-secondary-100">
       <div className="flex gap-4">
         <div className="w-10 h-10 bg-secondary-100 border border-secondary-200 rounded-sm overflow-hidden flex-shrink-0">
           <img
@@ -94,95 +193,338 @@ function CreatePostArea() {
             alt="Me"
           />
         </div>
-        <div className="flex-1">
-          <textarea
-            placeholder="Diffuser une info sur le campus..."
-            className="w-full bg-transparent border-none focus:ring-0 text-base text-primary-900 placeholder:text-secondary-300 resize-none h-12 pt-1 font-medium"
-          />
-          <div className="flex justify-between items-center pt-4 mt-2 border-t border-secondary-50">
-            <div className="flex gap-1">
-              <button className="p-2 text-secondary-400 hover:text-primary-500 transition-colors">
-                <ImageIcon size={18} />
-              </button>
-              <button className="p-2 text-secondary-400 hover:text-primary-500 transition-colors">
-                <BarChart2 size={18} />
-              </button>
-              <button className="p-2 text-secondary-400 hover:text-primary-500 transition-colors">
-                <Smile size={18} />
-              </button>
+        <div className="flex-1 min-w-0">
+          <div className="flex flex-wrap gap-2 mb-3">
+            <ModeButton active={type === "TEXT"} onClick={() => setType("TEXT")} icon={<MessageCircle size={14} />} label="Post" />
+            <ModeButton active={type === "MEDIA"} onClick={() => setType("MEDIA")} icon={<ImageIcon size={14} />} label="Media" />
+            <ModeButton active={type === "ACTIVITY"} onClick={() => setType("ACTIVITY")} icon={<CalendarDays size={14} />} label="Activite" />
+          </div>
+
+          {type === "ACTIVITY" && (
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-3">
+              <input
+                value={activityTitle}
+                onChange={(event) => setActivityTitle(event.target.value)}
+                placeholder="Titre de l'activite"
+                className="bg-secondary-50 border border-secondary-100 focus:bg-white focus:border-primary-500 rounded-sm py-2 px-3 text-sm text-primary-900 placeholder:text-secondary-300"
+              />
+              <input
+                value={activityCategory}
+                onChange={(event) => setActivityCategory(event.target.value)}
+                placeholder="Categorie"
+                className="bg-secondary-50 border border-secondary-100 focus:bg-white focus:border-primary-500 rounded-sm py-2 px-3 text-sm text-primary-900 placeholder:text-secondary-300"
+              />
+              <input
+                value={activityLocation}
+                onChange={(event) => setActivityLocation(event.target.value)}
+                placeholder="Lieu"
+                className="bg-secondary-50 border border-secondary-100 focus:bg-white focus:border-primary-500 rounded-sm py-2 px-3 text-sm text-primary-900 placeholder:text-secondary-300"
+              />
+              <input
+                type="datetime-local"
+                value={activityStartAt}
+                onChange={(event) => setActivityStartAt(event.target.value)}
+                className="bg-secondary-50 border border-secondary-100 focus:bg-white focus:border-primary-500 rounded-sm py-2 px-3 text-sm text-primary-900"
+              />
+              <input
+                type="number"
+                min="1"
+                value={activityCapacity}
+                onChange={(event) => setActivityCapacity(event.target.value)}
+                placeholder="Places"
+                className="bg-secondary-50 border border-secondary-100 focus:bg-white focus:border-primary-500 rounded-sm py-2 px-3 text-sm text-primary-900 placeholder:text-secondary-300"
+              />
             </div>
-            <button className="bg-primary-500 hover:bg-primary-600 text-white text-xs font-medium uppercase tracking-wide px-6 py-2 rounded-sm transition-all">
+          )}
+
+          <textarea
+            value={content}
+            onChange={(event) => setContent(event.target.value)}
+            placeholder={type === "ACTIVITY" ? "Details, consignes, public vise..." : "Diffuser une info sur le campus..."}
+            className="w-full bg-transparent border-none focus:ring-0 text-base text-primary-900 placeholder:text-secondary-300 resize-none min-h-16 pt-1 font-medium"
+          />
+
+          {type === "MEDIA" && (
+            <input
+              value={mediaUrl}
+              onChange={(event) => setMediaUrl(event.target.value)}
+              placeholder="URL image ou media"
+              className="w-full mt-3 bg-secondary-50 border border-secondary-100 focus:bg-white focus:border-primary-500 rounded-sm py-2 px-3 text-sm text-primary-900 placeholder:text-secondary-300"
+            />
+          )}
+
+          <div className="flex flex-col sm:flex-row gap-3 justify-between sm:items-center pt-4 mt-2 border-t border-secondary-50">
+            <div className="relative flex-1 max-w-sm">
+              <Tag size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-secondary-300" />
+              <input
+                value={tags}
+                onChange={(event) => setTags(event.target.value)}
+                placeholder="ia, sport, revision..."
+                className="w-full bg-secondary-50 border border-secondary-100 rounded-sm py-2 pl-9 pr-3 text-xs text-primary-900 placeholder:text-secondary-300"
+              />
+            </div>
+            <button
+              type="submit"
+              disabled={!canSubmit || saving}
+              className="bg-primary-500 hover:bg-primary-600 text-white text-xs font-medium uppercase tracking-wide px-5 py-2 rounded-sm transition-all disabled:opacity-50 flex items-center justify-center gap-2"
+            >
+              {saving ? <Loader2 size={13} className="animate-spin" /> : <Send size={13} />}
               PUBLIER
             </button>
           </div>
+          {error && <p className="text-xs text-red-600 mt-3">{error}</p>}
         </div>
       </div>
-    </div>
+    </form>
+  );
+}
+
+function ModeButton({
+  active,
+  onClick,
+  icon,
+  label,
+}: {
+  active: boolean;
+  onClick: () => void;
+  icon: ReactNode;
+  label: string;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={`flex items-center gap-2 border rounded-sm px-3 py-1.5 text-xs font-medium transition-colors ${active ? "border-primary-500 bg-primary-50 text-primary-600" : "border-secondary-100 text-secondary-500 hover:border-secondary-200"}`}
+    >
+      {icon}
+      {label}
+    </button>
   );
 }
 
 function Post({
-  author,
-  handle,
-  time,
-  content,
-  image,
-  replies,
-  reposts,
-  likes,
+  item,
+  onPostChanged,
 }: {
-  author: string;
-  handle: string;
-  time: string;
-  content: string;
-  image?: string;
-  replies: number;
-  reposts: number;
-  likes: number;
+  item: FeedItem;
+  onPostChanged: (post: PostResponse) => void;
 }) {
+  const { post, reasons } = item;
+  const [busy, setBusy] = useState(false);
+  const author = post.authorName || post.authorUsername || "Etudiant";
+  const handle = post.authorUsername ? `@${post.authorUsername}` : "@uconnect";
+
+  const toggleReaction = async () => {
+    if (busy) {
+      return;
+    }
+    setBusy(true);
+    try {
+      const next = post.reactedByMe
+        ? await feedApi.removeReaction(post.id)
+        : await feedApi.react(post.id);
+      onPostChanged(next);
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const toggleParticipation = async () => {
+    if (busy) {
+      return;
+    }
+    setBusy(true);
+    try {
+      const next = post.participationStatus === "GOING"
+        ? await feedApi.leaveActivity(post.id)
+        : await feedApi.joinActivity(post.id);
+      onPostChanged(next);
+    } finally {
+      setBusy(false);
+    }
+  };
+
   return (
-    <div className="p-6 flex gap-4 hover:bg-secondary-50/30 transition-colors cursor-pointer group">
+    <article className="p-6 flex gap-4 hover:bg-secondary-50/30 transition-colors group">
       <div className="w-10 h-10 bg-secondary-100 border border-secondary-200 rounded-sm overflow-hidden flex-shrink-0">
-        <img src={`https://api.dicebear.com/7.x/avataaars/svg?seed=${author}`} alt={author} />
+        <img
+          src={post.authorAvatarUrl || `https://api.dicebear.com/7.x/avataaars/svg?seed=${encodeURIComponent(author)}`}
+          alt={author}
+        />
       </div>
       <div className="flex-1 min-w-0">
-        <div className="flex items-center justify-between mb-1">
-          <div className="flex items-center gap-2">
-            <span className="font-semibold text-sm text-primary-900">{author}</span>
-            <span className="text-[11px] font-normal text-secondary-400">
-              {handle} · {time}
-            </span>
+        <div className="flex items-start justify-between gap-3 mb-1">
+          <div className="min-w-0">
+            <div className="flex flex-wrap items-center gap-2">
+              <span className="font-semibold text-sm text-primary-900">{author}</span>
+              <span className="text-[11px] font-normal text-secondary-400">
+                {handle} Â· {timeAgo(post.createdAt)}
+              </span>
+            </div>
+            {reasons.length > 0 && (
+              <div className="flex flex-wrap gap-1.5 mt-2">
+                {reasons.map((reason) => (
+                  <span
+                    key={reason}
+                    className="inline-flex items-center gap-1 bg-primary-50 text-primary-600 border border-primary-100 rounded-sm px-2 py-1 text-[11px]"
+                  >
+                    <Sparkles size={11} />
+                    {reason}
+                  </span>
+                ))}
+              </div>
+            )}
           </div>
           <button className="text-secondary-300 hover:text-primary-500 transition-colors">
             <MoreHorizontal size={16} />
           </button>
         </div>
 
-        <p className="text-sm text-primary-900 leading-relaxed font-normal mb-4">{content}</p>
+        {post.activity && <ActivityBlock post={post} busy={busy} onToggleParticipation={() => void toggleParticipation()} />}
 
-        {image && (
+        {post.content && (
+          <p className="text-sm text-primary-900 leading-relaxed font-normal my-4">{post.content}</p>
+        )}
+
+        {post.mediaUrl && (
           <div className="border border-secondary-100 rounded-sm overflow-hidden mb-4 bg-secondary-50">
-            <img src={image} alt="Content" className="w-full h-full object-cover max-h-[400px]" />
+            <img src={post.mediaUrl} alt="Publication" className="w-full h-full object-cover max-h-[420px]" />
+          </div>
+        )}
+
+        {post.tags.length > 0 && (
+          <div className="flex flex-wrap gap-2 mb-4">
+            {post.tags.map((tag) => (
+              <span key={tag} className="text-[11px] text-secondary-500 bg-secondary-50 border border-secondary-100 rounded-sm px-2 py-1">
+                #{tag}
+              </span>
+            ))}
           </div>
         )}
 
         <div className="flex justify-between max-w-sm text-secondary-400">
-          <PostAction icon={<MessageCircle size={16} />} count={replies} />
-          <PostAction icon={<Repeat2 size={16} />} count={reposts} />
-          <PostAction icon={<Heart size={16} />} count={likes} />
-          <PostAction icon={<Bookmark size={16} />} />
-          <PostAction icon={<Share size={16} />} />
+          <PostAction icon={<MessageCircle size={16} />} count={post.commentCount} />
+          <PostAction
+            icon={<Heart size={16} className={post.reactedByMe ? "fill-current" : ""} />}
+            count={post.reactionCount}
+            active={post.reactedByMe}
+            onClick={() => void toggleReaction()}
+          />
+          <PostAction icon={<Users size={16} />} count={post.participantCount} />
         </div>
+      </div>
+    </article>
+  );
+}
+
+function ActivityBlock({
+  post,
+  busy,
+  onToggleParticipation,
+}: {
+  post: PostResponse;
+  busy: boolean;
+  onToggleParticipation: () => void;
+}) {
+  const activity = post.activity;
+  if (!activity) {
+    return null;
+  }
+  const joined = post.participationStatus === "GOING";
+
+  return (
+    <div className="border border-secondary-100 bg-secondary-50/60 rounded-sm p-4 mt-4">
+      <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
+        <div className="min-w-0">
+          <p className="text-sm font-semibold text-primary-900">{activity.title}</p>
+          <div className="flex flex-wrap gap-3 mt-2 text-[11px] text-secondary-500">
+            {activity.category && <span>{activity.category}</span>}
+            {activity.location && (
+              <span className="inline-flex items-center gap-1">
+                <MapPin size={12} />
+                {activity.location}
+              </span>
+            )}
+            {activity.startAt && (
+              <span className="inline-flex items-center gap-1">
+                <CalendarDays size={12} />
+                {formatDate(activity.startAt)}
+              </span>
+            )}
+            {activity.capacity && (
+              <span className="inline-flex items-center gap-1">
+                <Users size={12} />
+                {post.participantCount}/{activity.capacity}
+              </span>
+            )}
+          </div>
+        </div>
+        <button
+          type="button"
+          onClick={onToggleParticipation}
+          disabled={busy}
+          className={`px-4 py-2 rounded-sm text-xs font-medium uppercase tracking-wide transition-colors disabled:opacity-50 ${joined ? "border border-primary-200 bg-white text-primary-600" : "bg-primary-500 hover:bg-primary-600 text-white"}`}
+        >
+          {joined ? "INSCRIT" : "JE PARTICIPE"}
+        </button>
       </div>
     </div>
   );
 }
 
-function PostAction({ icon, count }: { icon: ReactNode; count?: number }) {
+function PostAction({
+  icon,
+  count,
+  active = false,
+  onClick,
+}: {
+  icon: ReactNode;
+  count?: number;
+  active?: boolean;
+  onClick?: () => void;
+}) {
   return (
-    <button className="flex items-center gap-2 hover:text-primary-500 transition-colors p-1">
+    <button
+      onClick={onClick}
+      className={`flex items-center gap-2 transition-colors p-1 ${active ? "text-primary-500" : "hover:text-primary-500"}`}
+    >
       {icon}
       {count !== undefined && <span className="text-[11px] font-normal">{count}</span>}
     </button>
   );
+}
+
+function splitInput(value: string) {
+  return value
+    .split(",")
+    .map((item) => item.trim())
+    .filter(Boolean);
+}
+
+function timeAgo(value: string) {
+  const createdAt = new Date(value).getTime();
+  if (Number.isNaN(createdAt)) {
+    return "";
+  }
+  const minutes = Math.max(0, Math.floor((Date.now() - createdAt) / 60000));
+  if (minutes < 1) {
+    return "maintenant";
+  }
+  if (minutes < 60) {
+    return `${minutes} min`;
+  }
+  const hours = Math.floor(minutes / 60);
+  if (hours < 24) {
+    return `${hours}h`;
+  }
+  return `${Math.floor(hours / 24)}j`;
+}
+
+function formatDate(value: string) {
+  return new Intl.DateTimeFormat("fr-FR", {
+    day: "2-digit",
+    month: "short",
+    hour: "2-digit",
+    minute: "2-digit",
+  }).format(new Date(value));
 }

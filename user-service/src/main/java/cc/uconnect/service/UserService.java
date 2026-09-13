@@ -36,6 +36,12 @@ public class UserService {
         if (request.getAvatarUrl() != null) user.setAvatarUrl(request.getAvatarUrl());
         if (request.getFieldOfStudy() != null) user.setFieldOfStudy(request.getFieldOfStudy());
         if (request.getYearOfStudy() != null) user.setYearOfStudy(request.getYearOfStudy());
+        if (request.getCampus() != null) user.setCampus(request.getCampus());
+        if (request.getSchool() != null) user.setSchool(request.getSchool());
+        if (request.getInterests() != null) user.setInterests(request.getInterests());
+        if (request.getPreferredActivityCategories() != null) {
+            user.setPreferredActivityCategories(request.getPreferredActivityCategories());
+        }
         User saved = userRepository.save(user);
         userDirectoryCacheService.syncUser(saved);
         log.info("Profile updated userId={}", keycloakId);

@@ -1,0 +1,19 @@
+spring:
+  application:
+    name: recommendation-service
+  cloud:
+    vault:
+      enabled: ${VAULT_ENABLED:false}
+      host: ${VAULT_HOST:172.31.253.76}
+      port: ${VAULT_PORT:8200}
+      scheme: https
+      authentication: KUBERNETES
+      kubernetes:
+        role: ucnnct
+        service-account-token-file: /var/run/secrets/kubernetes.io/serviceaccount/token
+      kv:
+        version: 2
+      ssl:
+        trust-store: classpath:vault-truststore.jks
+        trust-store-password: changeit
+        trust-store-type: JKS

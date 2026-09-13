@@ -1,6 +1,6 @@
 import { create } from "zustand";
 
-export type FeedTab = "discover" | "events";
+export type FeedTab = "recommended" | "activities" | "circles" | "friends";
 
 interface FeedStoreState {
   activeTab: FeedTab;
@@ -8,6 +8,6 @@ interface FeedStoreState {
 }
 
 export const useFeedStore = create<FeedStoreState>((set) => ({
-  activeTab: "discover",
+  activeTab: "recommended",
   setActiveTab: (tab) => set({ activeTab: tab }),
 }));

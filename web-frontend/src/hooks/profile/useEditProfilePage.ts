@@ -40,6 +40,10 @@ export function useEditProfilePage(): UseEditProfilePageResult {
           location: user.location ?? "",
           website: user.website ?? "",
           fieldOfStudy: user.fieldOfStudy ?? "",
+          campus: user.campus ?? "",
+          school: user.school ?? "",
+          interests: user.interests ?? "",
+          preferredActivityCategories: user.preferredActivityCategories ?? "",
           avatarUrl: user.avatarUrl ?? "",
         });
       })

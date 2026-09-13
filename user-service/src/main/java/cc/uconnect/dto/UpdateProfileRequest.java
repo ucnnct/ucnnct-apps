@@ -11,4 +11,8 @@ public class UpdateProfileRequest {
     private String avatarUrl;
     private String fieldOfStudy;
     private Integer yearOfStudy;
+    private String campus;
+    private String school;
+    private String interests;
+    private String preferredActivityCategories;
 }

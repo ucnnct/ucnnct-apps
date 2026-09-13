@@ -11,6 +11,9 @@ export function setupProxy(app: Express) {
     "/api/media/**": process.env.MEDIA_SERVICE_URL || "http://localhost:8083",
     "/api/groups/**": process.env.GROUP_SERVICE_URL || "http://localhost:8085",
     "/api/chat/**": process.env.CHAT_SERVICE_URL || "http://localhost:8084",
+    "/api/posts/**": process.env.POST_SERVICE_URL || "http://localhost:8086",
+    "/api/activities/**": process.env.POST_SERVICE_URL || "http://localhost:8086",
+    "/api/feed/**": process.env.RECOMMENDATION_SERVICE_URL || "http://localhost:8087",
     "/api/notifications/**":
       process.env.NOTIFICATION_SERVICE_URL || "http://notification-service:8080",
   };

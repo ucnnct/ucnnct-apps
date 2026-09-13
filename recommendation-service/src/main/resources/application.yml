@@ -1,0 +1,30 @@
+spring:
+  application:
+    name: recommendation-service
+  security:
+    oauth2:
+      resourceserver:
+        jwt:
+          jwk-set-uri: ${KEYCLOAK_JWKSET_URI:http://localhost:8081/realms/ucnnct/protocol/openid-connect/certs}
+          issuer-uri: ${KEYCLOAK_ISSUER_URI:http://localhost:8081/realms/ucnnct}
+
+server:
+  port: ${SERVER_PORT:8080}
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health
+
+logging:
+  level:
+    org.springframework.security: DEBUG
+    root: INFO
+
+app:
+  services:
+    post-service-url: ${POST_SERVICE_URL:http://localhost:8086}
+    user-service-url: ${USER_SERVICE_URL:http://localhost:8082}
+  feed:
+    candidate-limit: ${FEED_CANDIDATE_LIMIT:100}
