@@ -45,6 +45,7 @@ public class PostService {
     private final PostCommentRepository commentRepository;
     private final PostMapper postMapper;
     private final SocialEventPublisher eventPublisher;
+    private final ActivityCatalogService activityCatalogService;
 
     @Transactional
     public PostResponse create(Jwt jwt, CreatePostRequest request) {
@@ -187,10 +188,14 @@ public class PostService {
         if (activityRequest == null || activityRequest.title() == null || activityRequest.title().isBlank()) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Activity title is required");
         }
+        String domain = trimToNull(activityRequest.domain());
+        activityCatalogService.requireDomain(domain);
+        activityCatalogService.ensureActivity(activityRequest.title(), domain);
         ActivityDetails activity = new ActivityDetails();
         activity.setPostId(postId);
         activity.setTitle(activityRequest.title().trim());
-        activity.setCategory(trimToNull(activityRequest.category()));
+        activity.setDomain(domain);
+        activity.setCategory(trimToNull(activityRequest.category()) == null ? domain : trimToNull(activityRequest.category()));
         activity.setLocation(trimToNull(activityRequest.location()));
         activity.setStartAt(activityRequest.startAt());
         activity.setEndAt(activityRequest.endAt());

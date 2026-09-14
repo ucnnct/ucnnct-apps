@@ -112,6 +112,10 @@ export function createMessagesRealtimeActions(
                   ? state.userDirectory[conversationRef.peerUserId].handle
                   : "Conversation privee",
             avatarSeeds: [],
+            avatarUrl:
+              conversationRef.kind === "peer" && conversationRef.peerUserId
+                ? state.userDirectory[conversationRef.peerUserId]?.avatarUrl ?? null
+                : null,
             participantIds,
             peerUserId: conversationRef.peerUserId,
             groupId: conversationRef.groupId,

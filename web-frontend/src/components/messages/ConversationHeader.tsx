@@ -67,7 +67,10 @@ export default function ConversationHeader({
             <GroupAvatar seeds={conversation.avatarSeeds} />
           ) : (
             <img
-              src={`https://api.dicebear.com/7.x/avataaars/svg?seed=${encodeURIComponent(conversation.avatarSeeds[0] ?? conversation.title)}`}
+              src={
+                conversation.avatarUrl ||
+                `https://api.dicebear.com/7.x/avataaars/svg?seed=${encodeURIComponent(conversation.avatarSeeds[0] ?? conversation.title)}`
+              }
               alt={conversation.title}
               className="w-full h-full object-cover"
             />

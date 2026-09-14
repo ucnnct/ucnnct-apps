@@ -7,6 +7,7 @@ export type ParticipationStatus = "GOING" | "INTERESTED" | "CANCELLED";
 export interface ActivityPayload {
   title: string;
   category?: string;
+  domain?: string;
   location?: string;
   startAt?: string;
   endAt?: string;
@@ -51,6 +52,28 @@ export interface FeedResponse {
   algorithmVersion: string;
 }
 
+export interface ActivityDomain {
+  id: number;
+  name: string;
+  description: string | null;
+}
+
+export interface ActivitySuggestion {
+  id: number;
+  title: string;
+  domain: string;
+  usageCount: number;
+}
+
+export interface CommentResponse {
+  id: string;
+  postId: string;
+  authorId: string;
+  authorName: string;
+  content: string;
+  createdAt: string;
+}
+
 export interface CreatePostPayload {
   type: PostType;
   visibility?: PostVisibility;
@@ -84,4 +107,21 @@ export const feedApi = {
 
   leaveActivity: (postId: string) =>
     apiFetch<PostResponse>(`/api/activities/${postId}/participants/me`, { method: "DELETE" }),
+
+  getActivityDomains: () =>
+    apiFetch<ActivityDomain[]>("/api/activity-catalog/domains"),
+
+  searchActivitySuggestions: (query: string, limit = 8) =>
+    apiFetch<ActivitySuggestion[]>(
+      `/api/activity-catalog/suggestions?q=${encodeURIComponent(query)}&limit=${limit}`,
+    ),
+
+  listComments: (postId: string) =>
+    apiFetch<CommentResponse[]>(`/api/posts/${postId}/comments`),
+
+  addComment: (postId: string, content: string) =>
+    apiFetch<CommentResponse>(`/api/posts/${postId}/comments`, {
+      method: "POST",
+      body: JSON.stringify({ content }),
+    }),
 };

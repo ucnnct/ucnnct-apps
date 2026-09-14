@@ -1,5 +1,6 @@
 import { ArrowLeft, Camera, FileText, GraduationCap, Link as LinkIcon, Loader2, MapPin, User } from "lucide-react";
-import type { ReactNode } from "react";
+import { useEffect, useState, type ReactNode } from "react";
+import { feedApi, type ActivityDomain, type ActivitySuggestion } from "../api/feed";
 import Layout from "../components/layout/Layout";
 import { useEditProfilePage } from "../hooks/profile/useEditProfilePage";
 
@@ -17,6 +18,34 @@ export default function EditProfile() {
     handleSave,
     updateEditData,
   } = useEditProfilePage();
+  const [domains, setDomains] = useState<ActivityDomain[]>([]);
+  const [activitySuggestions, setActivitySuggestions] = useState<ActivitySuggestion[]>([]);
+
+  useEffect(() => {
+    feedApi.getActivityDomains().then(setDomains).catch(() => undefined);
+  }, []);
+
+  const selectedActivities = splitInput(editData.interests ?? "");
+  const selectedDomains = splitInput(editData.preferredActivityCategories ?? "");
+
+  const updateSelectedActivities = (items: string[]) => {
+    updateEditData({ ...editData, interests: items.join(",") });
+  };
+
+  const updateSelectedDomains = (items: string[]) => {
+    updateEditData({ ...editData, preferredActivityCategories: items.join(",") });
+  };
+
+  const searchActivities = (query: string) => {
+    if (query.trim().length < 2) {
+      setActivitySuggestions([]);
+      return;
+    }
+    feedApi
+      .searchActivitySuggestions(query, 8)
+      .then(setActivitySuggestions)
+      .catch(() => setActivitySuggestions([]));
+  };
 
   if (loading) {
     return (
@@ -155,20 +184,23 @@ export default function EditProfile() {
             </Section>
 
             <Section icon={<GraduationCap size={16} />} title="Preferences">
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <EditField
-                  label="Centres d'interet"
-                  value={editData.interests ?? ""}
-                  onChange={(value) => updateEditData({ ...editData, interests: value })}
-                  placeholder="Ex: ia, sport, backend"
-                />
-                <EditField
-                  label="Categories d'activite"
-                  value={editData.preferredActivityCategories ?? ""}
-                  onChange={(value) => updateEditData({ ...editData, preferredActivityCategories: value })}
-                  placeholder="Ex: hackathon, revision"
-                />
-              </div>
+              <ChipSelector
+                label="Activites qui t'interessent"
+                items={selectedActivities}
+                maxItems={10}
+                placeholder="Rechercher une activite"
+                suggestions={activitySuggestions.map((item) => item.title)}
+                onSearch={searchActivities}
+                onChange={updateSelectedActivities}
+              />
+              <ChipSelector
+                label="Domaines preferes"
+                items={selectedDomains}
+                maxItems={5}
+                placeholder="Choisir un domaine"
+                suggestions={domains.map((domain) => domain.name)}
+                onChange={updateSelectedDomains}
+              />
             </Section>
 
             <Section icon={<MapPin size={16} />} title="Localisation & liens">
@@ -269,4 +301,106 @@ function EditField({
       )}
     </div>
   );
+}
+
+function ChipSelector({
+  label,
+  items,
+  maxItems,
+  placeholder,
+  suggestions,
+  onSearch,
+  onChange,
+}: {
+  label: string;
+  items: string[];
+  maxItems: number;
+  placeholder: string;
+  suggestions: string[];
+  onSearch?: (query: string) => void;
+  onChange: (items: string[]) => void;
+}) {
+  const [query, setQuery] = useState("");
+  const remainingSuggestions = suggestions.filter(
+    (suggestion) => !items.some((item) => item.toLowerCase() === suggestion.toLowerCase()),
+  );
+
+  const addItem = (value: string) => {
+    const cleanValue = value.trim();
+    if (!cleanValue || items.length >= maxItems) {
+      return;
+    }
+    if (items.some((item) => item.toLowerCase() === cleanValue.toLowerCase())) {
+      setQuery("");
+      return;
+    }
+    onChange([...items, cleanValue]);
+    setQuery("");
+  };
+
+  const removeItem = (value: string) => {
+    onChange(items.filter((item) => item !== value));
+  };
+
+  return (
+    <div>
+      <div className="flex items-center justify-between gap-3 mb-1.5">
+        <label className="text-[11px] font-medium text-secondary-400 block">{label}</label>
+        <span className="text-[11px] text-secondary-300">
+          {items.length}/{maxItems}
+        </span>
+      </div>
+      <div className="flex flex-wrap gap-2 mb-2">
+        {items.map((item) => (
+          <button
+            key={item}
+            type="button"
+            onClick={() => removeItem(item)}
+            className="bg-primary-50 text-primary-700 border border-primary-100 rounded-sm px-2 py-1 text-xs"
+          >
+            {item} x
+          </button>
+        ))}
+      </div>
+      <div className="relative">
+        <input
+          value={query}
+          disabled={items.length >= maxItems}
+          onChange={(event) => {
+            setQuery(event.target.value);
+            onSearch?.(event.target.value);
+          }}
+          onKeyDown={(event) => {
+            if (event.key === "Enter") {
+              event.preventDefault();
+              addItem(query);
+            }
+          }}
+          placeholder={items.length >= maxItems ? "Maximum atteint" : placeholder}
+          className="w-full bg-secondary-50 border border-secondary-100 focus:bg-white focus:border-primary-500 focus:ring-0 rounded-sm py-2.5 px-3 text-sm text-primary-900 transition-all placeholder:text-secondary-300 placeholder:text-xs disabled:opacity-60"
+        />
+        {remainingSuggestions.length > 0 && items.length < maxItems && (
+          <div className="absolute left-0 right-0 top-full mt-1 bg-white border border-secondary-100 rounded-sm shadow-lg z-30 overflow-hidden">
+            {remainingSuggestions.slice(0, 8).map((suggestion) => (
+              <button
+                key={suggestion}
+                type="button"
+                onClick={() => addItem(suggestion)}
+                className="w-full text-left px-3 py-2 text-xs text-primary-900 hover:bg-secondary-50"
+              >
+                {suggestion}
+              </button>
+            ))}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function splitInput(value: string) {
+  return value
+    .split(",")
+    .map((item) => item.trim())
+    .filter(Boolean);
 }

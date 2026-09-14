@@ -10,6 +10,8 @@ import org.springframework.stereotype.Service;
 import org.springframework.web.server.ResponseStatusException;
 
 import java.util.List;
+import java.util.Locale;
+import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -38,9 +40,13 @@ public class UserService {
         if (request.getYearOfStudy() != null) user.setYearOfStudy(request.getYearOfStudy());
         if (request.getCampus() != null) user.setCampus(request.getCampus());
         if (request.getSchool() != null) user.setSchool(request.getSchool());
-        if (request.getInterests() != null) user.setInterests(request.getInterests());
+        if (request.getInterests() != null) user.setInterests(normalizeList(request.getInterests(), 10, "Maximum 10 interests"));
         if (request.getPreferredActivityCategories() != null) {
-            user.setPreferredActivityCategories(request.getPreferredActivityCategories());
+            user.setPreferredActivityCategories(normalizeList(
+                    request.getPreferredActivityCategories(),
+                    5,
+                    "Maximum 5 activity domains"
+            ));
         }
         User saved = userRepository.save(user);
         userDirectoryCacheService.syncUser(saved);
@@ -56,5 +62,18 @@ public class UserService {
     public List<User> searchUsers(String query) {
         log.debug("Search users query='{}'", query);
         return userRepository.search(query);
+    }
+
+    private String normalizeList(String rawValue, int maxItems, String errorMessage) {
+        List<String> values = List.of(rawValue.split(",")).stream()
+                .map(String::trim)
+                .filter(value -> !value.isBlank())
+                .map(value -> value.toLowerCase(Locale.ROOT))
+                .distinct()
+                .toList();
+        if (values.size() > maxItems) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, errorMessage);
+        }
+        return values.stream().collect(Collectors.joining(","));
     }
 }

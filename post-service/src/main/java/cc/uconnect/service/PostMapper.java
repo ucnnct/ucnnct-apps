@@ -64,6 +64,7 @@ public class PostMapper {
         return new ActivityResponse(
                 activity.getTitle(),
                 activity.getCategory(),
+                activity.getDomain(),
                 activity.getLocation(),
                 activity.getStartAt(),
                 activity.getEndAt(),

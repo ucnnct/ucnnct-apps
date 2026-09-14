@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState, type FormEvent, type ReactNode } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type ChangeEvent, type FormEvent, type ReactNode } from "react";
 import {
   CalendarDays,
   Heart,
@@ -12,7 +12,16 @@ import {
   Tag,
   Users,
 } from "lucide-react";
-import { feedApi, type FeedItem, type PostResponse, type PostType } from "../../api/feed";
+import {
+  feedApi,
+  type ActivityDomain,
+  type ActivitySuggestion,
+  type CommentResponse,
+  type FeedItem,
+  type PostResponse,
+  type PostType,
+} from "../../api/feed";
+import { mediaApi } from "../../api/media";
 import { useAuth } from "../../auth/AuthProvider";
 import { useFeedStore, type FeedTab } from "../../stores/feedStore";
 
@@ -121,30 +130,84 @@ function CreatePostArea({ onCreated }: { onCreated: () => void }) {
   const [content, setContent] = useState("");
   const [tags, setTags] = useState("");
   const [mediaUrl, setMediaUrl] = useState("");
+  const [uploadingMedia, setUploadingMedia] = useState(false);
   const [activityTitle, setActivityTitle] = useState("");
-  const [activityCategory, setActivityCategory] = useState("");
+  const [activityDomain, setActivityDomain] = useState("");
   const [activityLocation, setActivityLocation] = useState("");
   const [activityStartAt, setActivityStartAt] = useState("");
   const [activityCapacity, setActivityCapacity] = useState("");
+  const [domains, setDomains] = useState<ActivityDomain[]>([]);
+  const [suggestions, setSuggestions] = useState<ActivitySuggestion[]>([]);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
+
+  useEffect(() => {
+    feedApi
+      .getActivityDomains()
+      .then((items) => {
+        setDomains(items);
+        setActivityDomain((current) => current || items[0]?.name || "");
+      })
+      .catch(() => undefined);
+  }, []);
+
+  useEffect(() => {
+    if (type !== "ACTIVITY" || activityTitle.trim().length < 2) {
+      setSuggestions([]);
+      return;
+    }
+    const timeoutId = window.setTimeout(() => {
+      feedApi
+        .searchActivitySuggestions(activityTitle, 6)
+        .then(setSuggestions)
+        .catch(() => setSuggestions([]));
+    }, 200);
+    return () => window.clearTimeout(timeoutId);
+  }, [activityTitle, type]);
 
   const canSubmit = useMemo(() => {
     if (type === "ACTIVITY") {
-      return activityTitle.trim().length > 0;
+      return activityTitle.trim().length > 0 && activityDomain.trim().length > 0;
     }
     return content.trim().length > 0 || mediaUrl.trim().length > 0;
-  }, [activityTitle, content, mediaUrl, type]);
+  }, [activityDomain, activityTitle, content, mediaUrl, type]);
 
   const reset = () => {
     setContent("");
     setTags("");
     setMediaUrl("");
     setActivityTitle("");
-    setActivityCategory("");
+    setActivityDomain(domains[0]?.name || "");
     setActivityLocation("");
     setActivityStartAt("");
     setActivityCapacity("");
+    setSuggestions([]);
+  };
+
+  const handleMediaUpload = async (event: ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) {
+      return;
+    }
+
+    setUploadingMedia(true);
+    setError(null);
+    try {
+      const response = await mediaApi.upload(file, "posts");
+      setMediaUrl(response.url);
+    } catch {
+      setError("Image impossible a charger pour le moment.");
+    } finally {
+      setUploadingMedia(false);
+      event.target.value = "";
+    }
+  };
+
+  const selectSuggestion = (suggestion: ActivitySuggestion) => {
+    setActivityTitle(suggestion.title);
+    setActivityDomain(suggestion.domain);
+    setSuggestions([]);
   };
 
   const submit = async (event: FormEvent) => {
@@ -165,7 +228,8 @@ function CreatePostArea({ onCreated }: { onCreated: () => void }) {
           type === "ACTIVITY"
             ? {
                 title: activityTitle.trim(),
-                category: activityCategory.trim() || undefined,
+                category: activityDomain.trim(),
+                domain: activityDomain.trim(),
                 location: activityLocation.trim() || undefined,
                 startAt: activityStartAt ? new Date(activityStartAt).toISOString() : undefined,
                 capacity: activityCapacity ? Number(activityCapacity) : undefined,
@@ -196,24 +260,46 @@ function CreatePostArea({ onCreated }: { onCreated: () => void }) {
         <div className="flex-1 min-w-0">
           <div className="flex flex-wrap gap-2 mb-3">
             <ModeButton active={type === "TEXT"} onClick={() => setType("TEXT")} icon={<MessageCircle size={14} />} label="Post" />
-            <ModeButton active={type === "MEDIA"} onClick={() => setType("MEDIA")} icon={<ImageIcon size={14} />} label="Media" />
             <ModeButton active={type === "ACTIVITY"} onClick={() => setType("ACTIVITY")} icon={<CalendarDays size={14} />} label="Activite" />
           </div>
 
           {type === "ACTIVITY" && (
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-3">
-              <input
-                value={activityTitle}
-                onChange={(event) => setActivityTitle(event.target.value)}
-                placeholder="Titre de l'activite"
-                className="bg-secondary-50 border border-secondary-100 focus:bg-white focus:border-primary-500 rounded-sm py-2 px-3 text-sm text-primary-900 placeholder:text-secondary-300"
-              />
-              <input
-                value={activityCategory}
-                onChange={(event) => setActivityCategory(event.target.value)}
-                placeholder="Categorie"
-                className="bg-secondary-50 border border-secondary-100 focus:bg-white focus:border-primary-500 rounded-sm py-2 px-3 text-sm text-primary-900 placeholder:text-secondary-300"
-              />
+              <div className="relative">
+                <input
+                  value={activityTitle}
+                  onChange={(event) => setActivityTitle(event.target.value)}
+                  placeholder="Titre de l'activite"
+                  className="w-full bg-secondary-50 border border-secondary-100 focus:bg-white focus:border-primary-500 rounded-sm py-2 px-3 text-sm text-primary-900 placeholder:text-secondary-300"
+                />
+                {suggestions.length > 0 && (
+                  <div className="absolute left-0 right-0 top-full mt-1 bg-white border border-secondary-100 rounded-sm shadow-lg z-30 overflow-hidden">
+                    {suggestions.map((suggestion) => (
+                      <button
+                        key={suggestion.id}
+                        type="button"
+                        onClick={() => selectSuggestion(suggestion)}
+                        className="w-full text-left px-3 py-2 hover:bg-secondary-50"
+                      >
+                        <span className="block text-xs font-semibold text-primary-900">{suggestion.title}</span>
+                        <span className="block text-[11px] text-secondary-400">{suggestion.domain}</span>
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+              <select
+                value={activityDomain}
+                onChange={(event) => setActivityDomain(event.target.value)}
+                className="bg-secondary-50 border border-secondary-100 focus:bg-white focus:border-primary-500 rounded-sm py-2 px-3 text-sm text-primary-900"
+              >
+                <option value="">Domaine</option>
+                {domains.map((domain) => (
+                  <option key={domain.id} value={domain.name}>
+                    {domain.name}
+                  </option>
+                ))}
+              </select>
               <input
                 value={activityLocation}
                 onChange={(event) => setActivityLocation(event.target.value)}
@@ -244,14 +330,36 @@ function CreatePostArea({ onCreated }: { onCreated: () => void }) {
             className="w-full bg-transparent border-none focus:ring-0 text-base text-primary-900 placeholder:text-secondary-300 resize-none min-h-16 pt-1 font-medium"
           />
 
-          {type === "MEDIA" && (
+          {mediaUrl && (
+            <div className="mt-3 border border-secondary-100 rounded-sm overflow-hidden bg-secondary-50">
+              <img src={mediaUrl} alt="Apercu" className="w-full max-h-64 object-cover" />
+            </div>
+          )}
+
+          <div className="flex items-center gap-2 mt-3">
+            <button
+              type="button"
+              onClick={() => fileInputRef.current?.click()}
+              disabled={uploadingMedia}
+              className="inline-flex items-center gap-2 border border-secondary-100 text-secondary-600 hover:text-primary-600 hover:border-primary-200 rounded-sm px-3 py-2 text-xs transition-colors disabled:opacity-50"
+            >
+              {uploadingMedia ? <Loader2 size={13} className="animate-spin" /> : <ImageIcon size={13} />}
+              IMAGE
+            </button>
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept="image/*"
+              className="hidden"
+              onChange={(event) => void handleMediaUpload(event)}
+            />
             <input
               value={mediaUrl}
               onChange={(event) => setMediaUrl(event.target.value)}
-              placeholder="URL image ou media"
-              className="w-full mt-3 bg-secondary-50 border border-secondary-100 focus:bg-white focus:border-primary-500 rounded-sm py-2 px-3 text-sm text-primary-900 placeholder:text-secondary-300"
+              placeholder="URL image"
+              className="flex-1 bg-secondary-50 border border-secondary-100 focus:bg-white focus:border-primary-500 rounded-sm py-2 px-3 text-sm text-primary-900 placeholder:text-secondary-300"
             />
-          )}
+          </div>
 
           <div className="flex flex-col sm:flex-row gap-3 justify-between sm:items-center pt-4 mt-2 border-t border-secondary-50">
             <div className="relative flex-1 max-w-sm">
@@ -311,6 +419,11 @@ function Post({
 }) {
   const { post, reasons } = item;
   const [busy, setBusy] = useState(false);
+  const [commentsOpen, setCommentsOpen] = useState(false);
+  const [commentsLoading, setCommentsLoading] = useState(false);
+  const [comments, setComments] = useState<CommentResponse[]>([]);
+  const [commentDraft, setCommentDraft] = useState("");
+  const [commentSaving, setCommentSaving] = useState(false);
   const author = post.authorName || post.authorUsername || "Etudiant";
   const handle = post.authorUsername ? `@${post.authorUsername}` : "@uconnect";
 
@@ -341,6 +454,37 @@ function Post({
       onPostChanged(next);
     } finally {
       setBusy(false);
+    }
+  };
+
+  const toggleComments = async () => {
+    const nextOpen = !commentsOpen;
+    setCommentsOpen(nextOpen);
+    if (!nextOpen || comments.length > 0 || commentsLoading) {
+      return;
+    }
+    setCommentsLoading(true);
+    try {
+      setComments(await feedApi.listComments(post.id));
+    } finally {
+      setCommentsLoading(false);
+    }
+  };
+
+  const submitComment = async (event: FormEvent) => {
+    event.preventDefault();
+    const content = commentDraft.trim();
+    if (!content || commentSaving) {
+      return;
+    }
+    setCommentSaving(true);
+    try {
+      const nextComment = await feedApi.addComment(post.id, content);
+      setComments((previous) => [...previous, nextComment]);
+      setCommentDraft("");
+      onPostChanged({ ...post, commentCount: post.commentCount + 1 });
+    } finally {
+      setCommentSaving(false);
     }
   };
 
@@ -403,7 +547,12 @@ function Post({
         )}
 
         <div className="flex justify-between max-w-sm text-secondary-400">
-          <PostAction icon={<MessageCircle size={16} />} count={post.commentCount} />
+          <PostAction
+            icon={<MessageCircle size={16} />}
+            count={post.commentCount}
+            active={commentsOpen}
+            onClick={() => void toggleComments()}
+          />
           <PostAction
             icon={<Heart size={16} className={post.reactedByMe ? "fill-current" : ""} />}
             count={post.reactionCount}
@@ -412,8 +561,76 @@ function Post({
           />
           <PostAction icon={<Users size={16} />} count={post.participantCount} />
         </div>
+
+        {commentsOpen && (
+          <CommentsPanel
+            comments={comments}
+            loading={commentsLoading}
+            draft={commentDraft}
+            saving={commentSaving}
+            onDraftChange={setCommentDraft}
+            onSubmit={(event) => void submitComment(event)}
+          />
+        )}
       </div>
     </article>
+  );
+}
+
+function CommentsPanel({
+  comments,
+  loading,
+  draft,
+  saving,
+  onDraftChange,
+  onSubmit,
+}: {
+  comments: CommentResponse[];
+  loading: boolean;
+  draft: string;
+  saving: boolean;
+  onDraftChange: (value: string) => void;
+  onSubmit: (event: FormEvent) => void;
+}) {
+  return (
+    <div className="mt-4 border-t border-secondary-100 pt-4">
+      {loading ? (
+        <div className="flex items-center gap-2 text-xs text-secondary-400">
+          <Loader2 size={13} className="animate-spin" />
+          Chargement des commentaires...
+        </div>
+      ) : (
+        <div className="space-y-3">
+          {comments.map((comment) => (
+            <div key={comment.id} className="bg-secondary-50 border border-secondary-100 rounded-sm px-3 py-2">
+              <div className="flex items-center justify-between gap-3">
+                <span className="text-xs font-semibold text-primary-900">{comment.authorName}</span>
+                <span className="text-[11px] text-secondary-400">{timeAgo(comment.createdAt)}</span>
+              </div>
+              <p className="text-sm text-primary-900 mt-1">{comment.content}</p>
+            </div>
+          ))}
+          {comments.length === 0 && (
+            <p className="text-xs text-secondary-400">Aucun commentaire pour le moment.</p>
+          )}
+        </div>
+      )}
+      <form onSubmit={onSubmit} className="flex gap-2 mt-3">
+        <input
+          value={draft}
+          onChange={(event) => onDraftChange(event.target.value)}
+          placeholder="Ajouter un commentaire"
+          className="flex-1 bg-secondary-50 border border-secondary-100 focus:bg-white focus:border-primary-500 rounded-sm px-3 py-2 text-sm text-primary-900 placeholder:text-secondary-300"
+        />
+        <button
+          type="submit"
+          disabled={saving || draft.trim().length === 0}
+          className="bg-primary-500 hover:bg-primary-600 text-white rounded-sm px-3 py-2 disabled:opacity-50"
+        >
+          {saving ? <Loader2 size={14} className="animate-spin" /> : <Send size={14} />}
+        </button>
+      </form>
+    </div>
   );
 }
 
@@ -438,7 +655,7 @@ function ActivityBlock({
         <div className="min-w-0">
           <p className="text-sm font-semibold text-primary-900">{activity.title}</p>
           <div className="flex flex-wrap gap-3 mt-2 text-[11px] text-secondary-500">
-            {activity.category && <span>{activity.category}</span>}
+            {(activity.domain || activity.category) && <span>{activity.domain || activity.category}</span>}
             {activity.location && (
               <span className="inline-flex items-center gap-1">
                 <MapPin size={12} />

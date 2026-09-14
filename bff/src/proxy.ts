@@ -13,6 +13,7 @@ export function setupProxy(app: Express) {
     "/api/chat/**": process.env.CHAT_SERVICE_URL || "http://localhost:8084",
     "/api/posts/**": process.env.POST_SERVICE_URL || "http://localhost:8086",
     "/api/activities/**": process.env.POST_SERVICE_URL || "http://localhost:8086",
+    "/api/activity-catalog/**": process.env.POST_SERVICE_URL || "http://localhost:8086",
     "/api/feed/**": process.env.RECOMMENDATION_SERVICE_URL || "http://localhost:8087",
     "/api/notifications/**":
       process.env.NOTIFICATION_SERVICE_URL || "http://notification-service:8080",

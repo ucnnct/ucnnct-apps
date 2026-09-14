@@ -182,9 +182,12 @@ public class RecommendationService {
             addReason(reasons, "Correspond a tes interets");
         }
 
-        if (post.activity() != null && preferredCategories.contains(normalize(post.activity().category()))) {
+        String activityDomain = post.activity() == null
+                ? null
+                : post.activity().domain() == null ? post.activity().category() : post.activity().domain();
+        if (post.activity() != null && preferredCategories.contains(normalize(activityDomain))) {
             score += 12;
-            addReason(reasons, "Categorie preferee");
+            addReason(reasons, "Domaine prefere");
         }
 
         if (profile.fieldOfStudy() != null && tags.contains(normalize(profile.fieldOfStudy()))) {

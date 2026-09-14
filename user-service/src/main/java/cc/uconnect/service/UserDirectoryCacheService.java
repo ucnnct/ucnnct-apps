@@ -53,6 +53,7 @@ public class UserDirectoryCacheService {
         node.put("userId", valueOrEmpty(user.getKeycloakId()));
         node.put("email", valueOrEmpty(user.getEmail()));
         node.put("displayName", buildDisplayName(user));
+        node.put("avatarUrl", valueOrEmpty(user.getAvatarUrl()));
         return node.toString();
     }
 

@@ -30,6 +30,7 @@ export interface MessageConversationItem {
   title: string;
   subtitle: string;
   avatarSeeds: string[];
+  avatarUrl: string | null;
   participantIds: string[];
   peerUserId: string | null;
   groupId: string | null;

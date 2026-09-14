@@ -163,6 +163,7 @@ export function mapConversationToItem(
       title,
       subtitle,
       avatarSeeds: buildAvatarSeeds(kind, participantIds, userDirectory, title, authUserId),
+      avatarUrl: null,
       participantIds,
       peerUserId: null,
       groupId,
@@ -184,6 +185,7 @@ export function mapConversationToItem(
     title,
     subtitle,
     avatarSeeds: buildAvatarSeeds(kind, participantIds, userDirectory, title, authUserId),
+    avatarUrl: peerUser?.avatarUrl ?? null,
     participantIds,
     peerUserId,
     groupId: null,
@@ -218,6 +220,7 @@ export function refreshConversationPresentation(
         title,
         authUserId,
       ),
+      avatarUrl: null,
     };
   }
 
@@ -235,6 +238,7 @@ export function refreshConversationPresentation(
       title,
       authUserId,
     ),
+    avatarUrl: peerUser?.avatarUrl ?? conversation.avatarUrl ?? null,
   };
 }
 

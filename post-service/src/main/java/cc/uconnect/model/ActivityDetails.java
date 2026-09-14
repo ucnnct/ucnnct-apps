@@ -32,6 +32,8 @@ public class ActivityDetails {
 
     private String category;
 
+    private String domain;
+
     private String location;
 
     @Column(name = "start_at")

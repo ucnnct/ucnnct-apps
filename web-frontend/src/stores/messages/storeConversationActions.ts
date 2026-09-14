@@ -148,6 +148,7 @@ export function createMessagesConversationActions(
                   ? `${group.memberCount} membre${group.memberCount > 1 ? "s" : ""}`
                   : existingConversation?.subtitle || "Conversation de groupe",
               avatarSeeds: existingConversation?.avatarSeeds ?? [],
+              avatarUrl: existingConversation?.avatarUrl ?? null,
               participantIds:
                 participantIdsForGroup.length > 0 ? participantIdsForGroup : [authUser.sub],
               peerUserId: null,
@@ -276,6 +277,7 @@ export function createMessagesConversationActions(
             title: peerDirectoryEntry?.displayName ?? fallbackLabel,
             subtitle: peerDirectoryEntry?.handle ?? `@${normalizedPeerUserId.slice(0, 8)}`,
             avatarSeeds: [peerDirectoryEntry?.displayName ?? fallbackLabel],
+            avatarUrl: peerDirectoryEntry?.avatarUrl ?? null,
             participantIds: uniqueNonBlank([authUser.sub, normalizedPeerUserId]),
             peerUserId: normalizedPeerUserId,
             groupId: null,
@@ -339,6 +341,7 @@ export function createMessagesConversationActions(
             title: group.name || `Groupe ${group.id.slice(0, 8)}`,
             subtitle: `${group.memberCount} membre${group.memberCount > 1 ? "s" : ""}`,
             avatarSeeds: [],
+            avatarUrl: null,
             participantIds:
               normalizedParticipantIds.length > 0 ? normalizedParticipantIds : [authUserId],
             peerUserId: null,
