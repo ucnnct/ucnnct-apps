@@ -13,7 +13,7 @@
 
     <groupId>cc.uconnect</groupId>
     <artifactId>recommendation-service</artifactId>
-    <version>1.0.0</version>
+    <version>1.1.0</version>
     <name>recommendation-service</name>
     <description>Student social feed recommendation service</description>
 
