@@ -74,6 +74,15 @@ export interface CommentResponse {
   createdAt: string;
 }
 
+export interface ParticipantResponse {
+  id: string;
+  postId: string;
+  userId: string;
+  displayName: string;
+  status: ParticipationStatus;
+  createdAt: string;
+}
+
 export interface CreatePostPayload {
   type: PostType;
   visibility?: PostVisibility;
@@ -107,6 +116,9 @@ export const feedApi = {
 
   leaveActivity: (postId: string) =>
     apiFetch<PostResponse>(`/api/activities/${postId}/participants/me`, { method: "DELETE" }),
+
+  listActivityParticipants: (postId: string) =>
+    apiFetch<ParticipantResponse[]>(`/api/activities/${postId}/participants`),
 
   getActivityDomains: () =>
     apiFetch<ActivityDomain[]>("/api/activity-catalog/domains"),

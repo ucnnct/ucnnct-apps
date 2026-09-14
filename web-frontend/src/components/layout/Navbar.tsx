@@ -37,7 +37,7 @@ export default function Navbar() {
   } = useNavbarController();
 
   return (
-    <nav className="sticky top-0 z-50 bg-[#aeb95c] border-b border-blue-900 h-16 relative">
+    <nav className="sticky top-0 z-50 bg-primary-800 border-b border-primary-900 h-16 relative">
       <div className="max-w-[1250px] mx-auto px-8 h-full flex items-center justify-between">
         <Link
           to="/"
@@ -47,7 +47,7 @@ export default function Navbar() {
             <img src="/uconnect.svg" alt="U-Connect" className="w-full h-full object-contain" />
           </div>
           <span className="font-display font-bold text-base sm:text-lg md:text-xl tracking-tight text-white whitespace-nowrap leading-none">
-            U-Connect
+            Uconnect
           </span>
         </Link>
 
@@ -90,7 +90,7 @@ export default function Navbar() {
             >
               <Bell size={20} />
               {unreadCount > 0 && (
-                  <span className="absolute -top-2 -right-2 min-w-4 h-4 px-1 rounded-full bg-primary-500 text-white text-[10px] leading-4 text-center border border-blue-900">
+                  <span className="absolute -top-2 -right-2 min-w-4 h-4 px-1 rounded-full bg-primary-500 text-white text-[10px] leading-4 text-center border border-primary-900">
                     {unreadCount > 99 ? "99+" : unreadCount}
                   </span>
                 )}

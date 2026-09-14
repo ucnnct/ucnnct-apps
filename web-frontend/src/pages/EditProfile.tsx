@@ -238,12 +238,12 @@ function Section({
   children: ReactNode;
 }) {
   return (
-    <div className="bg-white border border-secondary-100 rounded-sm overflow-hidden">
+    <div className="bg-white border border-secondary-100 rounded-sm overflow-visible">
       <div className="px-6 py-4 border-b border-secondary-100 flex items-center gap-3">
         <span className="text-secondary-400">{icon}</span>
         <h2 className="text-[11px] font-medium text-primary-900 uppercase tracking-widest">{title}</h2>
       </div>
-      <div className="px-6 py-5 space-y-4">{children}</div>
+      <div className="px-6 py-5 space-y-4 relative">{children}</div>
     </div>
   );
 }
@@ -362,7 +362,7 @@ function ChipSelector({
           </button>
         ))}
       </div>
-      <div className="relative">
+      <div className="relative z-20">
         <input
           value={query}
           disabled={items.length >= maxItems}
@@ -380,7 +380,7 @@ function ChipSelector({
           className="w-full bg-secondary-50 border border-secondary-100 focus:bg-white focus:border-primary-500 focus:ring-0 rounded-sm py-2.5 px-3 text-sm text-primary-900 transition-all placeholder:text-secondary-300 placeholder:text-xs disabled:opacity-60"
         />
         {remainingSuggestions.length > 0 && items.length < maxItems && (
-          <div className="absolute left-0 right-0 top-full mt-1 bg-white border border-secondary-100 rounded-sm shadow-lg z-30 overflow-hidden">
+          <div className="absolute left-0 right-0 top-full mt-1 bg-white border border-secondary-100 rounded-sm shadow-lg z-50 max-h-56 overflow-y-auto">
             {remainingSuggestions.slice(0, 8).map((suggestion) => (
               <button
                 key={suggestion}

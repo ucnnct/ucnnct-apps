@@ -66,6 +66,8 @@ export default function Profile() {
   const handle = profile.username.includes("@")
     ? profile.firstName || profile.email.split("@")[0]
     : profile.username;
+  const interests = splitInput(profile.interests ?? "");
+  const preferredDomains = splitInput(profile.preferredActivityCategories ?? "");
   const joinDate = new Date(profile.createdAt).toLocaleDateString("fr-FR", {
     month: "long",
     year: "numeric",
@@ -124,6 +126,17 @@ export default function Profile() {
             )}
             <InfoItem icon={<Calendar size={16} />} text={`Inscrit en ${joinDate}`} />
           </div>
+
+          {(interests.length > 0 || preferredDomains.length > 0) && (
+            <div className="mt-6 grid grid-cols-1 md:grid-cols-2 gap-4 max-w-3xl">
+              {interests.length > 0 && (
+                <InterestGroup title="Activites" items={interests} />
+              )}
+              {preferredDomains.length > 0 && (
+                <InterestGroup title="Domaines preferes" items={preferredDomains} />
+              )}
+            </div>
+          )}
 
           {isOwnProfile && (
             <div className="mt-6 flex gap-6">
@@ -195,6 +208,26 @@ export default function Profile() {
   );
 }
 
+function InterestGroup({ title, items }: { title: string; items: string[] }) {
+  return (
+    <div>
+      <p className="text-[11px] font-medium text-secondary-400 uppercase tracking-widest mb-2">
+        {title}
+      </p>
+      <div className="flex flex-wrap gap-2">
+        {items.map((item) => (
+          <span
+            key={item}
+            className="bg-primary-50 text-primary-700 border border-primary-100 rounded-sm px-2.5 py-1 text-xs"
+          >
+            {item}
+          </span>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 function InfoItem({
   icon,
   text,
@@ -210,6 +243,13 @@ function InfoItem({
       <span className="text-sm font-normal">{text}</span>
     </div>
   );
+}
+
+function splitInput(value: string) {
+  return value
+    .split(",")
+    .map((item) => item.trim())
+    .filter(Boolean);
 }
 
 interface ProfileTabProps {

@@ -11,6 +11,7 @@ import {
   Sparkles,
   Tag,
   Users,
+  X,
 } from "lucide-react";
 import {
   feedApi,
@@ -18,10 +19,12 @@ import {
   type ActivitySuggestion,
   type CommentResponse,
   type FeedItem,
+  type ParticipantResponse,
   type PostResponse,
   type PostType,
 } from "../../api/feed";
 import { mediaApi } from "../../api/media";
+import { userApi, type UserProfile } from "../../api/users";
 import { useAuth } from "../../auth/AuthProvider";
 import { useFeedStore, type FeedTab } from "../../stores/feedStore";
 
@@ -36,8 +39,29 @@ export default function Feed() {
   const activeTab = useFeedStore((state) => state.activeTab);
   const setActiveTab = useFeedStore((state) => state.setActiveTab);
   const [items, setItems] = useState<FeedItem[]>([]);
+  const [authorProfiles, setAuthorProfiles] = useState<Record<string, UserProfile>>({});
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+
+  const hydrateAuthors = useCallback(async (feedItems: FeedItem[]) => {
+    const authorIds = Array.from(
+      new Set(feedItems.map((item) => item.post.authorId).filter(Boolean)),
+    );
+    if (authorIds.length === 0) {
+      return;
+    }
+
+    const results = await Promise.allSettled(authorIds.map((authorId) => userApi.getById(authorId)));
+    setAuthorProfiles((previous) => {
+      const next = { ...previous };
+      results.forEach((result, index) => {
+        if (result.status === "fulfilled") {
+          next[authorIds[index]] = result.value;
+        }
+      });
+      return next;
+    });
+  }, []);
 
   const loadFeed = useCallback(async () => {
     setLoading(true);
@@ -45,12 +69,13 @@ export default function Feed() {
     try {
       const response = await feedApi.getFeed(activeTab, 30);
       setItems(response.items);
+      void hydrateAuthors(response.items);
     } catch {
       setError("Impossible de charger le fil.");
     } finally {
       setLoading(false);
     }
-  }, [activeTab]);
+  }, [activeTab, hydrateAuthors]);
 
   useEffect(() => {
     void loadFeed();
@@ -95,7 +120,12 @@ export default function Feed() {
             </div>
           ) : (
             items.map((item) => (
-              <Post key={item.post.id} item={item} onPostChanged={replacePost} />
+              <Post
+                key={item.post.id}
+                item={item}
+                authorProfile={authorProfiles[item.post.authorId]}
+                onPostChanged={replacePost}
+              />
             ))
           )}
         </div>
@@ -412,9 +442,11 @@ function ModeButton({
 
 function Post({
   item,
+  authorProfile,
   onPostChanged,
 }: {
   item: FeedItem;
+  authorProfile?: UserProfile;
   onPostChanged: (post: PostResponse) => void;
 }) {
   const { post, reasons } = item;
@@ -424,8 +456,21 @@ function Post({
   const [comments, setComments] = useState<CommentResponse[]>([]);
   const [commentDraft, setCommentDraft] = useState("");
   const [commentSaving, setCommentSaving] = useState(false);
-  const author = post.authorName || post.authorUsername || "Etudiant";
-  const handle = post.authorUsername ? `@${post.authorUsername}` : "@uconnect";
+  const [participantsOpen, setParticipantsOpen] = useState(false);
+  const [participantsLoading, setParticipantsLoading] = useState(false);
+  const [participants, setParticipants] = useState<ParticipantResponse[]>([]);
+  const [participantProfiles, setParticipantProfiles] = useState<Record<string, UserProfile>>({});
+  const [participantsError, setParticipantsError] = useState<string | null>(null);
+  const profileFullName = authorProfile
+    ? `${authorProfile.firstName} ${authorProfile.lastName}`.trim()
+    : "";
+  const author = profileFullName || post.authorName || post.authorUsername || "Etudiant";
+  const handle = `@${authorProfile?.username || post.authorUsername || "uconnect"}`;
+  const authorAvatarUrl =
+    authorProfile?.avatarUrl ||
+    post.authorAvatarUrl ||
+    `https://api.dicebear.com/7.x/avataaars/svg?seed=${encodeURIComponent(author)}`;
+  const authorSchool = authorProfile?.school || null;
 
   const toggleReaction = async () => {
     if (busy) {
@@ -488,13 +533,39 @@ function Post({
     }
   };
 
+  const openParticipants = async () => {
+    if (!post.activity) {
+      return;
+    }
+    setParticipantsOpen(true);
+    setParticipantsLoading(true);
+    setParticipantsError(null);
+    try {
+      const nextParticipants = await feedApi.listActivityParticipants(post.id);
+      setParticipants(nextParticipants);
+
+      const userIds = Array.from(
+        new Set(nextParticipants.map((participant) => participant.userId).filter(Boolean)),
+      );
+      const results = await Promise.allSettled(userIds.map((userId) => userApi.getById(userId)));
+      const nextProfiles: Record<string, UserProfile> = {};
+      results.forEach((result, index) => {
+        if (result.status === "fulfilled") {
+          nextProfiles[userIds[index]] = result.value;
+        }
+      });
+      setParticipantProfiles(nextProfiles);
+    } catch {
+      setParticipantsError("Impossible de charger les participants.");
+    } finally {
+      setParticipantsLoading(false);
+    }
+  };
+
   return (
     <article className="p-6 flex gap-4 hover:bg-secondary-50/30 transition-colors group">
       <div className="w-10 h-10 bg-secondary-100 border border-secondary-200 rounded-sm overflow-hidden flex-shrink-0">
-        <img
-          src={post.authorAvatarUrl || `https://api.dicebear.com/7.x/avataaars/svg?seed=${encodeURIComponent(author)}`}
-          alt={author}
-        />
+        <img src={authorAvatarUrl} alt={author} className="w-full h-full object-cover" />
       </div>
       <div className="flex-1 min-w-0">
         <div className="flex items-start justify-between gap-3 mb-1">
@@ -505,6 +576,11 @@ function Post({
                 {handle} · {timeAgo(post.createdAt)}
               </span>
             </div>
+            {authorSchool && (
+              <p className="mt-0.5 text-[11px] font-medium text-secondary-500">
+                {authorSchool}
+              </p>
+            )}
             {reasons.length > 0 && (
               <div className="flex flex-wrap gap-1.5 mt-2">
                 {reasons.map((reason) => (
@@ -559,7 +635,12 @@ function Post({
             active={post.reactedByMe}
             onClick={() => void toggleReaction()}
           />
-          <PostAction icon={<Users size={16} />} count={post.participantCount} />
+          <PostAction
+            icon={<Users size={16} />}
+            count={post.participantCount}
+            active={participantsOpen}
+            onClick={post.activity ? () => void openParticipants() : undefined}
+          />
         </div>
 
         {commentsOpen && (
@@ -572,8 +653,106 @@ function Post({
             onSubmit={(event) => void submitComment(event)}
           />
         )}
+
+        {participantsOpen && (
+          <ParticipantsModal
+            post={post}
+            participants={participants}
+            participantProfiles={participantProfiles}
+            loading={participantsLoading}
+            error={participantsError}
+            onClose={() => setParticipantsOpen(false)}
+          />
+        )}
       </div>
     </article>
+  );
+}
+
+function ParticipantsModal({
+  post,
+  participants,
+  participantProfiles,
+  loading,
+  error,
+  onClose,
+}: {
+  post: PostResponse;
+  participants: ParticipantResponse[];
+  participantProfiles: Record<string, UserProfile>;
+  loading: boolean;
+  error: string | null;
+  onClose: () => void;
+}) {
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-secondary-900/40 px-4">
+      <div className="w-full max-w-md bg-white border border-secondary-100 rounded-sm shadow-xl">
+        <div className="flex items-center justify-between gap-3 px-5 py-4 border-b border-secondary-100">
+          <div>
+            <p className="text-sm font-semibold text-primary-900">Participants</p>
+            <p className="text-[11px] text-secondary-400">
+              {post.activity?.title} - {post.participantCount} inscrit(s)
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={onClose}
+            className="p-1 text-secondary-400 hover:text-primary-900"
+            title="Fermer"
+          >
+            <X size={18} />
+          </button>
+        </div>
+
+        <div className="max-h-[55vh] overflow-y-auto p-4">
+          {loading && (
+            <div className="flex items-center gap-2 text-xs text-secondary-400">
+              <Loader2 size={14} className="animate-spin" />
+              Chargement des participants...
+            </div>
+          )}
+
+          {!loading && error && <p className="text-xs text-red-600">{error}</p>}
+
+          {!loading && !error && participants.length === 0 && (
+            <p className="text-xs text-secondary-400">Aucun participant pour le moment.</p>
+          )}
+
+          {!loading && !error && participants.length > 0 && (
+            <div className="space-y-2">
+              {participants.map((participant) => {
+                const profile = participantProfiles[participant.userId];
+                const displayName =
+                  profile ? `${profile.firstName} ${profile.lastName}`.trim() : participant.displayName;
+                const avatarUrl =
+                  profile?.avatarUrl ||
+                  `https://api.dicebear.com/7.x/avataaars/svg?seed=${encodeURIComponent(displayName)}`;
+
+                return (
+                  <div
+                    key={participant.id}
+                    className="flex items-center gap-3 border border-secondary-100 bg-secondary-50/50 rounded-sm px-3 py-2"
+                  >
+                    <div className="w-9 h-9 rounded-sm overflow-hidden bg-white border border-secondary-100 shrink-0">
+                      <img src={avatarUrl} alt={displayName} className="w-full h-full object-cover" />
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <p className="text-sm font-semibold text-primary-900 truncate">{displayName}</p>
+                      <p className="text-[11px] text-secondary-400 truncate">
+                        {profile?.school || profile?.university || "Inscrit"}
+                      </p>
+                    </div>
+                    <span className="text-[11px] text-primary-600 bg-primary-50 border border-primary-100 rounded-sm px-2 py-1">
+                      {participant.status === "GOING" ? "Inscrit" : participant.status}
+                    </span>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
   );
 }
 
