@@ -13,7 +13,7 @@
 
     <groupId>cc.uconnect</groupId>
     <artifactId>post-service</artifactId>
-    <version>1.1.0</version>
+    <version>1.2.0</version>
     <name>post-service</name>
     <description>Posts and activities service</description>
 

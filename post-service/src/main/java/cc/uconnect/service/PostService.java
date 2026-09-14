@@ -64,6 +64,9 @@ public class PostService {
         Post saved = postRepository.save(post);
         if (saved.getType() == PostType.ACTIVITY) {
             saveActivityDetails(saved.getId(), request.activity());
+            upsertParticipant(saved.getId(), jwt.getSubject(), resolveDisplayName(jwt), ParticipantStatus.GOING);
+            refreshParticipantCount(saved);
+            saved = postRepository.save(saved);
         }
         eventPublisher.publishPostEvent("POST_CREATED", saved, jwt.getSubject());
         log.info("Post created postId={} authorId={} type={}", saved.getId(), saved.getAuthorId(), saved.getType());
@@ -148,13 +151,8 @@ public class PostService {
     @Transactional
     public PostResponse joinActivity(Jwt jwt, UUID postId) {
         Post post = getActivityPost(postId);
-        ActivityParticipant participant = participantRepository.findByPostIdAndUserId(postId, jwt.getSubject())
-                .orElseGet(ActivityParticipant::new);
-        participant.setPostId(postId);
-        participant.setUserId(jwt.getSubject());
-        participant.setDisplayName(resolveDisplayName(jwt));
-        participant.setStatus(ParticipantStatus.GOING);
-        participantRepository.save(participant);
+        requireActivityOpen(postId);
+        upsertParticipant(postId, jwt.getSubject(), resolveDisplayName(jwt), ParticipantStatus.GOING);
         refreshParticipantCount(post);
         Post saved = postRepository.save(post);
         eventPublisher.publishPostEvent("ACTIVITY_JOINED", saved, jwt.getSubject());
@@ -165,6 +163,9 @@ public class PostService {
     @Transactional
     public PostResponse leaveActivity(Jwt jwt, UUID postId) {
         Post post = getActivityPost(postId);
+        if (post.getAuthorId().equals(jwt.getSubject())) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Activity creator cannot leave their activity");
+        }
         participantRepository.findByPostIdAndUserId(postId, jwt.getSubject())
                 .ifPresent(participant -> {
                     participant.setStatus(ParticipantStatus.CANCELLED);
@@ -174,6 +175,36 @@ public class PostService {
         Post saved = postRepository.save(post);
         eventPublisher.publishPostEvent("ACTIVITY_LEFT", saved, jwt.getSubject());
         return postMapper.toPostResponse(saved, jwt.getSubject());
+    }
+
+    @Transactional
+    public PostResponse removeActivityParticipant(Jwt jwt, UUID postId, String participantUserId) {
+        Post post = getActivityPost(postId);
+        requireActivityOwner(jwt, post);
+        if (post.getAuthorId().equals(participantUserId)) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Activity creator cannot be removed");
+        }
+        participantRepository.findByPostIdAndUserId(postId, participantUserId)
+                .ifPresent(participant -> {
+                    participant.setStatus(ParticipantStatus.CANCELLED);
+                    participantRepository.save(participant);
+                });
+        refreshParticipantCount(post);
+        Post saved = postRepository.save(post);
+        eventPublisher.publishPostEvent("ACTIVITY_PARTICIPANT_REMOVED", saved, jwt.getSubject());
+        return postMapper.toPostResponse(saved, jwt.getSubject());
+    }
+
+    @Transactional
+    public PostResponse completeActivity(Jwt jwt, UUID postId) {
+        Post post = getActivityPost(postId);
+        requireActivityOwner(jwt, post);
+        ActivityDetails activity = activityDetailsRepository.findByPostId(postId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Activity details not found"));
+        activity.setStatus("COMPLETED");
+        activityDetailsRepository.save(activity);
+        eventPublisher.publishPostEvent("ACTIVITY_COMPLETED", post, jwt.getSubject());
+        return postMapper.toPostResponse(post, jwt.getSubject());
     }
 
     @Transactional(readOnly = true)
@@ -214,6 +245,30 @@ public class PostService {
     private Post getPost(UUID postId) {
         return postRepository.findById(postId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Post not found"));
+    }
+
+    private void requireActivityOwner(Jwt jwt, Post post) {
+        if (!post.getAuthorId().equals(jwt.getSubject())) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Only the activity creator can perform this action");
+        }
+    }
+
+    private void requireActivityOpen(UUID postId) {
+        ActivityDetails activity = activityDetailsRepository.findByPostId(postId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Activity details not found"));
+        if ("COMPLETED".equalsIgnoreCase(activity.getStatus())) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Activity is completed");
+        }
+    }
+
+    private void upsertParticipant(UUID postId, String userId, String displayName, ParticipantStatus status) {
+        ActivityParticipant participant = participantRepository.findByPostIdAndUserId(postId, userId)
+                .orElseGet(ActivityParticipant::new);
+        participant.setPostId(postId);
+        participant.setUserId(userId);
+        participant.setDisplayName(displayName);
+        participant.setStatus(status);
+        participantRepository.save(participant);
     }
 
     private void refreshParticipantCount(Post post) {

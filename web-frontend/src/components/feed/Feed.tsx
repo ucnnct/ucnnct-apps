@@ -10,6 +10,7 @@ import {
   Send,
   Sparkles,
   Tag,
+  Trash2,
   Users,
   X,
 } from "lucide-react";
@@ -449,6 +450,7 @@ function Post({
   authorProfile?: UserProfile;
   onPostChanged: (post: PostResponse) => void;
 }) {
+  const { user } = useAuth();
   const { post, reasons } = item;
   const [busy, setBusy] = useState(false);
   const [commentsOpen, setCommentsOpen] = useState(false);
@@ -460,7 +462,9 @@ function Post({
   const [participantsLoading, setParticipantsLoading] = useState(false);
   const [participants, setParticipants] = useState<ParticipantResponse[]>([]);
   const [participantProfiles, setParticipantProfiles] = useState<Record<string, UserProfile>>({});
+  const [removingParticipantId, setRemovingParticipantId] = useState<string | null>(null);
   const [participantsError, setParticipantsError] = useState<string | null>(null);
+  const isOwner = user?.sub === post.authorId;
   const profileFullName = authorProfile
     ? `${authorProfile.firstName} ${authorProfile.lastName}`.trim()
     : "";
@@ -497,6 +501,18 @@ function Post({
         ? await feedApi.leaveActivity(post.id)
         : await feedApi.joinActivity(post.id);
       onPostChanged(next);
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const completeActivity = async () => {
+    if (busy || !isOwner) {
+      return;
+    }
+    setBusy(true);
+    try {
+      onPostChanged(await feedApi.completeActivity(post.id));
     } finally {
       setBusy(false);
     }
@@ -562,6 +578,25 @@ function Post({
     }
   };
 
+  const removeParticipant = async (participant: ParticipantResponse) => {
+    if (!isOwner || removingParticipantId) {
+      return;
+    }
+    setRemovingParticipantId(participant.userId);
+    setParticipantsError(null);
+    try {
+      const nextPost = await feedApi.removeActivityParticipant(post.id, participant.userId);
+      setParticipants((previous) =>
+        previous.filter((item) => item.userId !== participant.userId),
+      );
+      onPostChanged(nextPost);
+    } catch {
+      setParticipantsError("Impossible de supprimer ce participant.");
+    } finally {
+      setRemovingParticipantId(null);
+    }
+  };
+
   return (
     <article className="p-6 flex gap-4 hover:bg-secondary-50/30 transition-colors group">
       <div className="w-10 h-10 bg-secondary-100 border border-secondary-200 rounded-sm overflow-hidden flex-shrink-0">
@@ -600,7 +635,15 @@ function Post({
           </button>
         </div>
 
-        {post.activity && <ActivityBlock post={post} busy={busy} onToggleParticipation={() => void toggleParticipation()} />}
+        {post.activity && (
+          <ActivityBlock
+            post={post}
+            busy={busy}
+            isOwner={isOwner}
+            onToggleParticipation={() => void toggleParticipation()}
+            onComplete={() => void completeActivity()}
+          />
+        )}
 
         {post.content && (
           <p className="text-sm text-primary-900 leading-relaxed font-normal my-4">{post.content}</p>
@@ -661,6 +704,9 @@ function Post({
             participantProfiles={participantProfiles}
             loading={participantsLoading}
             error={participantsError}
+            isOwner={isOwner}
+            removingParticipantId={removingParticipantId}
+            onRemoveParticipant={(participant) => void removeParticipant(participant)}
             onClose={() => setParticipantsOpen(false)}
           />
         )}
@@ -675,6 +721,9 @@ function ParticipantsModal({
   participantProfiles,
   loading,
   error,
+  isOwner,
+  removingParticipantId,
+  onRemoveParticipant,
   onClose,
 }: {
   post: PostResponse;
@@ -682,6 +731,9 @@ function ParticipantsModal({
   participantProfiles: Record<string, UserProfile>;
   loading: boolean;
   error: string | null;
+  isOwner: boolean;
+  removingParticipantId: string | null;
+  onRemoveParticipant: (participant: ParticipantResponse) => void;
   onClose: () => void;
 }) {
   return (
@@ -727,6 +779,8 @@ function ParticipantsModal({
                 const avatarUrl =
                   profile?.avatarUrl ||
                   `https://api.dicebear.com/7.x/avataaars/svg?seed=${encodeURIComponent(displayName)}`;
+                const canRemove = isOwner && participant.userId !== post.authorId;
+                const removing = removingParticipantId === participant.userId;
 
                 return (
                   <div
@@ -745,6 +799,17 @@ function ParticipantsModal({
                     <span className="text-[11px] text-primary-600 bg-primary-50 border border-primary-100 rounded-sm px-2 py-1">
                       {participant.status === "GOING" ? "Inscrit" : participant.status}
                     </span>
+                    {canRemove && (
+                      <button
+                        type="button"
+                        onClick={() => onRemoveParticipant(participant)}
+                        disabled={Boolean(removingParticipantId)}
+                        className="p-1.5 text-secondary-400 hover:text-red-500 disabled:opacity-50"
+                        title="Supprimer ce participant"
+                      >
+                        {removing ? <Loader2 size={14} className="animate-spin" /> : <Trash2 size={14} />}
+                      </button>
+                    )}
                   </div>
                 );
               })}
@@ -816,17 +881,22 @@ function CommentsPanel({
 function ActivityBlock({
   post,
   busy,
+  isOwner,
   onToggleParticipation,
+  onComplete,
 }: {
   post: PostResponse;
   busy: boolean;
+  isOwner: boolean;
   onToggleParticipation: () => void;
+  onComplete: () => void;
 }) {
   const activity = post.activity;
   if (!activity) {
     return null;
   }
   const joined = post.participationStatus === "GOING";
+  const completed = activity.status === "COMPLETED";
 
   return (
     <div className="border border-secondary-100 bg-secondary-50/60 rounded-sm p-4 mt-4">
@@ -835,6 +905,11 @@ function ActivityBlock({
           <p className="text-sm font-semibold text-primary-900">{activity.title}</p>
           <div className="flex flex-wrap gap-3 mt-2 text-[11px] text-secondary-500">
             {(activity.domain || activity.category) && <span>{activity.domain || activity.category}</span>}
+            {completed && (
+              <span className="inline-flex items-center gap-1 text-success-500 font-medium">
+                Terminee
+              </span>
+            )}
             {activity.location && (
               <span className="inline-flex items-center gap-1">
                 <MapPin size={12} />
@@ -855,14 +930,27 @@ function ActivityBlock({
             )}
           </div>
         </div>
-        <button
-          type="button"
-          onClick={onToggleParticipation}
-          disabled={busy}
-          className={`px-4 py-2 rounded-sm text-xs font-medium uppercase tracking-wide transition-colors disabled:opacity-50 ${joined ? "border border-primary-200 bg-white text-primary-600" : "bg-primary-500 hover:bg-primary-600 text-white"}`}
-        >
-          {joined ? "INSCRIT" : "JE PARTICIPE"}
-        </button>
+        <div className="flex flex-wrap gap-2">
+          {isOwner ? (
+            <button
+              type="button"
+              onClick={onComplete}
+              disabled={busy || completed}
+              className={`px-4 py-2 rounded-sm text-xs font-medium uppercase tracking-wide transition-colors disabled:opacity-60 ${completed ? "border border-success-500/30 bg-success-500/10 text-success-500" : "bg-primary-500 hover:bg-primary-600 text-white"}`}
+            >
+              {completed ? "TERMINEE" : "TERMINER"}
+            </button>
+          ) : (
+            <button
+              type="button"
+              onClick={onToggleParticipation}
+              disabled={busy || completed}
+              className={`px-4 py-2 rounded-sm text-xs font-medium uppercase tracking-wide transition-colors disabled:opacity-50 ${joined ? "border border-primary-200 bg-white text-primary-600" : "bg-primary-500 hover:bg-primary-600 text-white"}`}
+            >
+              {completed ? "TERMINEE" : joined ? "INSCRIT" : "JE PARTICIPE"}
+            </button>
+          )}
+        </div>
       </div>
     </div>
   );

@@ -40,6 +40,20 @@ public class ActivityController {
         return postService.leaveActivity(jwt, id);
     }
 
+    @DeleteMapping("/{id}/participants/{userId}")
+    public PostResponse removeParticipant(
+            @AuthenticationPrincipal Jwt jwt,
+            @PathVariable UUID id,
+            @PathVariable String userId
+    ) {
+        return postService.removeActivityParticipant(jwt, id, userId);
+    }
+
+    @PostMapping("/{id}/complete")
+    public PostResponse complete(@AuthenticationPrincipal Jwt jwt, @PathVariable UUID id) {
+        return postService.completeActivity(jwt, id);
+    }
+
     @GetMapping("/{id}/participants")
     public List<ParticipantResponse> participants(@PathVariable UUID id) {
         return postService.listActivityParticipants(id);

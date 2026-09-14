@@ -1,5 +1,5 @@
 import { ArrowLeft, Camera, FileText, GraduationCap, Link as LinkIcon, Loader2, MapPin, User } from "lucide-react";
-import { useEffect, useState, type ReactNode } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import { feedApi, type ActivityDomain, type ActivitySuggestion } from "../api/feed";
 import Layout from "../components/layout/Layout";
 import { useEditProfilePage } from "../hooks/profile/useEditProfilePage";
@@ -321,9 +321,21 @@ function ChipSelector({
   onChange: (items: string[]) => void;
 }) {
   const [query, setQuery] = useState("");
+  const [open, setOpen] = useState(false);
+  const selectorRef = useRef<HTMLDivElement | null>(null);
   const remainingSuggestions = suggestions.filter(
     (suggestion) => !items.some((item) => item.toLowerCase() === suggestion.toLowerCase()),
   );
+
+  useEffect(() => {
+    const handlePointerDown = (event: PointerEvent) => {
+      if (!selectorRef.current?.contains(event.target as Node)) {
+        setOpen(false);
+      }
+    };
+    document.addEventListener("pointerdown", handlePointerDown);
+    return () => document.removeEventListener("pointerdown", handlePointerDown);
+  }, []);
 
   const addItem = (value: string) => {
     const cleanValue = value.trim();
@@ -336,6 +348,7 @@ function ChipSelector({
     }
     onChange([...items, cleanValue]);
     setQuery("");
+    setOpen(false);
   };
 
   const removeItem = (value: string) => {
@@ -362,12 +375,15 @@ function ChipSelector({
           </button>
         ))}
       </div>
-      <div className="relative z-20">
+      <div className="relative z-20" ref={selectorRef}>
         <input
           value={query}
           disabled={items.length >= maxItems}
+          onFocus={() => setOpen(true)}
+          onClick={() => setOpen(true)}
           onChange={(event) => {
             setQuery(event.target.value);
+            setOpen(true);
             onSearch?.(event.target.value);
           }}
           onKeyDown={(event) => {
@@ -379,7 +395,7 @@ function ChipSelector({
           placeholder={items.length >= maxItems ? "Maximum atteint" : placeholder}
           className="w-full bg-secondary-50 border border-secondary-100 focus:bg-white focus:border-primary-500 focus:ring-0 rounded-sm py-2.5 px-3 text-sm text-primary-900 transition-all placeholder:text-secondary-300 placeholder:text-xs disabled:opacity-60"
         />
-        {remainingSuggestions.length > 0 && items.length < maxItems && (
+        {open && remainingSuggestions.length > 0 && items.length < maxItems && (
           <div className="absolute left-0 right-0 top-full mt-1 bg-white border border-secondary-100 rounded-sm shadow-lg z-50 max-h-56 overflow-y-auto">
             {remainingSuggestions.slice(0, 8).map((suggestion) => (
               <button

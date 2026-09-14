@@ -120,6 +120,15 @@ export const feedApi = {
   listActivityParticipants: (postId: string) =>
     apiFetch<ParticipantResponse[]>(`/api/activities/${postId}/participants`),
 
+  removeActivityParticipant: (postId: string, userId: string) =>
+    apiFetch<PostResponse>(
+      `/api/activities/${postId}/participants/${encodeURIComponent(userId)}`,
+      { method: "DELETE" },
+    ),
+
+  completeActivity: (postId: string) =>
+    apiFetch<PostResponse>(`/api/activities/${postId}/complete`, { method: "POST" }),
+
   getActivityDomains: () =>
     apiFetch<ActivityDomain[]>("/api/activity-catalog/domains"),
 
